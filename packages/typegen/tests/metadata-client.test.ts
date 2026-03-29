@@ -315,3 +315,193 @@ describe('MetadataClient.getGlobalOptionSet', () => {
     expect(optionSet.Options).toHaveLength(2);
   });
 });
+
+// ─── State Attributes (R4-10) ────────────────────────────────────────────────
+
+describe('MetadataClient.getStateAttributes', () => {
+  it('should fetch state attributes with option sets', async () => {
+    mockFetchSequence({
+      status: 200,
+      body: {
+        value: [
+          {
+            LogicalName: 'statecode',
+            SchemaName: 'StateCode',
+            MetadataId: 'state-1',
+            OptionSet: {
+              Options: [
+                { Value: 0, Label: { UserLocalizedLabel: { Label: 'Active', LanguageCode: 1033 } } },
+                { Value: 1, Label: { UserLocalizedLabel: { Label: 'Inactive', LanguageCode: 1033 } } },
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    const client = createClient();
+    const stateAttrs = await client.getStateAttributes('account');
+
+    expect(stateAttrs).toHaveLength(1);
+    expect(stateAttrs[0]!.LogicalName).toBe('statecode');
+    expect(stateAttrs[0]!.OptionSet!.Options).toHaveLength(2);
+  });
+});
+
+// ─── Relationships (R4-12) ───────────────────────────────────────────────────
+
+describe('MetadataClient.getOneToManyRelationships', () => {
+  it('should fetch 1:N relationships', async () => {
+    mockFetchSequence({
+      status: 200,
+      body: {
+        value: [
+          {
+            SchemaName: 'account_primary_contact',
+            ReferencingEntity: 'contact',
+            ReferencingAttribute: 'parentcustomerid',
+            ReferencedEntity: 'account',
+            ReferencedAttribute: 'accountid',
+            MetadataId: 'rel-1',
+          },
+        ],
+      },
+    });
+
+    const client = createClient();
+    const rels = await client.getOneToManyRelationships('account');
+
+    expect(rels).toHaveLength(1);
+    expect(rels[0]!.ReferencingEntity).toBe('contact');
+  });
+});
+
+describe('MetadataClient.getManyToManyRelationships', () => {
+  it('should fetch N:N relationships', async () => {
+    mockFetchSequence({
+      status: 200,
+      body: {
+        value: [
+          {
+            SchemaName: 'account_contacts',
+            Entity1LogicalName: 'account',
+            Entity2LogicalName: 'contact',
+            IntersectEntityName: 'accountcontact',
+            MetadataId: 'nn-1',
+          },
+        ],
+      },
+    });
+
+    const client = createClient();
+    const rels = await client.getManyToManyRelationships('account');
+
+    expect(rels).toHaveLength(1);
+    expect(rels[0]!.IntersectEntityName).toBe('accountcontact');
+  });
+});
+
+// ─── List Global OptionSets (R4-13) ──────────────────────────────────────────
+
+describe('MetadataClient.listGlobalOptionSets', () => {
+  it('should list all global option sets', async () => {
+    mockFetchSequence({
+      status: 200,
+      body: {
+        value: [
+          { Name: 'incident_caseorigincode', OptionSetType: 'Picklist', IsGlobal: true, MetadataId: 'g-1' },
+          { Name: 'markant_sourcesystemlist', OptionSetType: 'Picklist', IsGlobal: true, MetadataId: 'g-2' },
+        ],
+      },
+    });
+
+    const client = createClient();
+    const optionSets = await client.listGlobalOptionSets();
+
+    expect(optionSets).toHaveLength(2);
+    expect(optionSets[0]!.Name).toBe('incident_caseorigincode');
+  });
+});
+
+// ─── Aggregated getEntityTypeInfo (R4-11) ────────────────────────────────────
+
+describe('MetadataClient.getEntityTypeInfo', () => {
+  it('should aggregate all metadata in parallel', async () => {
+    // 7 parallel API calls: entity+attrs, picklists, lookups, status, state, forms, relationships (2 calls)
+    // The HTTP client makes these in order due to concurrency, but they're all Promise.all'd
+    const mockFetch = vi.fn()
+      // Call 1: getEntityWithAttributes
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({
+          LogicalName: 'account', SchemaName: 'Account', EntitySetName: 'accounts',
+          DisplayName: { UserLocalizedLabel: { Label: 'Account', LanguageCode: 1033 }, LocalizedLabels: [] },
+          PrimaryIdAttribute: 'accountid', PrimaryNameAttribute: 'name', MetadataId: 'e-1',
+          Attributes: [
+            { LogicalName: 'name', SchemaName: 'Name', AttributeType: 'String', MetadataId: 'a-1',
+              IsValidForRead: true, IsValidForCreate: true, IsValidForUpdate: true },
+          ],
+        }),
+        text: () => Promise.resolve('{}'),
+      })
+      // Call 2: getPicklistAttributes
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({ value: [{ LogicalName: 'accountcategorycode', MetadataId: 'p-1' }] }),
+        text: () => Promise.resolve('{}'),
+      })
+      // Call 3: getLookupAttributes
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({ value: [{ LogicalName: 'primarycontactid', Targets: ['contact'], MetadataId: 'l-1' }] }),
+        text: () => Promise.resolve('{}'),
+      })
+      // Call 4: getStatusAttributes
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({ value: [{ LogicalName: 'statuscode', MetadataId: 's-1' }] }),
+        text: () => Promise.resolve('{}'),
+      })
+      // Call 5: getStateAttributes
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({ value: [{ LogicalName: 'statecode', MetadataId: 'st-1' }] }),
+        text: () => Promise.resolve('{}'),
+      })
+      // Call 6: getMainForms
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({ value: [] }),
+        text: () => Promise.resolve('{}'),
+      })
+      // Call 7: getOneToManyRelationships
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({ value: [{ SchemaName: 'account_contacts', MetadataId: 'r-1' }] }),
+        text: () => Promise.resolve('{}'),
+      })
+      // Call 8: getManyToManyRelationships
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({ value: [] }),
+        text: () => Promise.resolve('{}'),
+      });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const client = createClient();
+    const info = await client.getEntityTypeInfo('account');
+
+    expect(info.entity.LogicalName).toBe('account');
+    expect(info.attributes).toHaveLength(1);
+    expect(info.picklistAttributes).toHaveLength(1);
+    expect(info.lookupAttributes).toHaveLength(1);
+    expect(info.statusAttributes).toHaveLength(1);
+    expect(info.stateAttributes).toHaveLength(1);
+    expect(info.forms).toHaveLength(0);
+    expect(info.oneToManyRelationships).toHaveLength(1);
+    expect(info.manyToManyRelationships).toHaveLength(0);
+
+    // Should have made 8 fetch calls (7 parallel via Promise.all, relationships = 2 sub-calls)
+    expect(mockFetch).toHaveBeenCalledTimes(8);
+  });
+});

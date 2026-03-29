@@ -162,6 +162,21 @@ describe('parseForm', () => {
     expect(result.tabs).toHaveLength(1);
     expect(result.tabs[0]!.sections[0]!.controls).toHaveLength(0);
   });
+
+  it('should skip controls without datafieldname (R4-15)', () => {
+    const xml = `<form><tabs><tab name="T1" id="{g}"><columns><column><sections><section name="S1" id="{g}"><rows>
+      <row><cell id="{c1}"><control id="name" classid="{4273EDBD-AC1D-40D3-9FB2-095C621B552D}" datafieldname="name" /></cell></row>
+      <row><cell id="{c2}"><control id="subgrid1" classid="{E7A81278-8635-4D9E-8D4D-59480B391C5B}" /></cell></row>
+      <row><cell id="{c3}"><control id="telephone1" classid="{4273EDBD-AC1D-40D3-9FB2-095C621B552D}" datafieldname="telephone1" /></cell></row>
+    </rows></section></sections></column></columns></tab></tabs></form>`;
+
+    const result = parseForm(createFormMetadata({ formxml: xml }));
+
+    // SubGrid (no datafieldname) should be skipped, only data-bound controls remain
+    expect(result.allControls).toHaveLength(2);
+    expect(result.allControls[0]!.datafieldname).toBe('name');
+    expect(result.allControls[1]!.datafieldname).toBe('telephone1');
+  });
 });
 
 // ─── extractControlFields ────────────────────────────────────────────────────
