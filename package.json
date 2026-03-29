@@ -1,0 +1,48 @@
+{
+  "name": "xrmforge",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A next-generation TypeScript framework for Dynamics 365 CE",
+  "keywords": [
+    "dynamics-365",
+    "xrm",
+    "typescript",
+    "dataverse",
+    "power-platform",
+    "crm",
+    "model-driven-apps"
+  ],
+  "homepage": "https://github.com/xrmforge/xrmforge",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xrmforge/xrmforge.git"
+  },
+  "license": "MIT",
+  "author": "XrmForge Contributors",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "turbo run build && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.0",
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.0",
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.18.0",
+    "vitest": "^3.0.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
