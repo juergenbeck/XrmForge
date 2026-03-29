@@ -124,3 +124,19 @@ export type {
   OptionSetGeneratorOptions,
   FormGeneratorOptions,
 } from './generators/index.js';
+
+// ─── Orchestrator ────────────────────────────────────────────────────────────
+export {
+  TypeGenerationOrchestrator,
+  writeGeneratedFile,
+  writeAllFiles,
+  addGeneratedHeader,
+  generateBarrelIndex,
+} from './orchestrator/index.js';
+
+export type {
+  GenerateConfig,
+  GenerationResult,
+  EntityGenerationResult,
+  GeneratedFile,
+} from './orchestrator/index.js';
