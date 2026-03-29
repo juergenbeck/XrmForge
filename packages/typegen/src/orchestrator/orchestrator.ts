@@ -59,7 +59,8 @@ export class TypeGenerationOrchestrator {
     // Apply defaults
     this.config = {
       environmentUrl: config.environmentUrl,
-      entities: config.entities,
+      entities: [...config.entities],
+      solutionName: config.solutionName ?? '',
       outputDir: config.outputDir,
       labelConfig: config.labelConfig,
       generateEntities: config.generateEntities ?? true,
@@ -102,6 +103,25 @@ export class TypeGenerationOrchestrator {
     });
 
     const metadataClient = new MetadataClient(httpClient);
+
+    // 1b. Resolve solution entities if solutionName is set
+    if (this.config.solutionName) {
+      this.logger.info(`Resolving entities from solution: ${this.config.solutionName}`);
+      const solutionEntityNames = await metadataClient.getEntityIdsForSolution(this.config.solutionName);
+      this.logger.info(`Found ${solutionEntityNames.length} entities in solution`);
+      // Solution entities override the manual list
+      this.config.entities = solutionEntityNames;
+    }
+
+    if (this.config.entities.length === 0) {
+      this.logger.warn('No entities to process. Check --entities or --solution.');
+      return {
+        entities: [],
+        totalFiles: 0,
+        totalWarnings: 1,
+        durationMs: Date.now() - startTime,
+      };
+    }
 
     // 2. Fetch metadata and generate for each entity (parallel, R7-07)
     // DataverseHttpClient already has concurrency control (maxConcurrency),

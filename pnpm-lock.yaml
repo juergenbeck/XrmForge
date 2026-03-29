@@ -35,9 +35,6 @@ importers:
 
   packages/cli:
     dependencies:
-      '@azure/identity':
-        specifier: ^4.6.0
-        version: 4.13.1
       '@xrmforge/typegen':
         specifier: workspace:*
         version: link:../typegen

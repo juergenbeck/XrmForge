@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const CLI_PATH = join(__dirname, '..', 'dist', 'index.js');
+const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
 
 function runCli(args: string[]): { stdout: string; stderr: string; exitCode: number } {
   try {
@@ -31,7 +33,7 @@ describe('xrmforge CLI', () => {
   it('should show version with --version', () => {
     const result = runCli(['--version']);
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain('0.1.0');
+    expect(result.stdout).toContain(pkg.version);
   });
 
   it('should show generate help', () => {

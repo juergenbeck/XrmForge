@@ -92,7 +92,7 @@ export function registerGenerateCommand(program: Command): void {
         } else {
           console.error('\nAn unexpected error occurred.\n');
         }
-        process.exit(1);
+        process.exitCode = 1;
       }
     });
 }
@@ -125,13 +125,20 @@ async function runGenerate(opts: GenerateOptions): Promise<void> {
     throw new Error('No entities specified. Use --entities or --solution.');
   }
 
-  // Build label config
+  // Build label config (R8-05: validate LCID)
   const primaryLanguage = parseInt(opts.labelLanguage, 10);
-  const secondaryLanguage = opts.secondaryLanguage
-    ? parseInt(opts.secondaryLanguage, 10)
-    : undefined;
+  if (isNaN(primaryLanguage)) {
+    throw new Error(`Invalid --label-language: "${opts.labelLanguage}". Must be a numeric LCID (e.g. 1033, 1031).`);
+  }
+  let secondaryLanguage: number | undefined;
+  if (opts.secondaryLanguage) {
+    secondaryLanguage = parseInt(opts.secondaryLanguage, 10);
+    if (isNaN(secondaryLanguage)) {
+      throw new Error(`Invalid --secondary-language: "${opts.secondaryLanguage}". Must be a numeric LCID (e.g. 1033, 1031).`);
+    }
+  }
 
-  console.log(`\nXrmForge Type Generator v0.1.0`);
+  console.log(`\nXrmForge Type Generator`);
   console.log(`Environment: ${opts.url}`);
   console.log(`Auth method: ${opts.auth}`);
   console.log(`Entities:    ${entities.length > 0 ? entities.join(', ') : `(from solution: ${opts.solution})`}`);
@@ -143,18 +150,21 @@ async function runGenerate(opts: GenerateOptions): Promise<void> {
   const orchestrator = new TypeGenerationOrchestrator(credential, {
     environmentUrl: opts.url,
     entities,
+    solutionName: opts.solution,
     outputDir: opts.output,
     labelConfig: { primaryLanguage, secondaryLanguage },
     generateForms: opts.forms,
     generateOptionSets: opts.optionsets,
   });
 
-  // Support Ctrl+C graceful shutdown
+  // Support Ctrl+C and SIGTERM (R8-07: Docker/K8s sends SIGTERM)
   const controller = new AbortController();
-  process.on('SIGINT', () => {
+  const onSignal = () => {
     console.log('\nAborting generation...');
     controller.abort();
-  });
+  };
+  process.once('SIGINT', onSignal);
+  process.once('SIGTERM', onSignal);
 
   const result = await orchestrator.generate({ signal: controller.signal });
 
@@ -180,7 +190,8 @@ async function runGenerate(opts: GenerateOptions): Promise<void> {
   const failures = result.entities.filter((e) => e.files.length === 0 && e.warnings.length > 0);
   if (failures.length > 0) {
     console.log(`\n${failures.length} entity/entities failed. See warnings above.`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   console.log(`\nTypes written to: ${opts.output}/`);

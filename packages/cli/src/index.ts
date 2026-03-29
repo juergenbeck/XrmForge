@@ -9,15 +9,22 @@
  *     --output ./typings
  */
 
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
 import { registerGenerateCommand } from './commands/generate.js';
+
+// Read version from package.json (single source of truth)
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
 
 const program = new Command();
 
 program
   .name('xrmforge')
   .description('TypeScript type generator for Dynamics 365 / Dataverse')
-  .version('0.1.0');
+  .version(pkg.version);
 
 registerGenerateCommand(program);
 
