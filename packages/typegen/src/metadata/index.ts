@@ -1,5 +1,14 @@
 export { MetadataClient } from './client.js';
 export { MetadataCache } from './cache.js';
+export {
+  getPrimaryLabel,
+  getJSDocLabel,
+  labelToIdentifier,
+  generateEnumMembers,
+  getLabelLanguagesParam,
+  DEFAULT_LABEL_CONFIG,
+} from './labels.js';
+export type { LabelConfig } from './labels.js';
 export { parseForm, extractControlFields } from './form-parser.js';
 export { FastXmlParser, defaultXmlParser } from './xml-parser.js';
 export type { XmlParser, XmlElement } from './xml-parser.js';

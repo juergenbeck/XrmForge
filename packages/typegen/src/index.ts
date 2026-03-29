@@ -48,7 +48,21 @@ export { DataverseHttpClient } from './http/index.js';
 export type { HttpClientOptions } from './http/index.js';
 
 // ─── Metadata Client ─────────────────────────────────────────────────────────
-export { MetadataClient, MetadataCache, parseForm, extractControlFields, FastXmlParser, defaultXmlParser } from './metadata/index.js';
+export {
+  MetadataClient,
+  MetadataCache,
+  parseForm,
+  extractControlFields,
+  FastXmlParser,
+  defaultXmlParser,
+  getPrimaryLabel,
+  getJSDocLabel,
+  labelToIdentifier,
+  generateEnumMembers,
+  getLabelLanguagesParam,
+  DEFAULT_LABEL_CONFIG,
+} from './metadata/index.js';
+export type { LabelConfig } from './metadata/index.js';
 export type { XmlParser, XmlElement } from './metadata/index.js';
 export type {
   EntityMetadata,
