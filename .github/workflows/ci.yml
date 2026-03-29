@@ -23,8 +23,7 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
+        # Version is read automatically from packageManager in package.json
 
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
@@ -35,11 +34,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm -r exec tsc --noEmit
+
       - name: Build
         run: pnpm build
 
       - name: Test
         run: pnpm test
-
-      - name: Type check
-        run: pnpm -r exec tsc --noEmit

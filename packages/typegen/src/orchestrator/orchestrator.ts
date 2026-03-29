@@ -13,7 +13,7 @@ import type { TokenCredential } from '@azure/identity';
 import { MetadataClient } from '../metadata/client.js';
 import { DataverseHttpClient } from '../http/client.js';
 import { createLogger, type Logger } from '../logger.js';
-import type { EntityTypeInfo } from '../metadata/types.js';
+import type { EntityTypeInfo, OptionSetMetadata } from '../metadata/types.js';
 import { generateEntityInterface } from '../generators/entity-generator.js';
 import { generateEntityOptionSets } from '../generators/optionset-generator.js';
 import { generateEntityForms } from '../generators/form-generator.js';
@@ -84,20 +84,34 @@ export class TypeGenerationOrchestrator {
 
     const metadataClient = new MetadataClient(httpClient);
 
-    // 2. Fetch metadata and generate for each entity
-    for (const entityName of this.config.entities) {
-      this.logger.info(`Processing entity: ${entityName}`);
+    // 2. Fetch metadata and generate for each entity (parallel, R7-07)
+    // DataverseHttpClient already has concurrency control (maxConcurrency),
+    // so parallel dispatch here is safe and significantly faster for 5+ entities.
+    this.logger.info(`Processing ${this.config.entities.length} entities in parallel`);
 
-      try {
-        const entityResult = await this.processEntity(entityName, metadataClient);
-        entityResults.push(entityResult);
-        allFiles.push(...entityResult.files);
-      } catch (error) {
-        this.logger.error(`Failed to process entity: ${entityName}`, { error });
+    const settled = await Promise.allSettled(
+      this.config.entities.map((entityName) =>
+        this.processEntity(entityName, metadataClient).then((result) => {
+          this.logger.info(`Completed entity: ${entityName} (${result.files.length} files)`);
+          return result;
+        }),
+      ),
+    );
+
+    for (let i = 0; i < settled.length; i++) {
+      const outcome = settled[i]!;
+      const entityName = this.config.entities[i]!;
+
+      if (outcome.status === 'fulfilled') {
+        entityResults.push(outcome.value);
+        allFiles.push(...outcome.value.files);
+      } else {
+        const errorMsg = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
+        this.logger.error(`Failed to process entity: ${entityName}`, { error: outcome.reason });
         entityResults.push({
           entityLogicalName: entityName,
           files: [],
-          warnings: [`Failed to process: ${error instanceof Error ? error.message : String(error)}`],
+          warnings: [`Failed to process: ${errorMsg}`],
         });
       }
     }
@@ -225,8 +239,8 @@ export class TypeGenerationOrchestrator {
    */
   private getPicklistAttributes(
     entityInfo: EntityTypeInfo,
-  ): Array<{ SchemaName: string; OptionSet: import('../metadata/types.js').OptionSetMetadata | null; GlobalOptionSet: import('../metadata/types.js').OptionSetMetadata | null }> {
-    const result: Array<{ SchemaName: string; OptionSet: import('../metadata/types.js').OptionSetMetadata | null; GlobalOptionSet: import('../metadata/types.js').OptionSetMetadata | null }> = [];
+  ): Array<{ SchemaName: string; OptionSet: OptionSetMetadata | null; GlobalOptionSet: OptionSetMetadata | null }> {
+    const result: Array<{ SchemaName: string; OptionSet: OptionSetMetadata | null; GlobalOptionSet: OptionSetMetadata | null }> = [];
 
     for (const attr of entityInfo.picklistAttributes) {
       result.push({

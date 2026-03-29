@@ -125,14 +125,8 @@ export type {
   FormGeneratorOptions,
 } from './generators/index.js';
 
-// ─── Orchestrator ────────────────────────────────────────────────────────────
-export {
-  TypeGenerationOrchestrator,
-  writeGeneratedFile,
-  writeAllFiles,
-  addGeneratedHeader,
-  generateBarrelIndex,
-} from './orchestrator/index.js';
+// ─── Orchestrator (Public API) ───────────────────────────────────────────────
+export { TypeGenerationOrchestrator } from './orchestrator/index.js';
 
 export type {
   GenerateConfig,
