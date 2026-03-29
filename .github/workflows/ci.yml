@@ -45,3 +45,7 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      - name: Coverage (Node 22 only)
+        if: matrix.node-version == 22
+        run: cd packages/typegen && npx vitest run --coverage
