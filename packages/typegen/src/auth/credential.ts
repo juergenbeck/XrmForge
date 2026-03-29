@@ -21,7 +21,7 @@ const log = createLogger('auth');
 
 // ─── Configuration Types ─────────────────────────────────────────────────────
 
-export type AuthMethod = 'client-credentials' | 'interactive' | 'device-code';
+export type AuthMethod = 'client-credentials' | 'interactive' | 'device-code' | 'token';
 
 export interface ClientCredentialsAuth {
   method: 'client-credentials';
@@ -42,7 +42,13 @@ export interface DeviceCodeAuth {
   clientId?: string;
 }
 
-export type AuthConfig = ClientCredentialsAuth | InteractiveAuth | DeviceCodeAuth;
+export interface TokenAuth {
+  method: 'token';
+  /** Pre-acquired Bearer token (e.g. from TokenVault, Key Vault, CI/CD secret) */
+  token: string;
+}
+
+export type AuthConfig = ClientCredentialsAuth | InteractiveAuth | DeviceCodeAuth | TokenAuth;
 
 /**
  * Default App ID provided by Microsoft for dev/prototyping scenarios.
@@ -69,6 +75,9 @@ export function createCredential(config: AuthConfig): TokenCredential {
 
     case 'device-code':
       return createDeviceCodeCredential(config);
+
+    case 'token':
+      return createStaticTokenCredential(config);
 
     default: {
       // Exhaustiveness check: this should never happen with proper TypeScript usage
@@ -140,5 +149,49 @@ function createDeviceCodeCredential(config: DeviceCodeAuth): TokenCredential {
       log.info(info.message);
     },
   });
+}
+
+function createStaticTokenCredential(config: TokenAuth): TokenCredential {
+  if (!config.token?.trim()) {
+    throw new AuthenticationError(
+      ErrorCode.AUTH_MISSING_CONFIG,
+      'Token authentication requires a non-empty token. ' +
+        'Set XRMFORGE_TOKEN environment variable or use --token flag.',
+    );
+  }
+
+  log.debug('Using pre-acquired token (static credential)');
+
+  return new StaticTokenCredential(config.token);
+}
+
+// ─── Static Token Credential ────────────────────────────────────────────────
+
+/**
+ * A TokenCredential that wraps a pre-acquired Bearer token.
+ * Useful for integration with external token sources like:
+ * - Markant TokenVault (Get-VaultToken -System 'dataverse_dev')
+ * - Azure Key Vault
+ * - CI/CD pipeline secrets
+ *
+ * Note: This credential does NOT handle token refresh. If the token expires,
+ * the next API call will fail with HTTP 401.
+ */
+export class StaticTokenCredential implements TokenCredential {
+  private readonly token: string;
+
+  constructor(token: string) {
+    this.token = token;
+  }
+
+  async getToken(): Promise<{ token: string; expiresOnTimestamp: number }> {
+    // Return the static token with a far-future expiry.
+    // The HttpClient's 401-retry logic will clear the cache and call getToken again,
+    // but since we have no refresh mechanism, it will return the same (possibly expired) token.
+    return {
+      token: this.token,
+      expiresOnTimestamp: Date.now() + 60 * 60 * 1000, // Pretend 1 hour validity
+    };
+  }
 }
 

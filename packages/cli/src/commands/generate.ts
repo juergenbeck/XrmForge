@@ -35,6 +35,7 @@ interface GenerateOptions {
   tenantId?: string;
   clientId?: string;
   clientSecret?: string;
+  token?: string;
   entities?: string;
   solution?: string;
   output: string;
@@ -55,12 +56,13 @@ export function registerGenerateCommand(program: Command): void {
 
     // Connection
     .requiredOption('--url <url>', 'Dataverse environment URL (e.g. https://myorg.crm4.dynamics.com)')
-    .requiredOption('--auth <method>', 'Authentication method: client-credentials, interactive, device-code')
+    .requiredOption('--auth <method>', 'Authentication method: client-credentials, interactive, device-code, token')
 
     // Auth credentials
     .option('--tenant-id <id>', 'Azure AD tenant ID')
     .option('--client-id <id>', 'Azure AD application (client) ID')
     .option('--client-secret <secret>', 'Client secret (for client-credentials auth)')
+    .option('--token <token>', 'Pre-acquired Bearer token (for --auth token). Prefer XRMFORGE_TOKEN env var for security.')
 
     // Scope
     .option('--entities <list>', 'Comma-separated list of entity logical names (e.g. account,contact)')
@@ -233,10 +235,26 @@ function buildAuthConfig(opts: GenerateOptions): AuthConfig {
         clientId: opts.clientId,
       };
 
+    case 'token': {
+      // Token from --token flag or XRMFORGE_TOKEN environment variable
+      const token = opts.token || process.env['XRMFORGE_TOKEN'];
+      if (!token) {
+        throw new Error(
+          'Token authentication requires a token. ' +
+          'Set XRMFORGE_TOKEN environment variable or use --token flag.',
+        );
+      }
+      if (opts.token) {
+        console.warn('WARNING: Using --token on the command line exposes the token in process list and shell history.');
+        console.warn('         Prefer setting XRMFORGE_TOKEN environment variable instead.\n');
+      }
+      return { method: 'token', token };
+    }
+
     default:
       throw new Error(
         `Unknown auth method: "${opts.auth}". ` +
-        `Supported: client-credentials, interactive, device-code`,
+        `Supported: client-credentials, interactive, device-code, token`,
       );
   }
 }
