@@ -65,6 +65,17 @@ export interface HttpClientOptions {
 
   /** Maximum consecutive HTTP 429 retries before giving up (default: 10) */
   maxRateLimitRetries?: number;
+
+  /**
+   * Read-only mode (default: true).
+   * When true, the client will ONLY allow GET requests and throw an error
+   * for any POST, PATCH, PUT, or DELETE attempt.
+   *
+   * SAFETY: XrmForge typegen is a read-only tool. It must NEVER modify
+   * data in Dataverse environments. This flag defaults to true and should
+   * only be set to false for the @xrmforge/webapi package (future).
+   */
+  readOnly?: boolean;
 }
 
 // ─── Token Cache ─────────────────────────────────────────────────────────────
@@ -86,6 +97,7 @@ export class DataverseHttpClient {
   private readonly maxConcurrency: number;
   private readonly maxPages: number;
   private readonly maxRateLimitRetries: number;
+  private readonly readOnly: boolean;
 
   private cachedToken: CachedToken | null = null;
 
@@ -103,6 +115,7 @@ export class DataverseHttpClient {
     this.maxConcurrency = options.maxConcurrency ?? 5;
     this.maxPages = options.maxPages ?? 100;
     this.maxRateLimitRetries = options.maxRateLimitRetries ?? DEFAULT_MAX_RATE_LIMIT_RETRIES;
+    this.readOnly = options.readOnly ?? true; // SAFETY: default to read-only
   }
 
   /**
@@ -160,6 +173,36 @@ export class DataverseHttpClient {
     }
 
     return allResults;
+  }
+
+  // ─── Read-Only Enforcement ─────────────────────────────────────────────
+
+  /**
+   * Returns true if this client is in read-only mode (the safe default).
+   */
+  get isReadOnly(): boolean {
+    return this.readOnly;
+  }
+
+  /**
+   * Assert that a non-GET operation is allowed.
+   * Throws immediately if the client is in read-only mode.
+   *
+   * @throws {ApiRequestError} always in read-only mode
+   * @internal This method exists so that future packages (e.g. @xrmforge/webapi)
+   * can reuse the HTTP client for write operations when readOnly is explicitly false.
+   */
+  assertWriteAllowed(operation: string): void {
+    if (this.readOnly) {
+      throw new ApiRequestError(
+        ErrorCode.API_REQUEST_FAILED,
+        `BLOCKED: Write operation "${operation}" rejected. ` +
+          `This client is in read-only mode (readOnly: true). ` +
+          `XrmForge typegen must NEVER modify data in Dataverse. ` +
+          `Set readOnly: false only for @xrmforge/webapi (not for typegen).`,
+        { operation, readOnly: true },
+      );
+    }
   }
 
   // ─── Input Sanitization ──────────────────────────────────────────────────
@@ -306,12 +349,12 @@ export class DataverseHttpClient {
       log.debug(`GET ${url}`, { attempt });
 
       response = await fetch(url, {
+        method: 'GET', // Explicit: never rely on default
         headers: {
           Authorization: `Bearer ${token}`,
           'OData-MaxVersion': '4.0',
           'OData-Version': '4.0',
           Accept: 'application/json',
-          'Content-Type': 'application/json',
           Prefer: 'odata.include-annotations="*"',
         },
         signal: controller.signal,

@@ -445,3 +445,79 @@ describe('Concurrency control', () => {
     vi.unstubAllGlobals();
   });
 });
+
+// ─── Read-Only Safety ────────────────────────────────────────────────────────
+
+describe('read-only safety', () => {
+  it('should be read-only by default', () => {
+    const client = new DataverseHttpClient(createTestOptions());
+    expect(client.isReadOnly).toBe(true);
+  });
+
+  it('should block write operations when readOnly is true (default)', () => {
+    const client = new DataverseHttpClient(createTestOptions());
+
+    expect(() => client.assertWriteAllowed('POST /accounts')).toThrowError(/BLOCKED/);
+    expect(() => client.assertWriteAllowed('PATCH /accounts(id)')).toThrowError(/BLOCKED/);
+    expect(() => client.assertWriteAllowed('DELETE /accounts(id)')).toThrowError(/BLOCKED/);
+  });
+
+  it('should block write operations when readOnly is explicitly true', () => {
+    const client = new DataverseHttpClient(createTestOptions({ readOnly: true }));
+
+    expect(() => client.assertWriteAllowed('PUT')).toThrowError(/read-only mode/);
+  });
+
+  it('should allow write operations when readOnly is explicitly false', () => {
+    const client = new DataverseHttpClient(createTestOptions({ readOnly: false }));
+
+    expect(client.isReadOnly).toBe(false);
+    expect(() => client.assertWriteAllowed('POST /accounts')).not.toThrow();
+    expect(() => client.assertWriteAllowed('PATCH /accounts(id)')).not.toThrow();
+  });
+
+  it('should always allow GET requests regardless of readOnly flag', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(createMockResponse(200, { value: 'test' }));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const client = new DataverseHttpClient(createTestOptions({ readOnly: true }));
+    await client.get('/EntityDefinitions');
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    // Verify the request used GET method explicitly
+    const fetchCall = mockFetch.mock.calls[0];
+    expect(fetchCall[1].method).toBe('GET');
+
+    vi.unstubAllGlobals();
+  });
+
+  it('should include explicit method: GET in fetch calls', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(createMockResponse(200, { value: [] }));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const client = new DataverseHttpClient(createTestOptions());
+    await client.getAll('/EntityDefinitions');
+
+    // Every fetch call must have method: 'GET' explicitly set
+    for (const call of mockFetch.mock.calls) {
+      expect(call[1].method).toBe('GET');
+    }
+
+    vi.unstubAllGlobals();
+  });
+
+  it('should not include Content-Type header in GET requests (no body)', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(createMockResponse(200, { value: 'test' }));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const client = new DataverseHttpClient(createTestOptions());
+    await client.get('/EntityDefinitions');
+
+    const fetchCall = mockFetch.mock.calls[0];
+    const headers = fetchCall[1].headers;
+    // GET requests should NOT have Content-Type (no body)
+    expect(headers['Content-Type']).toBeUndefined();
+
+    vi.unstubAllGlobals();
+  });
+});
