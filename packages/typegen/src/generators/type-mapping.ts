@@ -52,7 +52,9 @@ const ENTITY_TYPE_MAP: Record<string, string> = {
   Picklist: 'number',
   State: 'number',
   Status: 'number',
-  MultiSelectPicklist: 'number[]',
+  // MultiSelectPicklist: Web API returns comma-separated string (e.g. "595300000,595300001")
+  // Verified live on markant-dev.crm4.dynamics.com 2026-03-29
+  MultiSelectPicklist: 'string',
 
   // Date/Time (ISO 8601 strings in Web API)
   DateTime: 'string',
@@ -66,9 +68,8 @@ const ENTITY_TYPE_MAP: Record<string, string> = {
   Owner: 'string',
   PartyList: 'string',
 
-  // Binary/Image (not typically in entity interfaces)
+  // Binary/Image (not typically in entity interfaces, filtered by shouldIncludeInEntityInterface)
   Virtual: 'unknown',
-  ManagedProperty: 'unknown',
   CalendarRules: 'unknown',
 };
 
@@ -236,10 +237,28 @@ export function isLookupType(attributeType: string): boolean {
 /**
  * Determine if an attribute should be included in entity interfaces.
  * Excludes virtual/calculated fields that are not readable via Web API.
+ *
+ * Filtered types:
+ * - Virtual, CalendarRules: not readable via Web API
+ * - ManagedProperty: solution metadata (iscustomizable etc.), not business data
+ * - EntityName: internal companion fields for lookups; entity type info is only
+ *   available via @Microsoft.Dynamics.CRM.lookuplogicalname OData annotation,
+ *   not as a standalone property in Web API responses
  */
 export function shouldIncludeInEntityInterface(attr: AttributeMetadata): boolean {
   // Exclude virtual attributes (images, file, calculated)
   if (attr.AttributeType === 'Virtual' || attr.AttributeType === 'CalendarRules') {
+    return false;
+  }
+
+  // Exclude solution metadata (not business data)
+  if (attr.AttributeType === 'ManagedProperty') {
+    return false;
+  }
+
+  // Exclude EntityName companion fields (e.g. owneridtype, regardingobjectidtype)
+  // Entity type info comes from OData annotations, not from these fields
+  if (attr.AttributeType === 'EntityName') {
     return false;
   }
 

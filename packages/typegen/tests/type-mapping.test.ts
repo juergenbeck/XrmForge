@@ -47,8 +47,9 @@ describe('getEntityPropertyType', () => {
     expect(getEntityPropertyType('Status')).toBe('number');
   });
 
-  it('should map MultiSelectPicklist to number[]', () => {
-    expect(getEntityPropertyType('MultiSelectPicklist')).toBe('number[]');
+  it('should map MultiSelectPicklist to string (Web API returns comma-separated values)', () => {
+    // Verified live: Xrm.WebApi returns "595300001" or "595300000,595300001" as string
+    expect(getEntityPropertyType('MultiSelectPicklist')).toBe('string');
   });
 
   it('should map DateTime to string (ISO 8601)', () => {
@@ -78,7 +79,7 @@ describe('getEntityPropertyType', () => {
   it('should return unknown for unmapped types', () => {
     expect(getEntityPropertyType('SomeFutureType')).toBe('unknown');
     expect(getEntityPropertyType('Virtual')).toBe('unknown');
-    expect(getEntityPropertyType('ManagedProperty')).toBe('unknown');
+    expect(getEntityPropertyType('ManagedProperty')).toBe('unknown'); // filtered by shouldIncludeInEntityInterface
   });
 });
 
@@ -289,6 +290,16 @@ describe('shouldIncludeInEntityInterface', () => {
 
   it('should exclude attributes with IsValidForRead=false', () => {
     expect(shouldIncludeInEntityInterface(createAttr({ IsValidForRead: false }))).toBe(false);
+  });
+
+  it('should exclude ManagedProperty (solution metadata, not business data)', () => {
+    expect(shouldIncludeInEntityInterface(createAttr({ AttributeType: 'ManagedProperty' }))).toBe(false);
+  });
+
+  it('should exclude EntityName (internal lookup companion fields)', () => {
+    // EntityName fields like owneridtype are not standalone Web API properties.
+    // Entity type info comes from @Microsoft.Dynamics.CRM.lookuplogicalname annotation.
+    expect(shouldIncludeInEntityInterface(createAttr({ AttributeType: 'EntityName' }))).toBe(false);
   });
 
   it('should include attributes even if not valid for create/update', () => {
