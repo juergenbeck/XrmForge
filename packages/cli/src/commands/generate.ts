@@ -19,6 +19,7 @@
  */
 
 import type { Command } from 'commander';
+import { loadConfig, mergeWithCliOptions } from '../config.js';
 import {
   TypeGenerationOrchestrator,
   createCredential,
@@ -54,9 +55,9 @@ export function registerGenerateCommand(program: Command): void {
     .command('generate')
     .description('Generate TypeScript declarations from a Dataverse environment')
 
-    // Connection
-    .requiredOption('--url <url>', 'Dataverse environment URL (e.g. https://myorg.crm4.dynamics.com)')
-    .requiredOption('--auth <method>', 'Authentication method: client-credentials, interactive, device-code, token')
+    // Connection (can come from xrmforge.config.json)
+    .option('--url <url>', 'Dataverse environment URL (e.g. https://myorg.crm4.dynamics.com)')
+    .option('--auth <method>', 'Authentication method: client-credentials, interactive, device-code, token')
 
     // Auth credentials
     .option('--tenant-id <id>', 'Azure AD tenant ID')
@@ -102,16 +103,27 @@ export function registerGenerateCommand(program: Command): void {
 /**
  * Execute the generate command.
  */
-async function runGenerate(opts: GenerateOptions): Promise<void> {
+async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
+  // Load config file and merge with CLI options (CLI takes precedence)
+  const fileConfig = loadConfig();
+  const merged = mergeWithCliOptions(fileConfig, cliOpts as unknown as Record<string, unknown>);
+  const opts = merged as unknown as GenerateOptions;
+
   // Configure logging
   configureLogging({
     sink: new ConsoleLogSink(),
     minLevel: opts.verbose ? LogLevel.DEBUG : LogLevel.INFO,
   });
 
-  // Validate required options
+  // Validate required options (may come from config file)
+  if (!opts.url) {
+    throw new Error('--url is required. Set it via CLI flag or in xrmforge.config.json.');
+  }
+  if (!opts.auth) {
+    throw new Error('--auth is required. Set it via CLI flag or in xrmforge.config.json.');
+  }
   if (!opts.entities && !opts.solution) {
-    throw new Error('Either --entities or --solution must be specified.');
+    throw new Error('Either --entities or --solution must be specified (CLI or xrmforge.config.json).');
   }
 
   // Build auth config
