@@ -1,0 +1,28 @@
+export { MetadataClient } from './client.js';
+export { parseForm, extractControlFields } from './form-parser.js';
+export type {
+  EntityMetadata,
+  AttributeMetadata,
+  StringAttributeMetadata,
+  IntegerAttributeMetadata,
+  DecimalAttributeMetadata,
+  MoneyAttributeMetadata,
+  DateTimeAttributeMetadata,
+  LookupAttributeMetadata,
+  PicklistAttributeMetadata,
+  StatusAttributeMetadata,
+  StateAttributeMetadata,
+  OptionSetMetadata,
+  OptionMetadata,
+  SystemFormMetadata,
+  ParsedForm,
+  FormControl,
+  FormTab,
+  FormSection,
+  OneToManyRelationshipMetadata,
+  ManyToManyRelationshipMetadata,
+  SolutionComponent,
+  EntityTypeInfo,
+  Label,
+  LocalizedLabel,
+} from './types.js';

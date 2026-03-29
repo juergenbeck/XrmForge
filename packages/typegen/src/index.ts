@@ -46,3 +46,31 @@ export type {
 // ─── HTTP Client ─────────────────────────────────────────────────────────────
 export { DataverseHttpClient } from './http/index.js';
 export type { HttpClientOptions } from './http/index.js';
+
+// ─── Metadata Client ─────────────────────────────────────────────────────────
+export { MetadataClient, parseForm, extractControlFields } from './metadata/index.js';
+export type {
+  EntityMetadata,
+  AttributeMetadata,
+  StringAttributeMetadata,
+  IntegerAttributeMetadata,
+  DecimalAttributeMetadata,
+  MoneyAttributeMetadata,
+  DateTimeAttributeMetadata,
+  LookupAttributeMetadata,
+  PicklistAttributeMetadata,
+  StatusAttributeMetadata,
+  StateAttributeMetadata,
+  OptionSetMetadata,
+  OptionMetadata,
+  SystemFormMetadata,
+  ParsedForm,
+  FormControl,
+  FormTab,
+  FormSection,
+  OneToManyRelationshipMetadata,
+  ManyToManyRelationshipMetadata,
+  EntityTypeInfo,
+  Label,
+  LocalizedLabel,
+} from './metadata/index.js';
