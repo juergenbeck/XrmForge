@@ -59,15 +59,26 @@ describe('getEntityPropertyType', () => {
     expect(getEntityPropertyType('Uniqueidentifier')).toBe('string');
   });
 
+  it('should map Double and BigInt to number', () => {
+    expect(getEntityPropertyType('Double')).toBe('number');
+    expect(getEntityPropertyType('BigInt')).toBe('number');
+  });
+
+  it('should map EntityName to string', () => {
+    expect(getEntityPropertyType('EntityName')).toBe('string');
+  });
+
   it('should return string for lookups regardless of attributeType', () => {
     expect(getEntityPropertyType('Lookup', true)).toBe('string');
     expect(getEntityPropertyType('Customer', true)).toBe('string');
     expect(getEntityPropertyType('Owner', true)).toBe('string');
+    expect(getEntityPropertyType('PartyList', true)).toBe('string');
   });
 
   it('should return unknown for unmapped types', () => {
     expect(getEntityPropertyType('SomeFutureType')).toBe('unknown');
     expect(getEntityPropertyType('Virtual')).toBe('unknown');
+    expect(getEntityPropertyType('ManagedProperty')).toBe('unknown');
   });
 });
 
@@ -90,18 +101,38 @@ describe('getFormAttributeType', () => {
     expect(getFormAttributeType('Boolean')).toBe('Xrm.Attributes.BooleanAttribute');
   });
 
+  it('should map Memo to Xrm.Attributes.StringAttribute', () => {
+    expect(getFormAttributeType('Memo')).toBe('Xrm.Attributes.StringAttribute');
+  });
+
+  it('should map Decimal/Double/BigInt to Xrm.Attributes.NumberAttribute', () => {
+    expect(getFormAttributeType('Decimal')).toBe('Xrm.Attributes.NumberAttribute');
+    expect(getFormAttributeType('Double')).toBe('Xrm.Attributes.NumberAttribute');
+    expect(getFormAttributeType('BigInt')).toBe('Xrm.Attributes.NumberAttribute');
+  });
+
   it('should map Picklist to Xrm.Attributes.OptionSetAttribute', () => {
     expect(getFormAttributeType('Picklist')).toBe('Xrm.Attributes.OptionSetAttribute');
+  });
+
+  it('should map State/Status to Xrm.Attributes.OptionSetAttribute', () => {
+    expect(getFormAttributeType('State')).toBe('Xrm.Attributes.OptionSetAttribute');
+    expect(getFormAttributeType('Status')).toBe('Xrm.Attributes.OptionSetAttribute');
+  });
+
+  it('should map EntityName to Xrm.Attributes.StringAttribute', () => {
+    expect(getFormAttributeType('EntityName')).toBe('Xrm.Attributes.StringAttribute');
   });
 
   it('should map DateTime to Xrm.Attributes.DateAttribute', () => {
     expect(getFormAttributeType('DateTime')).toBe('Xrm.Attributes.DateAttribute');
   });
 
-  it('should map Lookup to Xrm.Attributes.LookupAttribute', () => {
+  it('should map Lookup/Customer/Owner/PartyList to Xrm.Attributes.LookupAttribute', () => {
     expect(getFormAttributeType('Lookup')).toBe('Xrm.Attributes.LookupAttribute');
     expect(getFormAttributeType('Customer')).toBe('Xrm.Attributes.LookupAttribute');
     expect(getFormAttributeType('Owner')).toBe('Xrm.Attributes.LookupAttribute');
+    expect(getFormAttributeType('PartyList')).toBe('Xrm.Attributes.LookupAttribute');
   });
 
   it('should map MultiSelectPicklist to MultiSelectOptionSetAttribute', () => {
@@ -116,20 +147,38 @@ describe('getFormAttributeType', () => {
 // ─── Form Control Types ──────────────────────────────────────────────────────
 
 describe('getFormControlType', () => {
-  it('should map String to StringControl', () => {
+  it('should map String/Memo to StringControl', () => {
     expect(getFormControlType('String')).toBe('Xrm.Controls.StringControl');
+    expect(getFormControlType('Memo')).toBe('Xrm.Controls.StringControl');
   });
 
-  it('should map Integer to NumberControl', () => {
+  it('should map numeric types to NumberControl', () => {
     expect(getFormControlType('Integer')).toBe('Xrm.Controls.NumberControl');
+    expect(getFormControlType('BigInt')).toBe('Xrm.Controls.NumberControl');
+    expect(getFormControlType('Decimal')).toBe('Xrm.Controls.NumberControl');
+    expect(getFormControlType('Double')).toBe('Xrm.Controls.NumberControl');
+    expect(getFormControlType('Money')).toBe('Xrm.Controls.NumberControl');
   });
 
-  it('should map Picklist to OptionSetControl', () => {
+  it('should map Boolean to StandardControl', () => {
+    expect(getFormControlType('Boolean')).toBe('Xrm.Controls.StandardControl');
+  });
+
+  it('should map Picklist/State/Status to OptionSetControl', () => {
     expect(getFormControlType('Picklist')).toBe('Xrm.Controls.OptionSetControl');
+    expect(getFormControlType('State')).toBe('Xrm.Controls.OptionSetControl');
+    expect(getFormControlType('Status')).toBe('Xrm.Controls.OptionSetControl');
   });
 
-  it('should map Lookup to LookupControl', () => {
+  it('should map MultiSelectPicklist to MultiSelectOptionSetControl (R5-04)', () => {
+    expect(getFormControlType('MultiSelectPicklist')).toBe('Xrm.Controls.MultiSelectOptionSetControl');
+  });
+
+  it('should map Lookup/Customer/Owner/PartyList to LookupControl', () => {
     expect(getFormControlType('Lookup')).toBe('Xrm.Controls.LookupControl');
+    expect(getFormControlType('Customer')).toBe('Xrm.Controls.LookupControl');
+    expect(getFormControlType('Owner')).toBe('Xrm.Controls.LookupControl');
+    expect(getFormControlType('PartyList')).toBe('Xrm.Controls.LookupControl');
   });
 
   it('should map DateTime to DateControl', () => {

@@ -157,7 +157,7 @@ const FORM_CONTROL_TYPE_MAP: Record<string, string> = {
   Picklist: 'Xrm.Controls.OptionSetControl',
   State: 'Xrm.Controls.OptionSetControl',
   Status: 'Xrm.Controls.OptionSetControl',
-  MultiSelectPicklist: 'Xrm.Controls.OptionSetControl',
+  MultiSelectPicklist: 'Xrm.Controls.MultiSelectOptionSetControl',
 
   // Lookup controls
   Lookup: 'Xrm.Controls.LookupControl',
