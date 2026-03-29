@@ -1,5 +1,8 @@
 export { MetadataClient } from './client.js';
+export { MetadataCache } from './cache.js';
 export { parseForm, extractControlFields } from './form-parser.js';
+export { FastXmlParser, defaultXmlParser } from './xml-parser.js';
+export type { XmlParser, XmlElement } from './xml-parser.js';
 export type {
   EntityMetadata,
   AttributeMetadata,

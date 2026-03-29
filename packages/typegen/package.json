@@ -35,7 +35,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@azure/identity": "^4.6.0"
+    "@azure/identity": "^4.6.0",
+    "fast-xml-parser": "^5.5.9"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
