@@ -96,23 +96,30 @@ export function generateFormInterface(
   lines.push('');
 
   // Interface JSDoc
+  // Note: We use Omit<> to remove the base getAttribute/getControl signatures
+  // before adding our typed overloads. This prevents TypeScript signature
+  // incompatibility with @types/xrm's MatchingDelegate overloads.
   lines.push(`  /** ${form.name} */`);
-  lines.push(`  interface ${interfaceName} extends Xrm.FormContext {`);
+  lines.push(`  interface ${interfaceName} extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> {`);
 
   // getAttribute overloads
   for (const field of fields) {
     lines.push(`    getAttribute(name: "${field.logicalName}"): ${field.formAttributeType};`);
   }
-  // Fallback signature
+  // Fallback signatures (compatible with base FormContext)
   lines.push('    getAttribute(name: string): Xrm.Attributes.Attribute;');
+  lines.push('    getAttribute(index: number): Xrm.Attributes.Attribute;');
+  lines.push('    getAttribute(): Xrm.Attributes.Attribute[];');
   lines.push('');
 
   // getControl overloads
   for (const field of fields) {
     lines.push(`    getControl(name: "${field.logicalName}"): ${field.formControlType};`);
   }
-  // Fallback signature
+  // Fallback signatures (compatible with base FormContext)
   lines.push('    getControl(name: string): Xrm.Controls.Control;');
+  lines.push('    getControl(index: number): Xrm.Controls.Control;');
+  lines.push('    getControl(): Xrm.Controls.Control[];');
 
   lines.push('  }');
   lines.push('}');

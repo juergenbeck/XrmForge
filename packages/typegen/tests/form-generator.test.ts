@@ -49,7 +49,7 @@ describe('generateFormInterface', () => {
     const result = generateFormInterface(form, 'account', attrMap);
 
     expect(result).toContain('declare namespace XrmForge.Forms.Account {');
-    expect(result).toContain('interface AccountAccountForm extends Xrm.FormContext {');
+    expect(result).toContain("interface AccountAccountForm extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> {");
     expect(result).toContain('getAttribute(name: "name"): Xrm.Attributes.StringAttribute;');
     expect(result).toContain('getAttribute(name: "telephone1"): Xrm.Attributes.StringAttribute;');
   });
