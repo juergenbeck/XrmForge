@@ -6,6 +6,7 @@ export {
   labelToIdentifier,
   generateEnumMembers,
   getLabelLanguagesParam,
+  transliterateUmlauts,
   DEFAULT_LABEL_CONFIG,
 } from './labels.js';
 export type { LabelConfig } from './labels.js';

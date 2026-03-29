@@ -91,9 +91,12 @@ describe('labelToIdentifier', () => {
     expect(labelToIdentifier('Option (A) - First!')).toBe('OptionAFirst');
   });
 
-  it('should handle accented characters', () => {
+  it('should transliterate German umlauts (R6-03)', () => {
     expect(labelToIdentifier('Bevorzugter Kunde')).toBe('BevorzugterKunde');
-    expect(labelToIdentifier('Höchste Priorität')).toBe('HöchstePriorität');
+    expect(labelToIdentifier('Höchste Priorität')).toBe('HoechstePrioritaet');
+    expect(labelToIdentifier('Bevorzügter Kunde')).toBe('BevorzuegterKunde');
+    expect(labelToIdentifier('Straße')).toBe('Strasse');
+    expect(labelToIdentifier('Größe')).toBe('Groesse');
   });
 
   it('should prefix with underscore if starts with digit', () => {

@@ -74,19 +74,39 @@ function getLabelForLanguage(label: Label, languageCode: number): string {
   return '';
 }
 
+// ─── Transliteration ─────────────────────────────────────────────────────────
+
+/** German umlaut transliteration map (R6-03) */
+const TRANSLITERATION_MAP: Record<string, string> = {
+  'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss',
+  'Ä': 'Ae', 'Ö': 'Oe', 'Ü': 'Ue',
+};
+
+/**
+ * Transliterate German umlauts to ASCII equivalents for TypeScript identifiers.
+ * Other non-ASCII characters are removed in the subsequent cleaning step.
+ */
+export function transliterateUmlauts(text: string): string {
+  return text.replace(/[äöüßÄÖÜ]/g, (char) => TRANSLITERATION_MAP[char] ?? char);
+}
+
 // ─── Identifier Generation ───────────────────────────────────────────────────
 
 /**
  * Convert a label string to a valid TypeScript identifier (PascalCase).
- * Removes invalid characters, handles edge cases.
+ * Transliterates German umlauts (ä to ae, ö to oe, ü to ue, ß to ss),
+ * then removes remaining invalid characters.
  *
  * @returns A valid TypeScript identifier, or null if the label cannot be converted
  */
 export function labelToIdentifier(label: string): string | null {
   if (!label || label.trim().length === 0) return null;
 
-  // Remove characters that are not letters, digits, spaces, or underscores
-  let cleaned = label.replace(/[^a-zA-Z0-9\s_\u00C0-\u024F]/g, '');
+  // Transliterate umlauts first (ä -> ae, ö -> oe, etc.)
+  const transliterated = transliterateUmlauts(label);
+
+  // Remove characters that are not ASCII letters, digits, spaces, or underscores
+  let cleaned = transliterated.replace(/[^a-zA-Z0-9\s_]/g, '');
   cleaned = cleaned.trim();
 
   if (cleaned.length === 0) return null;

@@ -135,6 +135,14 @@ describe('labelToEnumMember', () => {
     // Mixed case works naturally
     expect(labelToEnumMember('field_status_active')).toBe('FieldStatusActive');
   });
+
+  it('should transliterate German umlauts (R6-03)', () => {
+    expect(labelToEnumMember('Bevorzügter Kunde')).toBe('BevorzuegterKunde');
+    expect(labelToEnumMember('Größe')).toBe('Groesse');
+    expect(labelToEnumMember('Straße')).toBe('Strasse');
+    expect(labelToEnumMember('Ärztlich')).toBe('Aerztlich');
+    expect(labelToEnumMember('Übersicht')).toBe('Uebersicht');
+  });
 });
 
 // ─── disambiguateEnumMembers ─────────────────────────────────────────────────
