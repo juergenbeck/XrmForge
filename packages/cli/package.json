@@ -12,6 +12,15 @@
   ],
   "license": "MIT",
   "author": "XrmForge Contributors",
+  "homepage": "https://github.com/juergenbeck/XrmForge/tree/main/packages/cli",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/juergenbeck/XrmForge.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/juergenbeck/XrmForge/issues"
+  },
   "type": "module",
   "bin": {
     "xrmforge": "./dist/index.js"

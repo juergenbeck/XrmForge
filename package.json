@@ -12,10 +12,10 @@
     "crm",
     "model-driven-apps"
   ],
-  "homepage": "https://github.com/xrmforge/xrmforge",
+  "homepage": "https://github.com/juergenbeck/XrmForge",
   "repository": {
     "type": "git",
-    "url": "https://github.com/xrmforge/xrmforge.git"
+    "url": "https://github.com/juergenbeck/XrmForge.git"
   },
   "license": "MIT",
   "author": "XrmForge Contributors",
