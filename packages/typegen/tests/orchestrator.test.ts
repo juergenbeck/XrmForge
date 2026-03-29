@@ -273,4 +273,143 @@ describe('TypeGenerationOrchestrator', () => {
       expect(file.content).toContain('Do not edit manually');
     }
   });
+
+  it('should throw when useCache is set to true (@alpha, R7-01)', () => {
+    const credential = createMockCredential();
+
+    expect(() => new TypeGenerationOrchestrator(credential, {
+      environmentUrl: 'https://test.crm4.dynamics.com',
+      entities: ['account'],
+      outputDir: './typings',
+      labelConfig: { primaryLanguage: 1033 },
+      useCache: true,
+    })).toThrowError(/not yet implemented/);
+  });
+
+  it('should not throw when useCache is false or omitted', () => {
+    const credential = createMockCredential();
+
+    // Explicitly false
+    expect(() => new TypeGenerationOrchestrator(credential, {
+      environmentUrl: 'https://test.crm4.dynamics.com',
+      entities: ['account'],
+      outputDir: './typings',
+      labelConfig: { primaryLanguage: 1033 },
+      useCache: false,
+    })).not.toThrow();
+
+    // Omitted (default)
+    expect(() => new TypeGenerationOrchestrator(credential, {
+      environmentUrl: 'https://test.crm4.dynamics.com',
+      entities: ['account'],
+      outputDir: './typings',
+      labelConfig: { primaryLanguage: 1033 },
+    })).not.toThrow();
+  });
+
+  it('should return empty result when aborted before start', async () => {
+    const credential = createMockCredential();
+
+    const mockGetEntityTypeInfo = vi.fn().mockResolvedValue(createMockEntityInfo('account'));
+    vi.mocked(MetadataClient).mockImplementation(() => ({
+      getEntityTypeInfo: mockGetEntityTypeInfo,
+      getEntityWithAttributes: vi.fn(),
+      getEntityAttributes: vi.fn(),
+      getEntityForms: vi.fn(),
+      getGlobalOptionSets: vi.fn(),
+      getSolutionEntities: vi.fn(),
+    }) as unknown as InstanceType<typeof MetadataClient>);
+
+    const orchestrator = new TypeGenerationOrchestrator(credential, {
+      environmentUrl: 'https://test.crm4.dynamics.com',
+      entities: ['account'],
+      outputDir: './typings',
+      labelConfig: { primaryLanguage: 1033 },
+    });
+
+    // Create an already-aborted signal
+    const controller = new AbortController();
+    controller.abort();
+
+    const result = await orchestrator.generate({ signal: controller.signal });
+
+    expect(result.entities).toHaveLength(0);
+    expect(result.totalFiles).toBe(0);
+    // MetadataClient should never have been called
+    expect(mockGetEntityTypeInfo).not.toHaveBeenCalled();
+  });
+
+  it('should process multiple entities in parallel (R7-04)', async () => {
+    const credential = createMockCredential();
+    const mockAccountInfo = createMockEntityInfo('account');
+    const mockContactInfo = createMockEntityInfo('contact');
+
+    const mockGetEntityTypeInfo = vi.fn()
+      .mockImplementation((name: string) => {
+        if (name === 'account') return Promise.resolve(mockAccountInfo);
+        if (name === 'contact') return Promise.resolve(mockContactInfo);
+        return Promise.reject(new Error('Unknown entity'));
+      });
+
+    vi.mocked(MetadataClient).mockImplementation(() => ({
+      getEntityTypeInfo: mockGetEntityTypeInfo,
+      getEntityWithAttributes: vi.fn(),
+      getEntityAttributes: vi.fn(),
+      getEntityForms: vi.fn(),
+      getGlobalOptionSets: vi.fn(),
+      getSolutionEntities: vi.fn(),
+    }) as unknown as InstanceType<typeof MetadataClient>);
+
+    const orchestrator = new TypeGenerationOrchestrator(credential, {
+      environmentUrl: 'https://test.crm4.dynamics.com',
+      entities: ['account', 'contact'],
+      outputDir: './typings',
+      labelConfig: { primaryLanguage: 1033 },
+    });
+
+    const result = await orchestrator.generate();
+
+    expect(result.entities).toHaveLength(2);
+    expect(result.entities[0].entityLogicalName).toBe('account');
+    expect(result.entities[1].entityLogicalName).toBe('contact');
+    expect(mockGetEntityTypeInfo).toHaveBeenCalledTimes(2);
+  });
+
+  it('should handle partial failure in parallel processing (R7-04)', async () => {
+    const credential = createMockCredential();
+    const mockAccountInfo = createMockEntityInfo('account');
+
+    const mockGetEntityTypeInfo = vi.fn()
+      .mockImplementation((name: string) => {
+        if (name === 'account') return Promise.resolve(mockAccountInfo);
+        return Promise.reject(new Error('Entity not found: badentity'));
+      });
+
+    vi.mocked(MetadataClient).mockImplementation(() => ({
+      getEntityTypeInfo: mockGetEntityTypeInfo,
+      getEntityWithAttributes: vi.fn(),
+      getEntityAttributes: vi.fn(),
+      getEntityForms: vi.fn(),
+      getGlobalOptionSets: vi.fn(),
+      getSolutionEntities: vi.fn(),
+    }) as unknown as InstanceType<typeof MetadataClient>);
+
+    const orchestrator = new TypeGenerationOrchestrator(credential, {
+      environmentUrl: 'https://test.crm4.dynamics.com',
+      entities: ['account', 'badentity'],
+      outputDir: './typings',
+      labelConfig: { primaryLanguage: 1033 },
+    });
+
+    const result = await orchestrator.generate();
+
+    // Account should succeed
+    expect(result.entities[0].entityLogicalName).toBe('account');
+    expect(result.entities[0].files.length).toBeGreaterThan(0);
+
+    // badentity should fail gracefully
+    expect(result.entities[1].entityLogicalName).toBe('badentity');
+    expect(result.entities[1].files).toHaveLength(0);
+    expect(result.entities[1].warnings[0]).toContain('Entity not found');
+  });
 });

@@ -48,6 +48,14 @@ export class TypeGenerationOrchestrator {
     this.credential = credential;
     this.logger = logger ?? createLogger('orchestrator');
 
+    // @alpha: useCache is not yet implemented (planned for v0.2.0)
+    if (config.useCache) {
+      throw new Error(
+        'Metadata caching is not yet implemented (planned for v0.2.0). ' +
+        'Remove the useCache option or set it to false.',
+      );
+    }
+
     // Apply defaults
     this.config = {
       environmentUrl: config.environmentUrl,
@@ -57,7 +65,7 @@ export class TypeGenerationOrchestrator {
       generateEntities: config.generateEntities ?? true,
       generateForms: config.generateForms ?? true,
       generateOptionSets: config.generateOptionSets ?? true,
-      useCache: config.useCache ?? true,
+      useCache: config.useCache ?? false,
       cacheDir: config.cacheDir ?? '.xrmforge/cache',
       namespacePrefix: config.namespacePrefix ?? 'XrmForge',
     };
@@ -65,11 +73,22 @@ export class TypeGenerationOrchestrator {
 
   /**
    * Run the full type generation pipeline.
+   *
+   * @param options - Optional parameters
+   * @param options.signal - AbortSignal to cancel the generation process.
+   *   When aborted, entities that have not yet started processing are skipped.
+   *   Entities already in progress may still complete or fail with an abort error.
    */
-  async generate(): Promise<GenerationResult> {
+  async generate(options?: { signal?: AbortSignal }): Promise<GenerationResult> {
+    const signal = options?.signal;
     const startTime = Date.now();
     const allFiles: GeneratedFile[] = [];
     const entityResults: EntityGenerationResult[] = [];
+
+    // Check abort before starting
+    if (signal?.aborted) {
+      return { entities: [], totalFiles: 0, totalWarnings: 0, durationMs: 0 };
+    }
 
     this.logger.info('Starting type generation', {
       entities: this.config.entities,
@@ -90,12 +109,16 @@ export class TypeGenerationOrchestrator {
     this.logger.info(`Processing ${this.config.entities.length} entities in parallel`);
 
     const settled = await Promise.allSettled(
-      this.config.entities.map((entityName) =>
-        this.processEntity(entityName, metadataClient).then((result) => {
+      this.config.entities.map((entityName) => {
+        // Skip entities if aborted before they start
+        if (signal?.aborted) {
+          return Promise.reject(new Error('Generation aborted'));
+        }
+        return this.processEntity(entityName, metadataClient).then((result) => {
           this.logger.info(`Completed entity: ${entityName} (${result.files.length} files)`);
           return result;
-        }),
-      ),
+        });
+      }),
     );
 
     for (let i = 0; i < settled.length; i++) {
@@ -121,7 +144,7 @@ export class TypeGenerationOrchestrator {
       const indexContent = generateBarrelIndex(allFiles);
       const indexFile: GeneratedFile = {
         relativePath: 'index.d.ts',
-        absolutePath: '',
+
         content: indexContent,
         type: 'entity',
       };
@@ -171,7 +194,7 @@ export class TypeGenerationOrchestrator {
       });
       files.push({
         relativePath: `entities/${entityName}.d.ts`,
-        absolutePath: '',
+
         content: addGeneratedHeader(entityContent),
         type: 'entity',
       });
@@ -192,7 +215,7 @@ export class TypeGenerationOrchestrator {
           const combinedContent = optionSets.map((os) => os.content).join('\n');
           files.push({
             relativePath: `optionsets/${entityName}.d.ts`,
-            absolutePath: '',
+    
             content: addGeneratedHeader(combinedContent),
             type: 'optionset',
           });
@@ -220,7 +243,7 @@ export class TypeGenerationOrchestrator {
           const combinedContent = formResults.map((f) => f.content).join('\n');
           files.push({
             relativePath: `forms/${entityName}.d.ts`,
-            absolutePath: '',
+    
             content: addGeneratedHeader(combinedContent),
             type: 'form',
           });

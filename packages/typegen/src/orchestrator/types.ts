@@ -29,10 +29,20 @@ export interface GenerateConfig {
   /** Whether to generate OptionSet enums (default: true) */
   generateOptionSets?: boolean;
 
-  /** Whether to use cache (default: true) */
+  /**
+   * Whether to use metadata cache for faster re-generation.
+   * @alpha Not yet implemented. Setting this to true will throw a ConfigError.
+   * Planned for v0.2.0.
+   * @defaultValue false
+   */
   useCache?: boolean;
 
-  /** Cache directory (default: .xrmforge/cache under outputDir) */
+  /**
+   * Cache directory for metadata cache.
+   * @alpha Not yet implemented. Ignored until useCache is implemented.
+   * Planned for v0.2.0.
+   * @defaultValue ".xrmforge/cache"
+   */
   cacheDir?: string;
 
   /** XrmForge namespace prefix (default: "XrmForge") */
@@ -55,9 +65,6 @@ export interface EntityGenerationResult {
 export interface GeneratedFile {
   /** Relative path from outputDir */
   relativePath: string;
-
-  /** Absolute path on disk */
-  absolutePath: string;
 
   /** File content */
   content: string;

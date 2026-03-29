@@ -130,10 +130,13 @@ export class DataverseHttpClient {
   /**
    * Execute a GET request against the Dataverse Web API.
    * Handles token caching, retries, rate limits, and timeout.
+   *
+   * @param path - API path (relative or absolute URL)
+   * @param signal - Optional AbortSignal to cancel the request
    */
-  async get<T>(path: string): Promise<T> {
+  async get<T>(path: string, signal?: AbortSignal): Promise<T> {
     const url = this.resolveUrl(path);
-    return this.executeWithConcurrency<T>(url);
+    return this.executeWithConcurrency<T>(url, signal);
   }
 
   /**
@@ -141,8 +144,11 @@ export class DataverseHttpClient {
    * Returns all pages combined into a single array.
    *
    * Safety: Stops after `maxPages` iterations to prevent infinite loops.
+   *
+   * @param path - API path (relative or absolute URL)
+   * @param signal - Optional AbortSignal to cancel the request
    */
-  async getAll<T>(path: string): Promise<T[]> {
+  async getAll<T>(path: string, signal?: AbortSignal): Promise<T[]> {
     interface ODataPage {
       value: T[];
       '@odata.nextLink'?: string;
@@ -153,6 +159,15 @@ export class DataverseHttpClient {
     let page = 0;
 
     while (currentUrl) {
+      // Check abort before each page
+      if (signal?.aborted) {
+        throw new ApiRequestError(
+          ErrorCode.API_REQUEST_FAILED,
+          `Request aborted after ${page} pages (${allResults.length} records retrieved)`,
+          { url: currentUrl, pagesCompleted: page },
+        );
+      }
+
       page++;
       if (page > this.maxPages) {
         log.warn(
@@ -162,7 +177,7 @@ export class DataverseHttpClient {
         break;
       }
 
-      const response: ODataPage = await this.executeWithConcurrency<ODataPage>(currentUrl);
+      const response: ODataPage = await this.executeWithConcurrency<ODataPage>(currentUrl, signal);
 
       allResults.push(...response.value);
       currentUrl = response['@odata.nextLink'] ?? null;
@@ -307,10 +322,10 @@ export class DataverseHttpClient {
    * The semaphore is acquired ONCE per logical request. Retries happen
    * INSIDE the semaphore to avoid the recursive slot exhaustion bug.
    */
-  private async executeWithConcurrency<T>(url: string): Promise<T> {
+  private async executeWithConcurrency<T>(url: string, signal?: AbortSignal): Promise<T> {
     await this.acquireSlot();
     try {
-      return await this.executeWithRetry<T>(url, 1);
+      return await this.executeWithRetry<T>(url, 1, 0, signal);
     } finally {
       this.releaseSlot();
     }
@@ -338,11 +353,25 @@ export class DataverseHttpClient {
 
   // ─── Retry Logic (runs INSIDE a single concurrency slot) ─────────────────
 
-  private async executeWithRetry<T>(url: string, attempt: number, rateLimitRetries: number = 0): Promise<T> {
+  private async executeWithRetry<T>(url: string, attempt: number, rateLimitRetries: number = 0, signal?: AbortSignal): Promise<T> {
+    // Check if already aborted before starting
+    if (signal?.aborted) {
+      throw new ApiRequestError(
+        ErrorCode.API_REQUEST_FAILED,
+        'Request aborted before execution',
+        { url },
+      );
+    }
+
     const token = await this.getToken();
 
+    // Combine user's AbortSignal with per-request timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    // If the user's signal fires, abort our controller too
+    const onUserAbort = () => controller.abort();
+    signal?.addEventListener('abort', onUserAbort, { once: true });
 
     let response: Response;
     try {
@@ -361,16 +390,27 @@ export class DataverseHttpClient {
       });
     } catch (fetchError: unknown) {
       clearTimeout(timeoutId);
+      signal?.removeEventListener('abort', onUserAbort);
 
-      // Timeout (check both instanceof and name for cross-platform Node.js compatibility)
+      // Distinguish user abort from timeout
       if ((fetchError instanceof Error) && fetchError.name === 'AbortError') {
+        // If the USER aborted (not our timeout), don't retry
+        if (signal?.aborted) {
+          throw new ApiRequestError(
+            ErrorCode.API_REQUEST_FAILED,
+            'Request aborted by caller',
+            { url, attempt },
+          );
+        }
+
+        // Timeout: retry if attempts remain
         if (attempt <= this.maxRetries) {
           const delay = this.calculateBackoff(attempt);
           log.warn(`Request timed out, retrying in ${delay}ms (${attempt}/${this.maxRetries})`, {
             url,
           });
           await this.sleep(delay);
-          return this.executeWithRetry<T>(url, attempt + 1);
+          return this.executeWithRetry<T>(url, attempt + 1, rateLimitRetries, signal);
         }
 
         throw new ApiRequestError(
@@ -388,7 +428,7 @@ export class DataverseHttpClient {
           error: fetchError instanceof Error ? fetchError.message : String(fetchError),
         });
         await this.sleep(delay);
-        return this.executeWithRetry<T>(url, attempt + 1);
+        return this.executeWithRetry<T>(url, attempt + 1, rateLimitRetries, signal);
       }
 
       throw new ApiRequestError(
@@ -401,12 +441,13 @@ export class DataverseHttpClient {
       );
     } finally {
       clearTimeout(timeoutId);
+      signal?.removeEventListener('abort', onUserAbort);
     }
 
     // ── Handle HTTP Errors ──
 
     if (!response.ok) {
-      return this.handleHttpError<T>(response, url, attempt, rateLimitRetries);
+      return this.handleHttpError<T>(response, url, attempt, rateLimitRetries, signal);
     }
 
     log.debug(`GET ${url} -> ${response.status}`, { attempt });
@@ -418,6 +459,7 @@ export class DataverseHttpClient {
     url: string,
     attempt: number,
     rateLimitRetries: number,
+    signal?: AbortSignal,
   ): Promise<T> {
     const body = await response.text();
 
@@ -443,14 +485,14 @@ export class DataverseHttpClient {
 
       await this.sleep(retryAfterMs);
       // Do NOT increment attempt for 429: these are not "failures", they are throttling
-      return this.executeWithRetry<T>(url, attempt, rateLimitRetries + 1);
+      return this.executeWithRetry<T>(url, attempt, rateLimitRetries + 1, signal);
     }
 
     // 401 Unauthorized: clear token cache and retry once
     if (response.status === 401 && attempt === 1) {
       log.warn('HTTP 401 received, clearing token cache and retrying');
       this.cachedToken = null;
-      return this.executeWithRetry<T>(url, attempt + 1);
+      return this.executeWithRetry<T>(url, attempt + 1, 0, signal);
     }
 
     // 5xx Server Errors: retryable
@@ -460,7 +502,7 @@ export class DataverseHttpClient {
         `Server error ${response.status}, retrying in ${delay}ms (${attempt}/${this.maxRetries})`,
       );
       await this.sleep(delay);
-      return this.executeWithRetry<T>(url, attempt + 1);
+      return this.executeWithRetry<T>(url, attempt + 1, rateLimitRetries, signal);
     }
 
     // Non-retryable error: throw
