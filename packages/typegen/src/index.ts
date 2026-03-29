@@ -85,6 +85,7 @@ export type {
   FormSection,
   OneToManyRelationshipMetadata,
   ManyToManyRelationshipMetadata,
+  SolutionComponent,
   EntityTypeInfo,
   Label,
   LocalizedLabel,

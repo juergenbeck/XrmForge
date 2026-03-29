@@ -46,10 +46,18 @@ interface SolutionRecord {
   friendlyname: string;
 }
 
+// ─── Dataverse Constants ─────────────────────────────────────────────────────
+
+/** Dataverse SystemForm type code for Main forms */
+const FORM_TYPE_MAIN = 2;
+
+/** Dataverse SolutionComponent type code for Entity */
+const COMPONENT_TYPE_ENTITY = 1;
+
 // ─── Select Constants ────────────────────────────────────────────────────────
 
 const ENTITY_SELECT = 'LogicalName,SchemaName,EntitySetName,DisplayName,PrimaryIdAttribute,PrimaryNameAttribute,OwnershipType,IsCustomEntity,LogicalCollectionName,MetadataId';
-const ATTRIBUTE_SELECT = 'LogicalName,SchemaName,AttributeType,AttributeTypeName,DisplayName,IsPrimaryId,IsPrimaryName,RequiredLevel,MetadataId';
+const ATTRIBUTE_SELECT = 'LogicalName,SchemaName,AttributeType,AttributeTypeName,DisplayName,IsPrimaryId,IsPrimaryName,RequiredLevel,IsValidForRead,IsValidForCreate,IsValidForUpdate,MetadataId';
 const FORM_SELECT = 'name,formid,formxml,description,isdefault';
 
 // ─── Client ──────────────────────────────────────────────────────────────────
@@ -162,7 +170,7 @@ export class MetadataClient {
     log.info(`Fetching Main forms for: ${safeName}`);
 
     const forms = await this.http.getAll<SystemFormMetadata>(
-      `/systemforms?$filter=objecttypecode eq '${safeName}' and type eq 2&$select=${FORM_SELECT}`,
+      `/systemforms?$filter=objecttypecode eq '${safeName}' and type eq ${FORM_TYPE_MAIN}&$select=${FORM_SELECT}`,
     );
 
     log.info(`Found ${forms.length} Main form(s) for "${safeName}"`);
@@ -275,7 +283,7 @@ export class MetadataClient {
 
     // Step 2: Get entity components (componenttype=1)
     const components = await this.http.getAll<SolutionComponent>(
-      `/solutioncomponents?$filter=_solutionid_value eq ${DataverseHttpClient.sanitizeGuid(solutionId)} and componenttype eq 1&$select=objectid,componenttype`,
+      `/solutioncomponents?$filter=_solutionid_value eq ${DataverseHttpClient.sanitizeGuid(solutionId)} and componenttype eq ${COMPONENT_TYPE_ENTITY}&$select=objectid,componenttype`,
     );
 
     log.info(`Solution "${solutionName}" contains ${components.length} entities`);
@@ -289,19 +297,20 @@ export class MetadataClient {
    * Fetch complete metadata for a single entity: all attributes (typed),
    * forms, and relationships. This is the primary method for type generation.
    *
-   * Makes 6 parallel API calls per entity for optimal performance.
+   * Makes 7 parallel API calls per entity for optimal performance.
    */
   async getEntityTypeInfo(logicalName: string): Promise<EntityTypeInfo> {
     const safeName = DataverseHttpClient.sanitizeIdentifier(logicalName);
 
     log.info(`Fetching complete type info for: ${safeName}`);
 
-    const [entity, picklistAttributes, lookupAttributes, statusAttributes, forms, relationships] =
+    const [entity, picklistAttributes, lookupAttributes, statusAttributes, stateAttributes, forms, relationships] =
       await Promise.all([
         this.getEntityWithAttributes(safeName),
         this.getPicklistAttributes(safeName),
         this.getLookupAttributes(safeName),
         this.getStatusAttributes(safeName),
+        this.getStateAttributes(safeName),
         this.getMainForms(safeName),
         this.getRelationships(safeName),
       ]);
@@ -312,6 +321,7 @@ export class MetadataClient {
       picklistAttributes,
       lookupAttributes,
       statusAttributes,
+      stateAttributes,
       forms,
       oneToManyRelationships: relationships.oneToMany,
       manyToManyRelationships: relationships.manyToMany,
@@ -320,7 +330,8 @@ export class MetadataClient {
     log.info(
       `Type info for "${safeName}": ${result.attributes.length} attrs, ` +
         `${picklistAttributes.length} picklists, ${lookupAttributes.length} lookups, ` +
-        `${forms.length} forms, ${relationships.oneToMany.length} 1:N, ${relationships.manyToMany.length} N:N`,
+        `${stateAttributes.length} state, ${forms.length} forms, ` +
+        `${relationships.oneToMany.length} 1:N, ${relationships.manyToMany.length} N:N`,
     );
 
     return result;

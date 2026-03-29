@@ -46,6 +46,9 @@ export interface AttributeMetadata {
   IsPrimaryId: boolean;
   IsPrimaryName: boolean;
   RequiredLevel: { Value: string };
+  IsValidForRead: boolean;
+  IsValidForCreate: boolean;
+  IsValidForUpdate: boolean;
   MetadataId: string;
 }
 
@@ -191,6 +194,7 @@ export interface EntityTypeInfo {
   picklistAttributes: PicklistAttributeMetadata[];
   lookupAttributes: LookupAttributeMetadata[];
   statusAttributes: StatusAttributeMetadata[];
+  stateAttributes: StateAttributeMetadata[];
   forms: ParsedForm[];
   oneToManyRelationships: OneToManyRelationshipMetadata[];
   manyToManyRelationships: ManyToManyRelationshipMetadata[];

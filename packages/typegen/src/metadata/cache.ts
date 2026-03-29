@@ -118,7 +118,11 @@ export class MetadataCache {
     };
 
     await fs.mkdir(this.cacheDir, { recursive: true });
-    await fs.writeFile(this.cacheFilePath, JSON.stringify(data, null, 2), 'utf-8');
+
+    // Atomic write: write to temp file, then rename (prevents corrupt cache on crash)
+    const tmpPath = this.cacheFilePath + '.tmp';
+    await fs.writeFile(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
+    await fs.rename(tmpPath, this.cacheFilePath);
 
     log.info(`Saved metadata cache: ${data.manifest.entities.length} entities`);
   }
