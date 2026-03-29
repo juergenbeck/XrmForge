@@ -90,3 +90,15 @@ export type {
   Label,
   LocalizedLabel,
 } from './metadata/index.js';
+
+// ─── Type Mapping / Generators ───────────────────────────────────────────────
+export {
+  getEntityPropertyType,
+  getFormAttributeType,
+  getFormControlType,
+  toSafeIdentifier,
+  toPascalCase,
+  toLookupValueProperty,
+  isLookupType,
+  shouldIncludeInEntityInterface,
+} from './generators/index.js';
