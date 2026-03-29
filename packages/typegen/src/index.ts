@@ -91,7 +91,7 @@ export type {
   LocalizedLabel,
 } from './metadata/index.js';
 
-// ─── Type Mapping / Generators ───────────────────────────────────────────────
+// ─── Type Mapping ────────────────────────────────────────────────────────────
 export {
   getEntityPropertyType,
   getFormAttributeType,
@@ -101,4 +101,26 @@ export {
   toLookupValueProperty,
   isLookupType,
   shouldIncludeInEntityInterface,
+} from './generators/index.js';
+
+// ─── Generator Label Utilities ───────────────────────────────────────────────
+export {
+  getSecondaryLabel,
+  formatDualLabel,
+  disambiguateEnumMembers,
+} from './generators/index.js';
+
+// ─── Code Generators ─────────────────────────────────────────────────────────
+export {
+  generateEntityInterface,
+  generateOptionSetEnum,
+  generateEntityOptionSets,
+  generateFormInterface,
+  generateEntityForms,
+} from './generators/index.js';
+
+export type {
+  EntityGeneratorOptions,
+  OptionSetGeneratorOptions,
+  FormGeneratorOptions,
 } from './generators/index.js';

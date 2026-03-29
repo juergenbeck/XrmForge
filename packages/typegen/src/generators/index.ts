@@ -1,3 +1,4 @@
+// Type Mapping
 export {
   getEntityPropertyType,
   getFormAttributeType,
@@ -8,3 +9,26 @@ export {
   isLookupType,
   shouldIncludeInEntityInterface,
 } from './type-mapping.js';
+
+// Label Utilities
+export {
+  getPrimaryLabel,
+  getSecondaryLabel,
+  formatDualLabel,
+  labelToEnumMember,
+  disambiguateEnumMembers,
+  DEFAULT_LABEL_CONFIG,
+} from './label-utils.js';
+export type { LabelConfig } from './label-utils.js';
+
+// Entity Interface Generator
+export { generateEntityInterface } from './entity-generator.js';
+export type { EntityGeneratorOptions } from './entity-generator.js';
+
+// OptionSet Enum Generator
+export { generateOptionSetEnum, generateEntityOptionSets } from './optionset-generator.js';
+export type { OptionSetGeneratorOptions } from './optionset-generator.js';
+
+// Form Interface Generator
+export { generateFormInterface, generateEntityForms } from './form-generator.js';
+export type { FormGeneratorOptions } from './form-generator.js';

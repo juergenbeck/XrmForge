@@ -1,0 +1,110 @@
+/**
+ * @xrmforge/typegen - Entity Interface Generator
+ *
+ * Generates TypeScript declaration files (.d.ts) for Dataverse entity interfaces.
+ * These interfaces represent the data types returned by the Web API.
+ *
+ * Output pattern:
+ * ```typescript
+ * declare namespace XrmForge.Entities {
+ *   interface Account {
+ *     accountid?: string;
+ *     name?: string;
+ *     // ...
+ *   }
+ * }
+ * ```
+ */
+
+import type { EntityTypeInfo } from '../metadata/types.js';
+import {
+  getEntityPropertyType,
+  isLookupType,
+  toLookupValueProperty,
+  shouldIncludeInEntityInterface,
+  toPascalCase,
+} from './type-mapping.js';
+import { formatDualLabel, type LabelConfig, DEFAULT_LABEL_CONFIG } from './label-utils.js';
+
+/** Options for entity interface generation */
+export interface EntityGeneratorOptions {
+  /** Label configuration for dual-language JSDoc comments */
+  labelConfig?: LabelConfig;
+  /** Namespace for generated types (default: "XrmForge.Entities") */
+  namespace?: string;
+}
+
+/**
+ * Generate a TypeScript declaration for an entity interface.
+ *
+ * @param info - Complete entity metadata (from MetadataClient.getEntityTypeInfo)
+ * @param options - Generator options
+ * @returns TypeScript declaration string (.d.ts content)
+ */
+export function generateEntityInterface(info: EntityTypeInfo, options: EntityGeneratorOptions = {}): string {
+  const labelConfig = options.labelConfig || DEFAULT_LABEL_CONFIG;
+  const namespace = options.namespace || 'XrmForge.Entities';
+  const entityName = toPascalCase(info.entity.LogicalName);
+  const entityLabel = formatDualLabel(info.entity.DisplayName, labelConfig);
+
+  const lines: string[] = [];
+
+  // Header
+  lines.push(`declare namespace ${namespace} {`);
+  lines.push('');
+
+  // Entity JSDoc
+  if (entityLabel) {
+    lines.push(`  /** ${entityLabel} */`);
+  }
+  lines.push(`  interface ${entityName} {`);
+
+  // Filter and sort attributes
+  const includedAttrs = info.attributes
+    .filter(shouldIncludeInEntityInterface)
+    .sort((a, b) => a.LogicalName.localeCompare(b.LogicalName));
+
+  // Build lookup map for target info in JSDoc
+  const lookupTargets = new Map<string, string[]>();
+  for (const la of info.lookupAttributes) {
+    if (la.Targets && la.Targets.length > 0) {
+      lookupTargets.set(la.LogicalName, la.Targets);
+    }
+  }
+
+  for (const attr of includedAttrs) {
+    const isLookup = isLookupType(attr.AttributeType);
+    const propertyName = isLookup ? toLookupValueProperty(attr.LogicalName) : attr.LogicalName;
+    const tsType = getEntityPropertyType(attr.AttributeType, isLookup);
+
+    // Build JSDoc
+    const label = formatDualLabel(attr.DisplayName, labelConfig);
+    const jsdocParts: string[] = [];
+    if (label) jsdocParts.push(label);
+
+    // Add lookup target info
+    if (isLookup) {
+      const targets = lookupTargets.get(attr.LogicalName);
+      if (targets && targets.length > 0) {
+        jsdocParts.push(`Lookup (${targets.join(' | ')})`);
+      }
+    }
+
+    // Add read-only marker
+    if (!attr.IsValidForCreate && !attr.IsValidForUpdate && !attr.IsPrimaryId) {
+      jsdocParts.push('read-only');
+    }
+
+    if (jsdocParts.length > 0) {
+      lines.push(`    /** ${jsdocParts.join(' - ')} */`);
+    }
+
+    lines.push(`    ${propertyName}?: ${tsType};`);
+  }
+
+  lines.push('  }');
+  lines.push('}');
+  lines.push('');
+
+  return lines.join('\n');
+}
