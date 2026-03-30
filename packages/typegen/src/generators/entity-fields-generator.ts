@@ -1,0 +1,118 @@
+/**
+ * @xrmforge/typegen - Entity Fields Enum Generator
+ *
+ * Generates a const enum with ALL entity fields for use with Xrm.WebApi.
+ * Unlike form-specific Fields enums, this contains every readable attribute.
+ *
+ * Output pattern:
+ * ```typescript
+ * declare namespace XrmForge.Entities {
+ *   const enum AccountFields {
+ *     /** Account Name | Firmenname *\/
+ *     Name = 'name',
+ *     /** Main Phone | Haupttelefon *\/
+ *     Telephone1 = 'telephone1',
+ *   }
+ * }
+ * ```
+ */
+
+import type { EntityTypeInfo } from '../metadata/types.js';
+import {
+  toPascalCase,
+  shouldIncludeInEntityInterface,
+  isLookupType,
+  toLookupValueProperty,
+} from './type-mapping.js';
+import {
+  formatDualLabel,
+  getPrimaryLabel,
+  transliterateUmlauts,
+  type LabelConfig,
+  DEFAULT_LABEL_CONFIG,
+} from './label-utils.js';
+
+/** Options for entity fields enum generation */
+export interface EntityFieldsGeneratorOptions {
+  /** Label configuration for dual-language JSDoc comments */
+  labelConfig?: LabelConfig;
+  /** Namespace for generated enums (default: "XrmForge.Entities") */
+  namespace?: string;
+}
+
+/** Convert a label to a PascalCase enum member name */
+function labelToPascalMember(label: string): string {
+  if (!label) return '';
+  const transliterated = transliterateUmlauts(label);
+  const cleaned = transliterated.replace(/[^a-zA-Z0-9\s_]/g, '');
+  const parts = cleaned.split(/[\s_]+/).filter((p) => p.length > 0);
+  if (parts.length === 0) return '';
+  const pascal = parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join('');
+  if (/^\d/.test(pascal)) return `_${pascal}`;
+  return pascal;
+}
+
+/**
+ * Generate a const enum with all entity fields for Web API usage.
+ * Includes ALL readable fields (not form-specific).
+ *
+ * @param info - Complete entity metadata
+ * @param options - Generator options
+ * @returns TypeScript declaration string
+ */
+export function generateEntityFieldsEnum(
+  info: EntityTypeInfo,
+  options: EntityFieldsGeneratorOptions = {},
+): string {
+  const labelConfig = options.labelConfig || DEFAULT_LABEL_CONFIG;
+  const namespace = options.namespace || 'XrmForge.Entities';
+  const entityName = toPascalCase(info.entity.LogicalName);
+  const enumName = `${entityName}Fields`;
+
+  // Filter and sort attributes
+  const includedAttrs = info.attributes
+    .filter(shouldIncludeInEntityInterface)
+    .sort((a, b) => a.LogicalName.localeCompare(b.LogicalName));
+
+  const lines: string[] = [];
+  lines.push(`declare namespace ${namespace} {`);
+  lines.push('');
+  lines.push(`  /** All fields of ${entityName} (for Web API $select queries) */`);
+  lines.push(`  const enum ${enumName} {`);
+
+  const usedNames = new Set<string>();
+
+  for (const attr of includedAttrs) {
+    const isLookup = isLookupType(attr.AttributeType);
+    const propertyName = isLookup ? toLookupValueProperty(attr.LogicalName) : attr.LogicalName;
+
+    // Build enum member name from label
+    const primaryLabel = getPrimaryLabel(attr.DisplayName, labelConfig);
+    let memberName = labelToPascalMember(primaryLabel);
+    if (!memberName) {
+      memberName = toPascalCase(attr.LogicalName);
+    }
+
+    // Disambiguate
+    const originalName = memberName;
+    let counter = 2;
+    while (usedNames.has(memberName)) {
+      memberName = `${originalName}${counter}`;
+      counter++;
+    }
+    usedNames.add(memberName);
+
+    // Dual-language JSDoc
+    const dualLabel = formatDualLabel(attr.DisplayName, labelConfig);
+    if (dualLabel) {
+      lines.push(`    /** ${dualLabel} */`);
+    }
+    lines.push(`    ${memberName} = '${propertyName}',`);
+  }
+
+  lines.push('  }');
+  lines.push('}');
+  lines.push('');
+
+  return lines.join('\n');
+}

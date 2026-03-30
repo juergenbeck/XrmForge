@@ -1,20 +1,45 @@
 /**
  * @xrmforge/typegen - Form Interface Generator
  *
- * Generates TypeScript form interfaces that extend Xrm.FormContext
- * with typed getAttribute() and getControl() overloads based on FormXml.
+ * Generates TypeScript form interfaces with compile-time field validation.
  *
- * Only fields that actually appear on the form are included.
- * This is the key difference from entity interfaces (which include all attributes).
+ * Architecture:
+ * 1. Union Type (LeadFormFields): restricts getAttribute to form-specific fields only
+ * 2. Mapped Return Type (LeadAttributeMap): maps field name to correct Xrm type
+ * 3. Generic getAttribute<K>: returns the exact type for each field
+ * 4. Fields const enum: provides autocomplete with dual-language labels
+ * 5. NO fallback getAttribute(name: string): unknown fields are compile errors
  *
  * Output pattern:
  * ```typescript
  * declare namespace XrmForge.Forms.Account {
- *   interface AccountMainForm extends Xrm.FormContext {
- *     getAttribute(name: "name"): Xrm.Attributes.StringAttribute;
- *     getControl(name: "name"): Xrm.Controls.StringControl;
- *     getAttribute(name: string): Xrm.Attributes.Attribute;
- *     getControl(name: string): Xrm.Controls.Control;
+ *   type AccountMainFormFields = "name" | "telephone1" | "revenue";
+ *
+ *   type AccountMainFormAttributeMap = {
+ *     name: Xrm.Attributes.StringAttribute;
+ *     telephone1: Xrm.Attributes.StringAttribute;
+ *     revenue: Xrm.Attributes.NumberAttribute;
+ *   };
+ *
+ *   type AccountMainFormControlMap = {
+ *     name: Xrm.Controls.StringControl;
+ *     telephone1: Xrm.Controls.StringControl;
+ *     revenue: Xrm.Controls.NumberControl;
+ *   };
+ *
+ *   const enum AccountMainFormFields {
+ *     Name = 'name',
+ *     Telephone1 = 'telephone1',
+ *     Revenue = 'revenue',
+ *   }
+ *
+ *   interface AccountMainForm extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> {
+ *     getAttribute<K extends AccountMainFormFields>(name: K): AccountMainFormAttributeMap[K];
+ *     getAttribute(index: number): Xrm.Attributes.Attribute;
+ *     getAttribute(): Xrm.Attributes.Attribute[];
+ *     getControl<K extends AccountMainFormFields>(name: K): AccountMainFormControlMap[K];
+ *     getControl(index: number): Xrm.Controls.Control;
+ *     getControl(): Xrm.Controls.Control[];
  *   }
  * }
  * ```
@@ -22,8 +47,7 @@
 
 import type { ParsedForm, AttributeMetadata } from '../metadata/types.js';
 import { getFormAttributeType, getFormControlType, toPascalCase } from './type-mapping.js';
-import { transliterateUmlauts } from './label-utils.js';
-import type { LabelConfig } from './label-utils.js';
+import { transliterateUmlauts, formatDualLabel, getPrimaryLabel, type LabelConfig, DEFAULT_LABEL_CONFIG } from './label-utils.js';
 
 /** Options for form interface generation */
 export interface FormGeneratorOptions {
@@ -35,8 +59,29 @@ export interface FormGeneratorOptions {
   formTypes?: number[];
 }
 
+/** Build a safe TypeScript identifier from a form name */
+function toSafeFormName(formName: string): string {
+  return transliterateUmlauts(formName)
+    .replace(/[^a-zA-Z0-9\s]/g, '')
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join('');
+}
+
+/** Convert a label to a PascalCase enum member name */
+function labelToPascalMember(label: string): string {
+  if (!label) return '';
+  const transliterated = transliterateUmlauts(label);
+  const cleaned = transliterated.replace(/[^a-zA-Z0-9\s_]/g, '');
+  const parts = cleaned.split(/[\s_]+/).filter((p) => p.length > 0);
+  if (parts.length === 0) return '';
+  const pascal = parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join('');
+  if (/^\d/.test(pascal)) return `_${pascal}`;
+  return pascal;
+}
+
 /**
- * Generate a TypeScript form interface declaration.
+ * Generate a complete form declaration: union type, mapped types, fields enum, and interface.
  *
  * @param form - Parsed form structure (from FormXml parser)
  * @param entityLogicalName - Entity this form belongs to
@@ -50,17 +95,15 @@ export function generateFormInterface(
   attributeMap: Map<string, AttributeMetadata>,
   options: FormGeneratorOptions = {},
 ): string {
+  const labelConfig = options.labelConfig || DEFAULT_LABEL_CONFIG;
   const namespacePrefix = options.namespacePrefix || 'XrmForge.Forms';
   const entityPascal = toPascalCase(entityLogicalName);
   const namespace = `${namespacePrefix}.${entityPascal}`;
-
-  // Build safe interface name from form name (transliterate umlauts first, then sanitize)
-  const safeFormName = transliterateUmlauts(form.name)
-    .replace(/[^a-zA-Z0-9\s]/g, '')
-    .split(/\s+/)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join('');
+  const safeFormName = toSafeFormName(form.name);
   const interfaceName = `${entityPascal}${safeFormName}Form`;
+  const fieldsTypeName = `${interfaceName}Fields`;
+  const attrMapName = `${interfaceName}AttributeMap`;
+  const ctrlMapName = `${interfaceName}ControlMap`;
 
   // Get unique field names from form controls (deduplicate across tabs/sections)
   const fieldNames = new Set<string>();
@@ -76,17 +119,41 @@ export function generateFormInterface(
     attributeType: string;
     formAttributeType: string;
     formControlType: string;
+    label: string;
+    enumMemberName: string;
   }> = [];
+
+  const usedEnumNames = new Set<string>();
 
   for (const fieldName of [...fieldNames].sort()) {
     const attr = attributeMap.get(fieldName);
-    if (!attr) continue; // Skip fields not found in metadata
+    if (!attr) continue;
+
+    // Build enum member name from label (English primary)
+    const primaryLabel = getPrimaryLabel(attr.DisplayName, labelConfig);
+    let enumMember = labelToPascalMember(primaryLabel);
+    if (!enumMember) {
+      enumMember = toPascalCase(fieldName);
+    }
+
+    // Disambiguate enum member names
+    const originalEnumMember = enumMember;
+    let counter = 2;
+    while (usedEnumNames.has(enumMember)) {
+      enumMember = `${originalEnumMember}${counter}`;
+      counter++;
+    }
+    usedEnumNames.add(enumMember);
+
+    const dualLabel = formatDualLabel(attr.DisplayName, labelConfig);
 
     fields.push({
       logicalName: fieldName,
       attributeType: attr.AttributeType,
       formAttributeType: getFormAttributeType(attr.AttributeType),
       formControlType: getFormControlType(attr.AttributeType),
+      label: dualLabel,
+      enumMemberName: enumMember,
     });
   }
 
@@ -96,33 +163,59 @@ export function generateFormInterface(
   lines.push(`declare namespace ${namespace} {`);
   lines.push('');
 
-  // Interface JSDoc
-  // Note: We use Omit<> to remove the base getAttribute/getControl signatures
-  // before adding our typed overloads. This prevents TypeScript signature
-  // incompatibility with @types/xrm's MatchingDelegate overloads.
+  // 1. Union Type: restricts which field names are valid
+  lines.push(`  /** Valid field names for the "${form.name}" form */`);
+  lines.push(`  type ${fieldsTypeName} =`);
+  for (let i = 0; i < fields.length; i++) {
+    const separator = i === fields.length - 1 ? ';' : '';
+    lines.push(`    | "${fields[i]!.logicalName}"${separator}`);
+  }
+  lines.push('');
+
+  // 2. Attribute Map: maps field name to Xrm.Attributes.* type
+  lines.push(`  /** Attribute type map for "${form.name}" */`);
+  lines.push(`  type ${attrMapName} = {`);
+  for (const field of fields) {
+    lines.push(`    ${field.logicalName}: ${field.formAttributeType};`);
+  }
+  lines.push('  };');
+  lines.push('');
+
+  // 3. Control Map: maps field name to Xrm.Controls.* type
+  lines.push(`  /** Control type map for "${form.name}" */`);
+  lines.push(`  type ${ctrlMapName} = {`);
+  for (const field of fields) {
+    lines.push(`    ${field.logicalName}: ${field.formControlType};`);
+  }
+  lines.push('  };');
+  lines.push('');
+
+  // 4. Fields const enum: autocomplete with dual-language labels
+  lines.push(`  /** Field constants for "${form.name}" (compile-time only, zero runtime) */`);
+  lines.push(`  const enum ${fieldsTypeName}Enum {`);
+  for (const field of fields) {
+    if (field.label) {
+      lines.push(`    /** ${field.label} */`);
+    }
+    lines.push(`    ${field.enumMemberName} = '${field.logicalName}',`);
+  }
+  lines.push('  }');
+  lines.push('');
+
+  // 5. Form Interface: generic getAttribute/getControl with compile-time validation
   lines.push(`  /** ${form.name} */`);
   lines.push(`  interface ${interfaceName} extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> {`);
-
-  // getAttribute overloads
-  for (const field of fields) {
-    lines.push(`    getAttribute(name: "${field.logicalName}"): ${field.formAttributeType};`);
-  }
-  // Fallback signatures (compatible with base FormContext)
-  lines.push('    getAttribute(name: string): Xrm.Attributes.Attribute;');
+  lines.push(`    /** Typisierter Feldzugriff: nur Felder die auf diesem Formular existieren */`);
+  lines.push(`    getAttribute<K extends ${fieldsTypeName}>(name: K): ${attrMapName}[K];`);
   lines.push('    getAttribute(index: number): Xrm.Attributes.Attribute;');
   lines.push('    getAttribute(): Xrm.Attributes.Attribute[];');
   lines.push('');
-
-  // getControl overloads
-  for (const field of fields) {
-    lines.push(`    getControl(name: "${field.logicalName}"): ${field.formControlType};`);
-  }
-  // Fallback signatures (compatible with base FormContext)
-  lines.push('    getControl(name: string): Xrm.Controls.Control;');
+  lines.push(`    /** Typisierter Control-Zugriff: nur Controls die auf diesem Formular existieren */`);
+  lines.push(`    getControl<K extends ${fieldsTypeName}>(name: K): ${ctrlMapName}[K];`);
   lines.push('    getControl(index: number): Xrm.Controls.Control;');
   lines.push('    getControl(): Xrm.Controls.Control[];');
-
   lines.push('  }');
+
   lines.push('}');
   lines.push('');
 
@@ -157,11 +250,7 @@ export function generateEntityForms(
     if (form.allControls.length === 0) continue;
 
     const entityPascal = toPascalCase(entityLogicalName);
-    const safeFormName = transliterateUmlauts(form.name)
-      .replace(/[^a-zA-Z0-9\s]/g, '')
-      .split(/\s+/)
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join('');
+    const safeFormName = toSafeFormName(form.name);
     const interfaceName = `${entityPascal}${safeFormName}Form`;
 
     const content = generateFormInterface(form, entityLogicalName, attributeMap, options);
