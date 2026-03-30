@@ -127,7 +127,7 @@ export interface SystemFormMetadata {
   isdefault: boolean;
 }
 
-/** Parsed control from FormXml */
+/** Parsed data-bound control from FormXml (bound to an attribute) */
 export interface FormControl {
   /** Control ID (often same as datafieldname) */
   id: string;
@@ -137,16 +137,45 @@ export interface FormControl {
   classid: string;
 }
 
+/** Type of special (non-data-bound) control on a form */
+export type SpecialControlType = 'subgrid' | 'editablegrid' | 'quickview' | 'webresource' | 'iframe' | 'notes' | 'map' | 'timer' | 'unknown';
+
+/** Parsed special control from FormXml (subgrid, quick view, web resource, etc.) */
+export interface FormSpecialControl {
+  /** Control ID (used for getControl) */
+  id: string;
+  /** Control class ID (GUID) */
+  classid: string;
+  /** Resolved control type */
+  controlType: SpecialControlType;
+  /** Target entity for subgrids (from parameters) */
+  targetEntityType?: string;
+  /** Relationship name for subgrids (from parameters) */
+  relationshipName?: string;
+  /** Web resource name (for web resource controls) */
+  webResourceName?: string;
+}
+
 /** Parsed tab from FormXml */
 export interface FormTab {
   name: string;
+  /** Tab label (for display, may be localized) */
+  label?: string;
+  /** Whether the tab is visible by default */
+  visible?: boolean;
   sections: FormSection[];
 }
 
 /** Parsed section from FormXml */
 export interface FormSection {
   name: string;
+  /** Section label */
+  label?: string;
+  /** Whether the section is visible by default */
+  visible?: boolean;
   controls: FormControl[];
+  /** Special controls in this section (subgrids, quick views, etc.) */
+  specialControls: FormSpecialControl[];
 }
 
 /** Parsed form structure */
@@ -155,8 +184,10 @@ export interface ParsedForm {
   formId: string;
   isDefault: boolean;
   tabs: FormTab[];
-  /** All controls across all tabs/sections (flattened for convenience) */
+  /** All data-bound controls across all tabs/sections (flattened) */
   allControls: FormControl[];
+  /** All special controls across all tabs/sections (flattened) */
+  allSpecialControls: FormSpecialControl[];
 }
 
 // ─── Relationship Metadata ───────────────────────────────────────────────────

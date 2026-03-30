@@ -45,9 +45,23 @@
  * ```
  */
 
-import type { ParsedForm, AttributeMetadata } from '../metadata/types.js';
+import type { ParsedForm, AttributeMetadata, SpecialControlType } from '../metadata/types.js';
 import { getFormAttributeType, getFormControlType, toPascalCase } from './type-mapping.js';
 import { transliterateUmlauts, formatDualLabel, getPrimaryLabel, type LabelConfig, DEFAULT_LABEL_CONFIG } from './label-utils.js';
+
+/** Map special control types to @types/xrm control interfaces */
+function specialControlToXrmType(controlType: SpecialControlType): string | null {
+  switch (controlType) {
+    case 'subgrid': return 'Xrm.Controls.GridControl';
+    case 'editablegrid': return 'Xrm.Controls.GridControl';
+    case 'quickview': return 'Xrm.Controls.QuickFormControl';
+    case 'webresource': return 'Xrm.Controls.IframeControl';
+    case 'iframe': return 'Xrm.Controls.IframeControl';
+    case 'notes': return 'Xrm.Controls.Control';
+    case 'map': return 'Xrm.Controls.Control';
+    default: return null;
+  }
+}
 
 /** Options for form interface generation */
 export interface FormGeneratorOptions {
@@ -212,8 +226,48 @@ export function generateFormInterface(
   lines.push('');
   lines.push(`    /** Typisierter Control-Zugriff: nur Controls die auf diesem Formular existieren */`);
   lines.push(`    getControl<K extends ${fieldsTypeName}>(name: K): ${ctrlMapName}[K];`);
+
+  // Typed getControl overloads for special controls (subgrids, quick views, etc.)
+  const specialControls = form.allSpecialControls || [];
+  for (const sc of specialControls) {
+    const xrmType = specialControlToXrmType(sc.controlType);
+    if (xrmType) {
+      lines.push(`    getControl(name: "${sc.id}"): ${xrmType};`);
+    }
+  }
+
   lines.push('    getControl(index: number): Xrm.Controls.Control;');
   lines.push('    getControl(): Xrm.Controls.Control[];');
+
+  // 6. Typed ui.tabs for compile-time tab name validation
+  if (form.tabs.length > 0) {
+    lines.push('');
+    lines.push('    /** Typisierter Tab-Zugriff */');
+    lines.push('    ui: {');
+    lines.push('      tabs: {');
+    for (const tab of form.tabs) {
+      if (tab.name) {
+        const sectionNames = tab.sections.filter((s) => s.name).map((s) => s.name);
+        if (sectionNames.length > 0) {
+          // Tab with typed sections
+          lines.push(`        get(name: "${tab.name}"): Xrm.Controls.Tab & {`);
+          lines.push('          sections: {');
+          for (const sectionName of sectionNames) {
+            lines.push(`            get(name: "${sectionName}"): Xrm.Controls.Section;`);
+          }
+          lines.push('            get(name: string): Xrm.Controls.Section;');
+          lines.push('          };');
+          lines.push('        };');
+        } else {
+          lines.push(`        get(name: "${tab.name}"): Xrm.Controls.Tab;`);
+        }
+      }
+    }
+    lines.push('        get(name: string): Xrm.Controls.Tab;');
+    lines.push('      };');
+    lines.push('    } & Xrm.Ui;');
+  }
+
   lines.push('  }');
 
   lines.push('}');

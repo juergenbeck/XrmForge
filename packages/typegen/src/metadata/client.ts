@@ -191,6 +191,7 @@ export class MetadataClient {
           isDefault: form.isdefault,
           tabs: [],
           allControls: [],
+          allSpecialControls: [],
         };
       }
     });
