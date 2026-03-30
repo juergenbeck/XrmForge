@@ -257,9 +257,13 @@ export function isPartyListType(attributeType: string): boolean {
  *   not as a standalone property in Web API responses
  */
 export function shouldIncludeInEntityInterface(attr: AttributeMetadata): boolean {
-  // Exclude virtual attributes (images, file, calculated)
+  // Exclude virtual attributes (images, file, calculated), but keep MultiSelectPicklist
+  // (MultiSelectPicklist has AttributeType "Virtual" but @odata.type distinguishes it)
   if (attr.AttributeType === 'Virtual' || attr.AttributeType === 'CalendarRules') {
-    return false;
+    const odataType = (attr as unknown as Record<string, unknown>)['@odata.type'] as string | undefined;
+    if (odataType !== '#Microsoft.Dynamics.CRM.MultiSelectPicklistAttributeMetadata') {
+      return false;
+    }
   }
 
   // Exclude solution metadata (not business data)
