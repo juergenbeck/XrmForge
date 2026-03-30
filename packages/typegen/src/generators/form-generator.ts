@@ -126,13 +126,13 @@ export function generateFormInterface(
   entityLogicalName: string,
   attributeMap: Map<string, AttributeMetadata>,
   options: FormGeneratorOptions = {},
+  baseNameOverride?: string,
 ): string {
   const labelConfig = options.labelConfig || DEFAULT_LABEL_CONFIG;
   const namespacePrefix = options.namespacePrefix || 'XrmForge.Forms';
   const entityPascal = toPascalCase(entityLogicalName);
   const namespace = `${namespacePrefix}.${entityPascal}`;
-  const safeFormName = toSafeFormName(form.name);
-  const baseName = buildFormBaseName(entityPascal, safeFormName);
+  const baseName = baseNameOverride || buildFormBaseName(entityPascal, toSafeFormName(form.name));
   const interfaceName = `${baseName}Form`;
   const fieldsTypeName = `${baseName}FormFields`;
   const attrMapName = `${baseName}FormAttributeMap`;
@@ -239,32 +239,59 @@ export function generateFormInterface(
   const namedTabs = form.tabs.filter((t) => t.name);
   if (namedTabs.length > 0) {
     const tabsEnumName = `${baseName}FormTabs`;
+
+    // Pre-compute disambiguated tab member names (Bug 2 fix: duplicate tab names)
+    const usedTabMembers = new Set<string>();
+    const tabMemberNames: string[] = [];
+    for (const tab of namedTabs) {
+      let memberName = toSafeFormName(tab.name) || toPascalCase(tab.name);
+      const originalName = memberName;
+      let counter = 2;
+      while (usedTabMembers.has(memberName)) {
+        memberName = `${originalName}${counter}`;
+        counter++;
+      }
+      usedTabMembers.add(memberName);
+      tabMemberNames.push(memberName);
+    }
+
     lines.push(`  /** Tab constants for "${form.name}" (compile-time only, zero runtime) */`);
     lines.push(`  const enum ${tabsEnumName} {`);
-    for (const tab of namedTabs) {
+    for (let i = 0; i < namedTabs.length; i++) {
+      const tab = namedTabs[i]!;
       if (tab.label) {
         lines.push(`    /** ${tab.label} */`);
       }
-      const memberName = toSafeFormName(tab.name) || toPascalCase(tab.name);
-      lines.push(`    ${memberName} = '${tab.name}',`);
+      lines.push(`    ${tabMemberNames[i]} = '${tab.name}',`);
     }
     lines.push('  }');
     lines.push('');
 
-    // 4c. Section const enums (one per tab)
-    for (const tab of namedTabs) {
+    // 4c. Section const enums (one per tab, using disambiguated tab member names)
+    for (let i = 0; i < namedTabs.length; i++) {
+      const tab = namedTabs[i]!;
       const namedSections = tab.sections.filter((s) => s.name);
       if (namedSections.length === 0) continue;
 
-      const tabMemberName = toSafeFormName(tab.name) || toPascalCase(tab.name);
+      const tabMemberName = tabMemberNames[i]!;
       const sectionsEnumName = `${baseName}Form${tabMemberName}Sections`;
       lines.push(`  /** Section constants for tab "${tab.name}" (compile-time only, zero runtime) */`);
       lines.push(`  const enum ${sectionsEnumName} {`);
+
+      // Disambiguate section member names within a tab
+      const usedSectionMembers = new Set<string>();
       for (const section of namedSections) {
         if (section.label) {
           lines.push(`    /** ${section.label} */`);
         }
-        const sectionMember = toSafeFormName(section.name) || toPascalCase(section.name);
+        let sectionMember = toSafeFormName(section.name) || toPascalCase(section.name);
+        const originalSectionMember = sectionMember;
+        let sCounter = 2;
+        while (usedSectionMembers.has(sectionMember)) {
+          sectionMember = `${originalSectionMember}${sCounter}`;
+          sCounter++;
+        }
+        usedSectionMembers.add(sectionMember);
         lines.push(`    ${sectionMember} = '${section.name}',`);
       }
       lines.push('  }');
@@ -353,18 +380,39 @@ export function generateEntityForms(
     attributeMap.set(attr.LogicalName, attr);
   }
 
+  const entityPascal = toPascalCase(entityLogicalName);
+
+  // Pre-compute base names for all valid forms
+  const validForms = forms.filter((f) => f.allControls.length > 0);
+  const baseNames = validForms.map((form) => {
+    const safeFormName = toSafeFormName(form.name);
+    return buildFormBaseName(entityPascal, safeFormName);
+  });
+
+  // Count occurrences to detect duplicates
+  const baseNameCounts = new Map<string, number>();
+  for (const name of baseNames) {
+    baseNameCounts.set(name, (baseNameCounts.get(name) || 0) + 1);
+  }
+
+  // Disambiguate duplicate base names with numeric suffix
+  const baseNameCounters = new Map<string, number>();
   const results: Array<{ formName: string; interfaceName: string; content: string }> = [];
 
-  for (const form of forms) {
-    // Skip forms with no controls
-    if (form.allControls.length === 0) continue;
+  for (let i = 0; i < validForms.length; i++) {
+    const form = validForms[i]!;
+    let baseName = baseNames[i]!;
 
-    const entityPascal = toPascalCase(entityLogicalName);
-    const safeFormName = toSafeFormName(form.name);
-    const baseName = buildFormBaseName(entityPascal, safeFormName);
+    if (baseNameCounts.get(baseName)! > 1) {
+      const counter = (baseNameCounters.get(baseName) || 0) + 1;
+      baseNameCounters.set(baseName, counter);
+      if (counter > 1) {
+        baseName = `${baseName}${counter}`;
+      }
+    }
+
     const interfaceName = `${baseName}Form`;
-
-    const content = generateFormInterface(form, entityLogicalName, attributeMap, options);
+    const content = generateFormInterface(form, entityLogicalName, attributeMap, options, baseName);
     results.push({ formName: form.name, interfaceName, content });
   }
 

@@ -247,4 +247,69 @@ describe('generateEntityForms', () => {
 
     expect(results).toHaveLength(0);
   });
+
+  it('should disambiguate duplicate form names with numeric suffix', () => {
+    const forms = [
+      createForm('Kontakt', ['firstname']),
+      createForm('Kontakt', ['firstname', 'lastname']),
+      createForm('Kontakt', ['firstname', 'emailaddress1']),
+    ];
+    const attributes = [
+      createAttr('firstname', 'String', 'First Name'),
+      createAttr('lastname', 'String', 'Last Name'),
+      createAttr('emailaddress1', 'String', 'Email'),
+    ];
+
+    const results = generateEntityForms(forms, 'contact', attributes);
+
+    expect(results).toHaveLength(3);
+    // First occurrence keeps original name, subsequent get numeric suffix
+    expect(results[0].interfaceName).toBe('ContactKontaktForm');
+    expect(results[1].interfaceName).toBe('ContactKontakt2Form');
+    expect(results[2].interfaceName).toBe('ContactKontakt3Form');
+
+    // Each generates unique type names
+    expect(results[0].content).toContain('type ContactKontaktFormFields =');
+    expect(results[1].content).toContain('type ContactKontakt2FormFields =');
+    expect(results[2].content).toContain('type ContactKontakt3FormFields =');
+  });
+
+  it('should not add suffix when form names are already unique', () => {
+    const forms = [
+      createForm('Main', ['name']),
+      createForm('Quick Create', ['name']),
+    ];
+    const attributes = [createAttr('name', 'String', 'Name')];
+
+    const results = generateEntityForms(forms, 'account', attributes);
+
+    expect(results[0].interfaceName).toBe('AccountMainForm');
+    expect(results[1].interfaceName).toBe('AccountQuickCreateForm');
+  });
+});
+
+describe('tab/section disambiguation', () => {
+  it('should disambiguate duplicate tab names within a form', () => {
+    const form: ParsedForm = {
+      name: 'Insights',
+      formId: 'form-insights',
+      isDefault: true,
+      tabs: [
+        { name: 'Insights', label: 'Insights 1', sections: [{ name: 'S1', label: 'Section 1', controls: [{ id: 'f1', datafieldname: 'statecode', classid: '' }] }] },
+        { name: 'Insights', label: 'Insights 2', sections: [{ name: 'S2', label: 'Section 2', controls: [] }] },
+      ],
+      allControls: [{ id: 'f1', datafieldname: 'statecode', classid: '' }],
+    };
+    const attributes = [createAttr('statecode', 'State', 'Status')];
+
+    const result = generateFormInterface(form, 'contact', new Map(attributes.map((a) => [a.LogicalName, a])));
+
+    // Tab enum members should be disambiguated
+    expect(result).toContain("Insights = 'Insights'");
+    expect(result).toContain("Insights2 = 'Insights'");
+
+    // Section enum names should use disambiguated tab member names
+    expect(result).toContain('const enum ContactInsightsFormInsightsSections {');
+    expect(result).toContain('const enum ContactInsightsFormInsights2Sections {');
+  });
 });
