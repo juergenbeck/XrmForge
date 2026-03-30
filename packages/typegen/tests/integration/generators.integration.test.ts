@@ -117,20 +117,20 @@ describe('form-generator with real Account form', () => {
 
   it('should generate union type for form fields', () => {
     const accountForm = formResults[0];
-    expect(accountForm.content).toContain('type AccountAccountFormFields =');
+    expect(accountForm.content).toContain('type AccountFormFields =');
     expect(accountForm.content).toContain('| "name"');
   });
 
   it('should generate attribute map with correct types', () => {
     const accountForm = formResults[0];
-    expect(accountForm.content).toContain('type AccountAccountFormAttributeMap = {');
+    expect(accountForm.content).toContain('type AccountFormAttributeMap = {');
     expect(accountForm.content).toContain('name: Xrm.Attributes.StringAttribute;');
   });
 
   it('should generate generic getAttribute with union constraint (no string fallback)', () => {
     const accountForm = formResults[0];
     // Generic getAttribute with union constraint
-    expect(accountForm.content).toContain('getAttribute<K extends AccountAccountFormFields>(name: K): AccountAccountFormAttributeMap[K];');
+    expect(accountForm.content).toContain('getAttribute<K extends AccountFormFields>(name: K): AccountFormAttributeMap[K];');
     // Index and collection access still available
     expect(accountForm.content).toContain('getAttribute(index: number): Xrm.Attributes.Attribute;');
     expect(accountForm.content).toContain('getAttribute(): Xrm.Attributes.Attribute[];');
@@ -140,7 +140,7 @@ describe('form-generator with real Account form', () => {
 
   it('should generate control map with Lookup controls as LookupControl', () => {
     const accountForm = formResults[0];
-    expect(accountForm.content).toContain('type AccountAccountFormControlMap = {');
+    expect(accountForm.content).toContain('type AccountFormControlMap = {');
     // primarycontactid should be on the form
     if (accountForm.content.includes('primarycontactid')) {
       expect(accountForm.content).toContain('primarycontactid: Xrm.Controls.LookupControl;');
@@ -149,6 +149,6 @@ describe('form-generator with real Account form', () => {
 
   it('should generate Fields const enum', () => {
     const accountForm = formResults[0];
-    expect(accountForm.content).toContain('const enum AccountAccountFormFieldsEnum {');
+    expect(accountForm.content).toContain('const enum AccountFormFieldsEnum {');
   });
 });

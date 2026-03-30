@@ -51,7 +51,7 @@ describe('generateFormInterface', () => {
     const result = generateFormInterface(form, 'account', attrMap);
 
     // Union type with only form fields
-    expect(result).toContain('type AccountAccountFormFields =');
+    expect(result).toContain('type AccountFormFields =');
     expect(result).toContain('| "name"');
     expect(result).toContain('| "telephone1"');
   });
@@ -66,7 +66,7 @@ describe('generateFormInterface', () => {
 
     const result = generateFormInterface(form, 'account', attrMap);
 
-    expect(result).toContain('type AccountAccountFormAttributeMap = {');
+    expect(result).toContain('type AccountFormAttributeMap = {');
     expect(result).toContain('name: Xrm.Attributes.StringAttribute;');
     expect(result).toContain('revenue: Xrm.Attributes.NumberAttribute;');
     expect(result).toContain('ownerid: Xrm.Attributes.LookupAttribute;');
@@ -82,7 +82,7 @@ describe('generateFormInterface', () => {
 
     const result = generateFormInterface(form, 'account', attrMap);
 
-    expect(result).toContain('type AccountAccountFormControlMap = {');
+    expect(result).toContain('type AccountFormControlMap = {');
     expect(result).toContain('name: Xrm.Controls.StringControl;');
     expect(result).toContain('revenue: Xrm.Controls.NumberControl;');
     expect(result).toContain('ownerid: Xrm.Controls.LookupControl;');
@@ -97,7 +97,7 @@ describe('generateFormInterface', () => {
     const result = generateFormInterface(form, 'account', attrMap);
 
     // Generic with union constraint
-    expect(result).toContain('getAttribute<K extends AccountAccountFormFields>(name: K): AccountAccountFormAttributeMap[K];');
+    expect(result).toContain('getAttribute<K extends AccountFormFields>(name: K): AccountFormAttributeMap[K];');
     // Index and collection access still available
     expect(result).toContain('getAttribute(index: number): Xrm.Attributes.Attribute;');
     expect(result).toContain('getAttribute(): Xrm.Attributes.Attribute[];');
@@ -113,7 +113,7 @@ describe('generateFormInterface', () => {
 
     const result = generateFormInterface(form, 'account', attrMap);
 
-    expect(result).toContain('getControl<K extends AccountAccountFormFields>(name: K): AccountAccountFormControlMap[K];');
+    expect(result).toContain('getControl<K extends AccountFormFields>(name: K): AccountFormControlMap[K];');
     expect(result).toContain('getControl(index: number): Xrm.Controls.Control;');
     expect(result).toContain('getControl(): Xrm.Controls.Control[];');
     expect(result).not.toContain('getControl(name: string)');
@@ -128,7 +128,7 @@ describe('generateFormInterface', () => {
 
     const result = generateFormInterface(form, 'account', attrMap);
 
-    expect(result).toContain('const enum AccountAccountFormFieldsEnum {');
+    expect(result).toContain('const enum AccountFormFieldsEnum {');
     expect(result).toContain("AccountName = 'name',");
     expect(result).toContain("MainPhone = 'telephone1',");
   });
@@ -230,7 +230,7 @@ describe('generateEntityForms', () => {
     const results = generateEntityForms(forms, 'account', attributes);
 
     expect(results).toHaveLength(2);
-    expect(results[0].interfaceName).toBe('AccountAccountForm');
+    expect(results[0].interfaceName).toBe('AccountForm');
     expect(results[1].interfaceName).toBe('AccountQuickCreateForm');
   });
 

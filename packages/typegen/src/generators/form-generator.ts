@@ -82,6 +82,19 @@ function toSafeFormName(formName: string): string {
     .join('');
 }
 
+/**
+ * Build the interface base name, avoiding redundant prefix.
+ * "Account" + "Account" -> "Account" (not "AccountAccount")
+ * "Lead" + "Markant Lead" -> "LeadMarkantLead"
+ */
+function buildFormBaseName(entityPascal: string, safeFormName: string): string {
+  // If form name starts with entity name, don't prefix
+  if (safeFormName.startsWith(entityPascal)) {
+    return safeFormName;
+  }
+  return `${entityPascal}${safeFormName}`;
+}
+
 /** Convert a label to a PascalCase enum member name */
 function labelToPascalMember(label: string): string {
   if (!label) return '';
@@ -114,10 +127,11 @@ export function generateFormInterface(
   const entityPascal = toPascalCase(entityLogicalName);
   const namespace = `${namespacePrefix}.${entityPascal}`;
   const safeFormName = toSafeFormName(form.name);
-  const interfaceName = `${entityPascal}${safeFormName}Form`;
-  const fieldsTypeName = `${interfaceName}Fields`;
-  const attrMapName = `${interfaceName}AttributeMap`;
-  const ctrlMapName = `${interfaceName}ControlMap`;
+  const baseName = buildFormBaseName(entityPascal, safeFormName);
+  const interfaceName = `${baseName}Form`;
+  const fieldsTypeName = `${baseName}FormFields`;
+  const attrMapName = `${baseName}FormAttributeMap`;
+  const ctrlMapName = `${baseName}FormControlMap`;
 
   // Get unique field names from form controls (deduplicate across tabs/sections)
   const fieldNames = new Set<string>();
@@ -216,6 +230,43 @@ export function generateFormInterface(
   lines.push('  }');
   lines.push('');
 
+  // 4b. Tabs const enum
+  const namedTabs = form.tabs.filter((t) => t.name);
+  if (namedTabs.length > 0) {
+    const tabsEnumName = `${baseName}FormTabs`;
+    lines.push(`  /** Tab constants for "${form.name}" (compile-time only, zero runtime) */`);
+    lines.push(`  const enum ${tabsEnumName} {`);
+    for (const tab of namedTabs) {
+      if (tab.label) {
+        lines.push(`    /** ${tab.label} */`);
+      }
+      const memberName = toSafeFormName(tab.name) || toPascalCase(tab.name);
+      lines.push(`    ${memberName} = '${tab.name}',`);
+    }
+    lines.push('  }');
+    lines.push('');
+
+    // 4c. Section const enums (one per tab)
+    for (const tab of namedTabs) {
+      const namedSections = tab.sections.filter((s) => s.name);
+      if (namedSections.length === 0) continue;
+
+      const tabMemberName = toSafeFormName(tab.name) || toPascalCase(tab.name);
+      const sectionsEnumName = `${baseName}Form${tabMemberName}Sections`;
+      lines.push(`  /** Section constants for tab "${tab.name}" (compile-time only, zero runtime) */`);
+      lines.push(`  const enum ${sectionsEnumName} {`);
+      for (const section of namedSections) {
+        if (section.label) {
+          lines.push(`    /** ${section.label} */`);
+        }
+        const sectionMember = toSafeFormName(section.name) || toPascalCase(section.name);
+        lines.push(`    ${sectionMember} = '${section.name}',`);
+      }
+      lines.push('  }');
+      lines.push('');
+    }
+  }
+
   // 5. Form Interface: generic getAttribute/getControl with compile-time validation
   lines.push(`  /** ${form.name} */`);
   lines.push(`  interface ${interfaceName} extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> {`);
@@ -305,7 +356,8 @@ export function generateEntityForms(
 
     const entityPascal = toPascalCase(entityLogicalName);
     const safeFormName = toSafeFormName(form.name);
-    const interfaceName = `${entityPascal}${safeFormName}Form`;
+    const baseName = buildFormBaseName(entityPascal, safeFormName);
+    const interfaceName = `${baseName}Form`;
 
     const content = generateFormInterface(form, entityLogicalName, attributeMap, options);
     results.push({ formName: form.name, interfaceName, content });
