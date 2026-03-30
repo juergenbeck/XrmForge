@@ -43,3 +43,15 @@ export type { EntityFieldsGeneratorOptions } from './entity-fields-generator.js'
 
 // Web API Helpers
 export { select, selectExpand, parseLookup, parseLookups, parseFormattedValue } from './webapi-helpers.js';
+
+// Xrm API Constants (eliminates raw strings for common D365 values)
+export {
+  DisplayState,
+  // FormType: use XrmEnum.FormType from @types/xrm
+  FormNotificationLevel,
+  RequiredLevel,
+  SubmitMode,
+  SaveMode,
+  ClientType,
+  ClientState,
+} from './xrm-constants.js';
