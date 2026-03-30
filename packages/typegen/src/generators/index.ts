@@ -38,7 +38,7 @@ export { generateFormInterface, generateEntityForms } from './form-generator.js'
 export type { FormGeneratorOptions } from './form-generator.js';
 
 // Entity Fields Enum Generator (for Web API $select)
-export { generateEntityFieldsEnum } from './entity-fields-generator.js';
+export { generateEntityFieldsEnum, generateEntityNavigationProperties } from './entity-fields-generator.js';
 export type { EntityFieldsGeneratorOptions } from './entity-fields-generator.js';
 
 // Web API Helpers

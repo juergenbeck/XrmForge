@@ -40,26 +40,23 @@ export function select(...fields: string[]): string {
  * This function extracts all three into an `Xrm.LookupValue` object.
  *
  * @param response - The raw Web API response object
- * @param fieldOrKey - Navigation property name ("parentaccountid") or EntityFields enum value ("_parentaccountid_value")
+ * @param navigationProperty - Navigation property name (use NavigationProperties enum for type safety)
  * @returns Xrm.LookupValue or null if the lookup is empty
  *
  * @example
  * ```typescript
- * // Mit Navigation Property Name:
- * parseLookup(result, 'markant_address1_countryid');
+ * // Mit NavigationProperties-Enum (empfohlen, keine Raw-Strings):
+ * parseLookup(result, AccountNav.Country);
  *
- * // Mit EntityFields-Enum (empfohlen, keine Raw-Strings):
- * parseLookup(result, AccountFields.Country);  // '_markant_address1_countryid_value'
+ * // Oder mit Navigation Property Name direkt:
+ * parseLookup(result, 'markant_address1_countryid');
  * ```
  */
 export function parseLookup(
   response: Record<string, unknown>,
-  fieldOrKey: string,
+  navigationProperty: string,
 ): { id: string; name: string; entityType: string } | null {
-  // Accept both formats: 'parentaccountid' or '_parentaccountid_value' (from EntityFields enum)
-  const key = fieldOrKey.startsWith('_') && fieldOrKey.endsWith('_value')
-    ? fieldOrKey
-    : `_${fieldOrKey}_value`;
+  const key = `_${navigationProperty}_value`;
   const id = response[key] as string | undefined;
   if (!id) return null;
 
