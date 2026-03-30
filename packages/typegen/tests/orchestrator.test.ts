@@ -22,7 +22,7 @@ vi.mock('../src/orchestrator/file-writer.js', async (importOriginal) => {
   const original = await importOriginal<typeof import('../src/orchestrator/file-writer.js')>();
   return {
     ...original,
-    writeAllFiles: vi.fn().mockResolvedValue(3),
+    writeAllFiles: vi.fn().mockResolvedValue({ written: 3, unchanged: 0, warnings: [] }),
   };
 });
 

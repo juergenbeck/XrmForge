@@ -184,4 +184,16 @@ describe('disambiguateEnumMembers', () => {
       { name: 'Active_3', value: 3 },
     ]);
   });
+
+  it('should avoid collision when suffixed name matches an existing label (H2)', () => {
+    // "Active_2" exists as a real label AND "Active" is duplicated with value=2
+    const result = disambiguateEnumMembers([
+      { name: 'Active', value: 1 },
+      { name: 'Active', value: 2 },   // Would normally become Active_2
+      { name: 'Active_2', value: 3 }, // But Active_2 already exists as a label
+    ]);
+    expect(result[0].name).toBe('Active');
+    expect(result[1].name).toBe('Active_2_v2'); // Avoids collision
+    expect(result[2].name).toBe('Active_2');     // Original label preserved
+  });
 });

@@ -20,6 +20,7 @@ import type { EntityTypeInfo } from '../metadata/types.js';
 import {
   getEntityPropertyType,
   isLookupType,
+  isPartyListType,
   toLookupValueProperty,
   shouldIncludeInEntityInterface,
   toPascalCase,
@@ -100,6 +101,33 @@ export function generateEntityInterface(info: EntityTypeInfo, options: EntityGen
     }
 
     lines.push(`    ${propertyName}?: ${tsType};`);
+  }
+
+  // PartyList fields as ActivityParty[] navigation properties
+  const partyListAttrs = info.attributes.filter((a) => isPartyListType(a.AttributeType));
+  if (partyListAttrs.length > 0) {
+    lines.push('');
+    lines.push('    // ─── PartyList Navigation Properties (ActivityParty[]) ───');
+
+    for (const attr of partyListAttrs.sort((a, b) => a.LogicalName.localeCompare(b.LogicalName))) {
+      const label = formatDualLabel(attr.DisplayName, labelConfig);
+
+      // Find the matching relationship for the navigation property name
+      const relationship = info.oneToManyRelationships.find(
+        (r) => r.ReferencingEntity === 'activityparty' && r.ReferencedEntity === info.entity.LogicalName,
+      );
+      // Use relationship SchemaName if found, otherwise fall back to entity_activity_parties
+      const navPropName = relationship
+        ? relationship.SchemaName.charAt(0).toLowerCase() + relationship.SchemaName.slice(1)
+        : `${info.entity.LogicalName}_activity_parties`;
+
+      if (label) {
+        lines.push(`    /** ${label} - ActivityParty[] (Navigation Property, benötigt $expand) */`);
+      } else {
+        lines.push('    /** ActivityParty[] (Navigation Property, benötigt $expand) */');
+      }
+      lines.push(`    ${navPropName}?: ActivityParty[];`);
+    }
   }
 
   lines.push('  }');

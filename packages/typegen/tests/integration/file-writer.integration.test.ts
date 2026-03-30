@@ -80,8 +80,9 @@ describe('file-writer integration (real filesystem)', () => {
       { relativePath: 'forms/account.d.ts', content: 'form content', type: 'form' },
     ];
 
-    const count = await writeAllFiles(tmpDir, files);
-    expect(count).toBe(3);
+    const result = await writeAllFiles(tmpDir, files);
+    expect(result.written).toBe(3);
+    expect(result.warnings).toHaveLength(0);
 
     const dirs = await readdir(tmpDir);
     expect(dirs).toContain('entities');
@@ -90,8 +91,9 @@ describe('file-writer integration (real filesystem)', () => {
   });
 
   it('should handle empty file list gracefully', async () => {
-    const count = await writeAllFiles(tmpDir, []);
-    expect(count).toBe(0);
+    const result = await writeAllFiles(tmpDir, []);
+    expect(result.written).toBe(0);
+    expect(result.warnings).toHaveLength(0);
   });
 
   it('should generate barrel index referencing all file types', () => {

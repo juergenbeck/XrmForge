@@ -47,22 +47,43 @@ export async function writeGeneratedFile(outputDir: string, file: GeneratedFile)
   return true;
 }
 
+/** Result of writing a batch of files */
+export interface WriteResult {
+  /** Number of files successfully written (content changed) */
+  written: number;
+  /** Number of files unchanged (already up to date) */
+  unchanged: number;
+  /** Warnings for files that could not be written (non-fatal) */
+  warnings: string[];
+}
+
 /**
  * Write all generated files to disk.
+ * A single file write failure does NOT abort the entire batch.
+ * Errors are collected as warnings so the remaining files are still written.
  *
  * @param outputDir - Base output directory
  * @param files - Array of generated files
- * @returns Number of files actually written (changed)
+ * @returns WriteResult with counts and warnings
  */
-export async function writeAllFiles(outputDir: string, files: GeneratedFile[]): Promise<number> {
-  let written = 0;
+export async function writeAllFiles(outputDir: string, files: GeneratedFile[]): Promise<WriteResult> {
+  const result: WriteResult = { written: 0, unchanged: 0, warnings: [] };
 
   for (const file of files) {
-    const changed = await writeGeneratedFile(outputDir, file);
-    if (changed) written++;
+    try {
+      const changed = await writeGeneratedFile(outputDir, file);
+      if (changed) {
+        result.written++;
+      } else {
+        result.unchanged++;
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      result.warnings.push(`Konnte ${file.relativePath} nicht schreiben: ${message}`);
+    }
   }
 
-  return written;
+  return result;
 }
 
 /** File header for generated .d.ts files */

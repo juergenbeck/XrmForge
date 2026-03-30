@@ -85,8 +85,9 @@ describe('E2E: fixture to tsc-verified output', () => {
     });
 
     // 5. Write all files to tmpDir
-    const written = await writeAllFiles(tmpDir, files);
-    expect(written).toBeGreaterThanOrEqual(3); // entity + optionset + form + index
+    const writeResult = await writeAllFiles(tmpDir, files);
+    expect(writeResult.written).toBeGreaterThanOrEqual(3); // entity + optionset + form + index
+    expect(writeResult.warnings).toHaveLength(0);
 
     // 6. Write tsconfig.json
     const tsconfig = {

@@ -254,11 +254,12 @@ export class MetadataClient {
 
   /**
    * Get all entity LogicalNames that belong to a specific solution.
+   * Resolves SolutionComponent MetadataIds to EntityDefinition LogicalNames.
    *
    * @param solutionUniqueName - The unique name of the solution
-   * @returns Array of entity MetadataIds (use with getEntityWithAttributes)
+   * @returns Array of entity LogicalNames (e.g. ["account", "contact"])
    */
-  async getEntityIdsForSolution(solutionUniqueName: string): Promise<string[]> {
+  async getEntityNamesForSolution(solutionUniqueName: string): Promise<string[]> {
     const safeName = DataverseHttpClient.escapeODataString(solutionUniqueName);
 
     log.info(`Fetching solution: ${solutionUniqueName}`);
@@ -286,9 +287,34 @@ export class MetadataClient {
       `/solutioncomponents?$filter=_solutionid_value eq ${DataverseHttpClient.sanitizeGuid(solutionId)} and componenttype eq ${COMPONENT_TYPE_ENTITY}&$select=objectid,componenttype`,
     );
 
-    log.info(`Solution "${solutionName}" contains ${components.length} entities`);
+    log.info(`Solution "${solutionName}" contains ${components.length} entity components`);
 
-    return components.map((c) => c.objectid);
+    if (components.length === 0) return [];
+
+    // Step 3: Resolve MetadataIds to LogicalNames via EntityDefinitions
+    // The objectid in solutioncomponents is the MetadataId of the EntityDefinition,
+    // NOT the LogicalName. We need an additional query to resolve.
+    const metadataIds = components.map((c) => c.objectid);
+    const filterClauses = metadataIds.map((id) => `MetadataId eq ${DataverseHttpClient.sanitizeGuid(id)}`);
+
+    // Batch in groups of 15 to avoid excessively long filter strings
+    const BATCH_SIZE = 15;
+    const logicalNames: string[] = [];
+
+    for (let i = 0; i < filterClauses.length; i += BATCH_SIZE) {
+      const batch = filterClauses.slice(i, i + BATCH_SIZE);
+      const filter = batch.join(' or ');
+      const entities = await this.http.getAll<{ LogicalName: string }>(
+        `/EntityDefinitions?$filter=${filter}&$select=LogicalName`,
+      );
+      for (const e of entities) {
+        logicalNames.push(e.LogicalName);
+      }
+    }
+
+    log.info(`Resolved ${logicalNames.length} entity logical names from solution "${solutionName}"`);
+
+    return logicalNames;
   }
 
   // ─── Aggregated Metadata ───────────────────────────────────────────────

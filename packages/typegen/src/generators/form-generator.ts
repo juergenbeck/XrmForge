@@ -22,6 +22,7 @@
 
 import type { ParsedForm, AttributeMetadata } from '../metadata/types.js';
 import { getFormAttributeType, getFormControlType, toPascalCase } from './type-mapping.js';
+import { transliterateUmlauts } from './label-utils.js';
 import type { LabelConfig } from './label-utils.js';
 
 /** Options for form interface generation */
@@ -53,8 +54,8 @@ export function generateFormInterface(
   const entityPascal = toPascalCase(entityLogicalName);
   const namespace = `${namespacePrefix}.${entityPascal}`;
 
-  // Build safe interface name from form name
-  const safeFormName = form.name
+  // Build safe interface name from form name (transliterate umlauts first, then sanitize)
+  const safeFormName = transliterateUmlauts(form.name)
     .replace(/[^a-zA-Z0-9\s]/g, '')
     .split(/\s+/)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
@@ -156,7 +157,7 @@ export function generateEntityForms(
     if (form.allControls.length === 0) continue;
 
     const entityPascal = toPascalCase(entityLogicalName);
-    const safeFormName = form.name
+    const safeFormName = transliterateUmlauts(form.name)
       .replace(/[^a-zA-Z0-9\s]/g, '')
       .split(/\s+/)
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))

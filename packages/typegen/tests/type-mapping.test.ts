@@ -73,7 +73,6 @@ describe('getEntityPropertyType', () => {
     expect(getEntityPropertyType('Lookup', true)).toBe('string');
     expect(getEntityPropertyType('Customer', true)).toBe('string');
     expect(getEntityPropertyType('Owner', true)).toBe('string');
-    expect(getEntityPropertyType('PartyList', true)).toBe('string');
   });
 
   it('should return unknown for unmapped types', () => {
@@ -246,7 +245,7 @@ describe('isLookupType', () => {
     expect(isLookupType('Lookup')).toBe(true);
     expect(isLookupType('Customer')).toBe(true);
     expect(isLookupType('Owner')).toBe(true);
-    expect(isLookupType('PartyList')).toBe(true);
+    expect(isLookupType('PartyList')).toBe(false); // PartyList is NOT a lookup (it's a navigation property)
   });
 
   it('should return false for non-lookup types', () => {

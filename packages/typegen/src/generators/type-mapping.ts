@@ -228,10 +228,21 @@ export function toLookupValueProperty(logicalName: string): string {
 }
 
 /**
- * Determine if an attribute is a lookup type.
+ * Determine if an attribute is a single-value lookup type.
+ * PartyList is NOT included: it's a collection navigation property (ActivityParty[]),
+ * not a single _fieldname_value property in the Web API.
  */
 export function isLookupType(attributeType: string): boolean {
-  return attributeType === 'Lookup' || attributeType === 'Customer' || attributeType === 'Owner' || attributeType === 'PartyList';
+  return attributeType === 'Lookup' || attributeType === 'Customer' || attributeType === 'Owner';
+}
+
+/**
+ * Determine if an attribute is a PartyList (ActivityParty collection).
+ * PartyList fields (to, from, cc, bcc, requiredattendees, optionalattendees)
+ * are navigation properties in the Web API, not flat lookup properties.
+ */
+export function isPartyListType(attributeType: string): boolean {
+  return attributeType === 'PartyList';
 }
 
 /**

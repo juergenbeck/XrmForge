@@ -107,7 +107,7 @@ export class TypeGenerationOrchestrator {
     // 1b. Resolve solution entities if solutionName is set
     if (this.config.solutionName) {
       this.logger.info(`Resolving entities from solution: ${this.config.solutionName}`);
-      const solutionEntityNames = await metadataClient.getEntityIdsForSolution(this.config.solutionName);
+      const solutionEntityNames = await metadataClient.getEntityNamesForSolution(this.config.solutionName);
       this.logger.info(`Found ${solutionEntityNames.length} entities in solution`);
       // Solution entities override the manual list
       this.config.entities = solutionEntityNames;
@@ -171,15 +171,21 @@ export class TypeGenerationOrchestrator {
       allFiles.push(indexFile);
     }
 
-    // 4. Write all files to disk
-    const filesWritten = await writeAllFiles(this.config.outputDir, allFiles);
+    // 4. Write all files to disk (non-fatal: file write errors become warnings)
+    const writeResult = await writeAllFiles(this.config.outputDir, allFiles);
 
     const durationMs = Date.now() - startTime;
-    const totalWarnings = entityResults.reduce((sum, r) => sum + r.warnings.length, 0);
+    const entityWarnings = entityResults.reduce((sum, r) => sum + r.warnings.length, 0);
+    const totalWarnings = entityWarnings + writeResult.warnings.length;
+
+    for (const w of writeResult.warnings) {
+      this.logger.warn(w);
+    }
 
     this.logger.info('Type generation complete', {
       entities: entityResults.length,
-      filesWritten,
+      filesWritten: writeResult.written,
+      filesUnchanged: writeResult.unchanged,
       totalFiles: allFiles.length,
       totalWarnings,
       durationMs,

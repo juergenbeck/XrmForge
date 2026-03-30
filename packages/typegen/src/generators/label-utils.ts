@@ -77,6 +77,7 @@ export function labelToEnumMember(labelText: string): string {
 /**
  * Disambiguate duplicate enum member names by appending the numeric value.
  * Only the second and subsequent duplicates get the suffix.
+ * Re-checks that the suffixed name doesn't collide with an existing name.
  *
  * @example
  * disambiguateEnumMembers([
@@ -84,18 +85,41 @@ export function labelToEnumMember(labelText: string): string {
  *   { name: "Active", value: 2 },
  * ])
  * // [{ name: "Active", value: 1 }, { name: "Active_2", value: 2 }]
+ *
+ * // Edge case: "Active_2" already exists as a label-derived name
+ * disambiguateEnumMembers([
+ *   { name: "Active", value: 1 },
+ *   { name: "Active", value: 2 },
+ *   { name: "Active_2", value: 3 },
+ * ])
+ * // [{ name: "Active", value: 1 }, { name: "Active_2_v2", value: 2 }, { name: "Active_2", value: 3 }]
  */
 export function disambiguateEnumMembers(
   members: Array<{ name: string; value: number }>,
 ): Array<{ name: string; value: number }> {
-  const seen = new Map<string, number>();
-  return members.map(({ name, value }) => {
-    const count = seen.get(name) || 0;
-    seen.set(name, count + 1);
+  // First pass: collect all original names to detect collisions
+  const allOriginalNames = new Set(members.map((m) => m.name));
+  const usedNames = new Set<string>();
+  const result: Array<{ name: string; value: number }> = [];
 
-    if (count === 0) {
-      return { name, value };
+  for (const { name, value } of members) {
+    let finalName = name;
+
+    if (usedNames.has(finalName)) {
+      // Try _value suffix first
+      finalName = `${name}_${value}`;
+
+      // If that also collides (with an original name or already used), keep suffixing
+      let attempt = 2;
+      while (usedNames.has(finalName) || (allOriginalNames.has(finalName) && finalName !== name)) {
+        finalName = `${name}_${value}_v${attempt}`;
+        attempt++;
+      }
     }
-    return { name: `${name}_${value}`, value };
-  });
+
+    usedNames.add(finalName);
+    result.push({ name: finalName, value });
+  }
+
+  return result;
 }

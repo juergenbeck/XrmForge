@@ -249,10 +249,11 @@ describe('MetadataClient.getMainForms', () => {
 
 // ─── Solution Filter ─────────────────────────────────────────────────────────
 
-describe('MetadataClient.getEntityIdsForSolution', () => {
-  it('should resolve solution and return entity IDs', async () => {
+describe('MetadataClient.getEntityNamesForSolution', () => {
+  it('should resolve solution MetadataIds to LogicalNames', async () => {
     // Call 1: solutions query
-    // Call 2: solutioncomponents query
+    // Call 2: solutioncomponents query (returns MetadataId GUIDs)
+    // Call 3: EntityDefinitions query (resolves GUIDs to LogicalNames)
     const mockFetch = vi.fn()
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
@@ -265,8 +266,18 @@ describe('MetadataClient.getEntityIdsForSolution', () => {
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({
           value: [
-            { objectid: 'entity-1', componenttype: 1 },
-            { objectid: 'entity-2', componenttype: 1 },
+            { objectid: '11111111-1111-1111-1111-111111111111', componenttype: 1 },
+            { objectid: '22222222-2222-2222-2222-222222222222', componenttype: 1 },
+          ],
+        }),
+        text: () => Promise.resolve('{}'),
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({
+          value: [
+            { LogicalName: 'account' },
+            { LogicalName: 'contact' },
           ],
         }),
         text: () => Promise.resolve('{}'),
@@ -274,9 +285,11 @@ describe('MetadataClient.getEntityIdsForSolution', () => {
     vi.stubGlobal('fetch', mockFetch);
 
     const client = createClient();
-    const entityIds = await client.getEntityIdsForSolution('MySolution');
+    const entityNames = await client.getEntityNamesForSolution('MySolution');
 
-    expect(entityIds).toEqual(['entity-1', 'entity-2']);
+    expect(entityNames).toEqual(['account', 'contact']);
+    // Verify 3 API calls were made
+    expect(mockFetch).toHaveBeenCalledTimes(3);
   });
 
   it('should throw META_SOLUTION_NOT_FOUND for unknown solution', async () => {
@@ -284,7 +297,7 @@ describe('MetadataClient.getEntityIdsForSolution', () => {
 
     const client = createClient();
 
-    const error = await client.getEntityIdsForSolution('NonExistent').catch((e: MetadataError) => e);
+    const error = await client.getEntityNamesForSolution('NonExistent').catch((e: MetadataError) => e);
     expect(error).toBeInstanceOf(MetadataError);
     expect(error.code).toBe(ErrorCode.META_SOLUTION_NOT_FOUND);
   });
