@@ -42,4 +42,4 @@ export { generateEntityFieldsEnum } from './entity-fields-generator.js';
 export type { EntityFieldsGeneratorOptions } from './entity-fields-generator.js';
 
 // Web API Helpers
-export { select, selectExpand } from './webapi-helpers.js';
+export { select, selectExpand, parseLookup, parseLookups, parseFormattedValue } from './webapi-helpers.js';
