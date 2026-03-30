@@ -22,23 +22,23 @@ describe('entity-generator with real Account metadata', () => {
   });
 
   it('should include standard String attributes', () => {
-    expect(output).toContain('name?: string;');
-    expect(output).toContain('telephone1?: string;');
+    expect(output).toContain('name: string | null;');
+    expect(output).toContain('telephone1: string | null;');
   });
 
   it('should include Money attributes as number', () => {
-    expect(output).toContain('creditlimit?: number;');
-    expect(output).toContain('revenue?: number;');
+    expect(output).toContain('creditlimit: number | null;');
+    expect(output).toContain('revenue: number | null;');
   });
 
   it('should include Boolean attributes', () => {
-    expect(output).toContain('donotemail?: boolean;');
-    expect(output).toContain('creditonhold?: boolean;');
+    expect(output).toContain('donotemail: boolean | null;');
+    expect(output).toContain('creditonhold: boolean | null;');
   });
 
   it('should include DateTime attributes as string', () => {
-    expect(output).toContain('createdon?: string;');
-    expect(output).toContain('modifiedon?: string;');
+    expect(output).toContain('createdon: string | null;');
+    expect(output).toContain('modifiedon: string | null;');
   });
 
   it('should generate dual-language JSDoc', () => {
@@ -52,8 +52,8 @@ describe('entity-generator with real Account metadata', () => {
   });
 
   it('should include lookup fields with _value pattern', () => {
-    expect(output).toContain('_primarycontactid_value?: string;');
-    expect(output).toContain('_parentaccountid_value?: string;');
+    expect(output).toContain('_primarycontactid_value: string | null;');
+    expect(output).toContain('_parentaccountid_value: string | null;');
   });
 });
 

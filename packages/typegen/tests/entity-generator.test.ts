@@ -59,8 +59,8 @@ describe('generateEntityInterface', () => {
 
     expect(result).toContain('declare namespace XrmForge.Entities {');
     expect(result).toContain('interface Account {');
-    expect(result).toContain('accountid?: string;');
-    expect(result).toContain('name?: string;');
+    expect(result).toContain('accountid: string | null;');
+    expect(result).toContain('name: string | null;');
   });
 
   it('should generate JSDoc comments from labels', () => {
@@ -103,8 +103,8 @@ describe('generateEntityInterface', () => {
 
     const result = generateEntityInterface(info);
 
-    expect(result).toContain('_primarycontactid_value?: string;');
-    expect(result).not.toContain('primarycontactid?: string;');
+    expect(result).toContain('_primarycontactid_value: string | null;');
+    expect(result).not.toContain('primarycontactid: string | null;');
   });
 
   it('should add lookup target info in JSDoc', () => {
@@ -134,12 +134,12 @@ describe('generateEntityInterface', () => {
 
     const result = generateEntityInterface(info);
 
-    expect(result).toContain('name?: string;');
-    expect(result).toContain('revenue?: number;');
-    expect(result).toContain('donotemail?: boolean;');
-    expect(result).toContain('createdon?: string;');
-    expect(result).toContain('employees?: number;');
-    expect(result).toContain('statuscode?: number;');
+    expect(result).toContain('name: string | null;');
+    expect(result).toContain('revenue: number | null;');
+    expect(result).toContain('donotemail: boolean | null;');
+    expect(result).toContain('createdon: string | null;');
+    expect(result).toContain('employees: number | null;');
+    expect(result).toContain('statuscode: number | null;');
   });
 
   it('should exclude Virtual and EntityName attributes', () => {
@@ -152,7 +152,7 @@ describe('generateEntityInterface', () => {
 
     const result = generateEntityInterface(info);
 
-    expect(result).toContain('name?: string;');
+    expect(result).toContain('name: string | null;');
     expect(result).not.toContain('entityimage');
     expect(result).not.toContain('owneridtype');
     expect(result).not.toContain('iscustomizable');
@@ -183,7 +183,7 @@ describe('generateEntityInterface', () => {
 
     const result = generateEntityInterface(info);
     const lines = result.split('\n');
-    const fieldLines = lines.filter((l) => l.includes('?:'));
+    const fieldLines = lines.filter((l) => l.includes('| null;'));
 
     expect(fieldLines[0]).toContain('aaa_field');
     expect(fieldLines[1]).toContain('mmm_field');

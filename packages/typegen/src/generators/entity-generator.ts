@@ -8,8 +8,8 @@
  * ```typescript
  * declare namespace XrmForge.Entities {
  *   interface Account {
- *     accountid?: string;
- *     name?: string;
+ *     accountid: string | null;
+ *     name: string | null;
  *     // ...
  *   }
  * }
@@ -100,7 +100,7 @@ export function generateEntityInterface(info: EntityTypeInfo, options: EntityGen
       lines.push(`    /** ${jsdocParts.join(' - ')} */`);
     }
 
-    lines.push(`    ${propertyName}?: ${tsType};`);
+    lines.push(`    ${propertyName}: ${tsType} | null;`);
   }
 
   // PartyList: single navigation property for the entity's ActivityParty collection.
@@ -118,7 +118,7 @@ export function generateEntityInterface(info: EntityTypeInfo, options: EntityGen
 
     lines.push('');
     lines.push(`    /** ActivityParty collection (${partyListAttrs.length} PartyList-Felder: ${partyListAttrs.map((a) => a.LogicalName).join(', ')}) */`);
-    lines.push(`    ${navPropName}?: ActivityParty[];`);
+    lines.push(`    ${navPropName}: ActivityParty[] | null;`);
   }
 
   lines.push('  }');
