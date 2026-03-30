@@ -73,13 +73,18 @@ export interface FormGeneratorOptions {
   formTypes?: number[];
 }
 
-/** Build a safe TypeScript identifier from a form name */
+/** Build a safe TypeScript identifier from a form/tab/section name */
 function toSafeFormName(formName: string): string {
-  return transliterateUmlauts(formName)
+  const result = transliterateUmlauts(formName)
     .replace(/[^a-zA-Z0-9\s]/g, '')
     .split(/\s+/)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join('');
+
+  // Prefix with _ if starts with digit (e.g. GUID-based section names)
+  if (/^\d/.test(result)) return `_${result}`;
+  if (result.length === 0) return '_Unnamed';
+  return result;
 }
 
 /**
