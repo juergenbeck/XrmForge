@@ -1,108 +1,82 @@
 /**
  * Account Form - onLoad Event Handler
  *
- * BEFORE XrmForge (untyped):
- *   var name = formContext.getAttribute("name");          // Xrm.Attributes.Attribute (generic)
- *   name.setValue(123);                                    // No compile error, runtime crash!
- *   var unknown = formContext.getAttribute("typo_field");  // No compile error, runtime null!
- *
- * AFTER XrmForge (typed):
- *   const name = formContext.getAttribute("name");        // Xrm.Attributes.StringAttribute (specific)
- *   name.setValue(123);                                   // Compile error: number is not string!
- *   const unknown = formContext.getAttribute("typo_field"); // Still works (fallback signature)
- *
- * This file demonstrates the value of generated types for Dynamics 365 form scripting.
+ * Demonstrates XrmForge compile-time safety:
+ * - Fields enum with autocomplete and dual-language labels
+ * - getAttribute returns exact type (StringAttribute, NumberAttribute, etc.)
+ * - Unknown field names are compile errors (no fallback signature)
+ * - select() helper for type-safe Web API queries
  */
+
+// Type alias and Fields enum for convenience
+type AccountForm = XrmForge.Forms.Account.AccountAccountForm;
+import Fields = XrmForge.Forms.Account.AccountAccountFormFieldsEnum;
 
 /**
  * onLoad handler for the Account main form.
- * Registered in D365 form properties as: AccountForm.onLoad
  */
 export function onLoad(executionContext: Xrm.Events.EventContext): void {
-  // Cast to our generated form interface: full type safety from here
-  const formContext = executionContext.getFormContext() as XrmForge.Forms.Account.AccountAccountForm;
+  const formContext = executionContext.getFormContext() as AccountForm;
 
-  // String fields: TypeScript knows these return StringAttribute
-  const name = formContext.getAttribute("name");
-  const phone = formContext.getAttribute("telephone1");
-  const website = formContext.getAttribute("websiteurl");
+  // ─── Typed field access via Fields enum ─────────────────────────────
 
-  // OptionSet fields: TypeScript knows these return OptionSetAttribute
-  const industry = formContext.getAttribute("industrycode");
-  const ownership = formContext.getAttribute("ownershipcode");
+  // Autocomplete shows: AccountName, Telephone1, Website, CreditLimit, ...
+  // Hover shows: /** Account Name | Firmenname */
+  const name = formContext.getAttribute(Fields.AccountName);
+  // TypeScript knows: Xrm.Attributes.StringAttribute
 
-  // Lookup fields: TypeScript knows these return LookupAttribute
-  const primaryContact = formContext.getAttribute("primarycontactid");
-  const parentAccount = formContext.getAttribute("parentaccountid");
+  const phone = formContext.getAttribute(Fields.Telephone1);
+  // TypeScript knows: Xrm.Attributes.StringAttribute
 
-  // Boolean fields: TypeScript knows these return BooleanAttribute
-  const creditHold = formContext.getAttribute("creditonhold");
+  const creditLimit = formContext.getAttribute(Fields.CreditLimit);
+  // TypeScript knows: Xrm.Attributes.NumberAttribute
 
-  // Number fields: TypeScript knows these return NumberAttribute
-  const creditLimit = formContext.getAttribute("creditlimit");
+  const creditHold = formContext.getAttribute(Fields.CreditHold);
+  // TypeScript knows: Xrm.Attributes.BooleanAttribute
 
-  // Date fields: TypeScript knows these return DateAttribute
-  const lastCampaign = formContext.getAttribute("lastusedincampaign");
+  const primaryContact = formContext.getAttribute(Fields.PrimaryContact);
+  // TypeScript knows: Xrm.Attributes.LookupAttribute
 
-  // ─── Example: Lock fields based on credit hold ──────────────────────────
+  const industry = formContext.getAttribute(Fields.ZzzNotusedIndustry);
+  // TypeScript knows: Xrm.Attributes.OptionSetAttribute
+
+  // ─── Compile errors for safety ──────────────────────────────────────
+
+  // COMPILE ERROR: "nonexistent_field" is not in AccountAccountFormFields
+  // formContext.getAttribute("nonexistent_field");
+
+  // COMPILE ERROR: "typo_telephon1" is not in AccountAccountFormFields
+  // formContext.getAttribute("typo_telephon1");
+
+  // COMPILE ERROR: number is not assignable to string | null
+  // name.setValue(123);
+
+  // ─── Business logic with full type safety ───────────────────────────
 
   if (creditHold.getValue() === true) {
-    // TypeScript knows creditLimit is NumberAttribute, so setValue expects number
-    creditLimit.controls.forEach((control) => {
-      control.setDisabled(true);
-    });
+    // Lock the credit limit field
+    const creditControl = formContext.getControl(Fields.CreditLimit);
+    // TypeScript knows: Xrm.Controls.NumberControl
+    creditControl.setDisabled(true);
 
-    // TypeScript knows name is StringAttribute, getValue() returns string | null
-    const accountName = name.getValue();
+    const accountName: string | null = name.getValue();
     if (accountName) {
       console.log(`Account "${accountName}" is on credit hold`);
     }
   }
 
-  // ─── Example: Set industry based on business logic ──────────────────────
+  // ─── Typed controls ─────────────────────────────────────────────────
 
-  // TypeScript knows industry is OptionSetAttribute, setValue expects number | null
-  // With generated enums, we can use named values instead of magic numbers:
-  // industry.setValue(XrmForge.OptionSets.IndustryCode.Accounting);
-
-  // ─── Example: Control visibility with typed controls ────────────────────
-
-  const nameControl = formContext.getControl("name");
-  // TypeScript knows this is StringControl (not generic Control)
+  const nameControl = formContext.getControl(Fields.AccountName);
+  // TypeScript knows: Xrm.Controls.StringControl
   nameControl.setVisible(true);
 
-  const industryControl = formContext.getControl("industrycode");
-  // TypeScript knows this is OptionSetControl
-  industryControl.setVisible(true);
-
-  const contactControl = formContext.getControl("primarycontactid");
-  // TypeScript knows this is LookupControl
+  const contactControl = formContext.getControl(Fields.PrimaryContact);
+  // TypeScript knows: Xrm.Controls.LookupControl
   contactControl.setVisible(true);
 
-  const creditLimitControl = formContext.getControl("creditlimit");
-  // TypeScript knows this is NumberControl
-  creditLimitControl.setVisible(true);
-}
+  // ─── Escape hatch for dynamic access ────────────────────────────────
 
-/**
- * onChange handler for the Credit Hold field.
- * Registered on the creditonhold attribute.
- */
-export function onCreditHoldChange(executionContext: Xrm.Events.EventContext): void {
-  const formContext = executionContext.getFormContext() as XrmForge.Forms.Account.AccountAccountForm;
-
-  const creditHold = formContext.getAttribute("creditonhold");
-  const creditLimit = formContext.getAttribute("creditlimit");
-
-  if (creditHold.getValue() === true) {
-    // Lock the credit limit field
-    creditLimit.controls.forEach((control) => {
-      control.setDisabled(true);
-    });
-  } else {
-    // Unlock the credit limit field
-    creditLimit.controls.forEach((control) => {
-      control.setDisabled(false);
-    });
-  }
+  // If you need dynamic field access (rare), cast back to base FormContext:
+  // const dynamic = (formContext as Xrm.FormContext).getAttribute(someVariable);
 }

@@ -3,73 +3,180 @@
 
 declare namespace XrmForge.Forms.Account {
 
+  /** Valid field names for the "Account" form */
+  type AccountAccountFormFields =
+    | "address1_composite"
+    | "address1_freighttermscode"
+    | "address1_line1"
+    | "address1_shippingmethodcode"
+    | "creditlimit"
+    | "creditonhold"
+    | "description"
+    | "donotbulkemail"
+    | "donotemail"
+    | "donotfax"
+    | "donotphone"
+    | "donotpostalmail"
+    | "donotsendmm"
+    | "fax"
+    | "followemail"
+    | "industrycode"
+    | "lastusedincampaign"
+    | "msdyncrm_insights_placeholder"
+    | "name"
+    | "originatingleadid"
+    | "ownershipcode"
+    | "parentaccountid"
+    | "paymenttermscode"
+    | "preferredcontactmethodcode"
+    | "primarycontactid"
+    | "sic"
+    | "telephone1"
+    | "tickersymbol"
+    | "transactioncurrencyid"
+    | "websiteurl";
+
+  /** Attribute type map for "Account" */
+  type AccountAccountFormAttributeMap = {
+    address1_composite: Xrm.Attributes.StringAttribute;
+    address1_freighttermscode: Xrm.Attributes.OptionSetAttribute;
+    address1_line1: Xrm.Attributes.StringAttribute;
+    address1_shippingmethodcode: Xrm.Attributes.OptionSetAttribute;
+    creditlimit: Xrm.Attributes.NumberAttribute;
+    creditonhold: Xrm.Attributes.BooleanAttribute;
+    description: Xrm.Attributes.StringAttribute;
+    donotbulkemail: Xrm.Attributes.BooleanAttribute;
+    donotemail: Xrm.Attributes.BooleanAttribute;
+    donotfax: Xrm.Attributes.BooleanAttribute;
+    donotphone: Xrm.Attributes.BooleanAttribute;
+    donotpostalmail: Xrm.Attributes.BooleanAttribute;
+    donotsendmm: Xrm.Attributes.BooleanAttribute;
+    fax: Xrm.Attributes.StringAttribute;
+    followemail: Xrm.Attributes.BooleanAttribute;
+    industrycode: Xrm.Attributes.OptionSetAttribute;
+    lastusedincampaign: Xrm.Attributes.DateAttribute;
+    msdyncrm_insights_placeholder: Xrm.Attributes.StringAttribute;
+    name: Xrm.Attributes.StringAttribute;
+    originatingleadid: Xrm.Attributes.LookupAttribute;
+    ownershipcode: Xrm.Attributes.OptionSetAttribute;
+    parentaccountid: Xrm.Attributes.LookupAttribute;
+    paymenttermscode: Xrm.Attributes.OptionSetAttribute;
+    preferredcontactmethodcode: Xrm.Attributes.OptionSetAttribute;
+    primarycontactid: Xrm.Attributes.LookupAttribute;
+    sic: Xrm.Attributes.StringAttribute;
+    telephone1: Xrm.Attributes.StringAttribute;
+    tickersymbol: Xrm.Attributes.StringAttribute;
+    transactioncurrencyid: Xrm.Attributes.LookupAttribute;
+    websiteurl: Xrm.Attributes.StringAttribute;
+  };
+
+  /** Control type map for "Account" */
+  type AccountAccountFormControlMap = {
+    address1_composite: Xrm.Controls.StringControl;
+    address1_freighttermscode: Xrm.Controls.OptionSetControl;
+    address1_line1: Xrm.Controls.StringControl;
+    address1_shippingmethodcode: Xrm.Controls.OptionSetControl;
+    creditlimit: Xrm.Controls.NumberControl;
+    creditonhold: Xrm.Controls.StandardControl;
+    description: Xrm.Controls.StringControl;
+    donotbulkemail: Xrm.Controls.StandardControl;
+    donotemail: Xrm.Controls.StandardControl;
+    donotfax: Xrm.Controls.StandardControl;
+    donotphone: Xrm.Controls.StandardControl;
+    donotpostalmail: Xrm.Controls.StandardControl;
+    donotsendmm: Xrm.Controls.StandardControl;
+    fax: Xrm.Controls.StringControl;
+    followemail: Xrm.Controls.StandardControl;
+    industrycode: Xrm.Controls.OptionSetControl;
+    lastusedincampaign: Xrm.Controls.DateControl;
+    msdyncrm_insights_placeholder: Xrm.Controls.StringControl;
+    name: Xrm.Controls.StringControl;
+    originatingleadid: Xrm.Controls.LookupControl;
+    ownershipcode: Xrm.Controls.OptionSetControl;
+    parentaccountid: Xrm.Controls.LookupControl;
+    paymenttermscode: Xrm.Controls.OptionSetControl;
+    preferredcontactmethodcode: Xrm.Controls.OptionSetControl;
+    primarycontactid: Xrm.Controls.LookupControl;
+    sic: Xrm.Controls.StringControl;
+    telephone1: Xrm.Controls.StringControl;
+    tickersymbol: Xrm.Controls.StringControl;
+    transactioncurrencyid: Xrm.Controls.LookupControl;
+    websiteurl: Xrm.Controls.StringControl;
+  };
+
+  /** Field constants for "Account" (compile-time only, zero runtime) */
+  const enum AccountAccountFormFieldsEnum {
+    /** Address 1 | Adresse 1 */
+    Address1 = 'address1_composite',
+    /** zzz_notused_Address 1: Freight Terms | zzz_notused_Adresse 1: Lieferbedingungen */
+    ZzzNotusedAddress1FreightTerms = 'address1_freighttermscode',
+    /** Street, No. | Straße Nr. */
+    StreetNo = 'address1_line1',
+    /** zzz_notused_Address 1: Shipping Method | zzz_notused_Adresse 1: Versandmethode */
+    ZzzNotusedAddress1ShippingMethod = 'address1_shippingmethodcode',
+    /** Credit Limit | Kreditlimit */
+    CreditLimit = 'creditlimit',
+    /** Credit Hold | Kreditsperre */
+    CreditHold = 'creditonhold',
+    /** zzz_notused_Description | zzz_notused_Beschreibung */
+    ZzzNotusedDescription = 'description',
+    /** Do not allow Bulk Emails | Massen-E-Mails nicht zulassen */
+    DoNotAllowBulkEmails = 'donotbulkemail',
+    /** zzz_notused_Do not allow Emails | zzz_notused_E-Mails nicht zulassen */
+    ZzzNotusedDoNotAllowEmails = 'donotemail',
+    /** zzz_notused_Do not allow Faxes | zzz_notused_Faxe nicht zulassen */
+    ZzzNotusedDoNotAllowFaxes = 'donotfax',
+    /** Do not allow Phone Calls | Telefonanrufe nicht zulassen */
+    DoNotAllowPhoneCalls = 'donotphone',
+    /** Do not allow Mails | Post nicht zulassen */
+    DoNotAllowMails = 'donotpostalmail',
+    /** Send Marketing Materials | Marketingmaterial senden */
+    SendMarketingMaterials = 'donotsendmm',
+    /** Fax */
+    Fax = 'fax',
+    /** zzz_notused_Follow Email Activity | zzz_notused_E-Mail-Aktivität folgen */
+    ZzzNotusedFollowEmailActivity = 'followemail',
+    /** zzz_notused_Industry | zzz_notused_Branche */
+    ZzzNotusedIndustry = 'industrycode',
+    /** Last Date Included in Campaign | Letztes Datum in Kampagne */
+    LastDateIncludedInCampaign = 'lastusedincampaign',
+    /** zzz_notused_Insights | zzz_notused_Einblicke */
+    ZzzNotusedInsights = 'msdyncrm_insights_placeholder',
+    /** Account Name | Firmenname */
+    AccountName = 'name',
+    /** Originating Lead | Ursprungslead */
+    OriginatingLead = 'originatingleadid',
+    /** zzz_notused_Ownership | zzz_notused_Besitz */
+    ZzzNotusedOwnership = 'ownershipcode',
+    /** Parent Account | Übergeordnete Firma */
+    ParentAccount = 'parentaccountid',
+    /** Payment Terms | Zahlungsbedingungen */
+    PaymentTerms = 'paymenttermscode',
+    /** zzz_notused_Preferred Method of Contact | zzz_notused_Bevorzugte Kontaktmethode */
+    ZzzNotusedPreferredMethodOfContact = 'preferredcontactmethodcode',
+    /** Primary Contact | Primärer Kontakt */
+    PrimaryContact = 'primarycontactid',
+    /** SIC Code | NACE-Code */
+    SicCode = 'sic',
+    /** Telephone 1 | Haupttelefon */
+    Telephone1 = 'telephone1',
+    /** zzz_notused_Ticker Symbol | zzz_notused_Börsenkürzel */
+    ZzzNotusedTickerSymbol = 'tickersymbol',
+    /** Currency | Währung */
+    Currency = 'transactioncurrencyid',
+    /** Website */
+    Website = 'websiteurl',
+  }
+
   /** Account */
   interface AccountAccountForm extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> {
-    getAttribute(name: "address1_composite"): Xrm.Attributes.StringAttribute;
-    getAttribute(name: "address1_freighttermscode"): Xrm.Attributes.OptionSetAttribute;
-    getAttribute(name: "address1_line1"): Xrm.Attributes.StringAttribute;
-    getAttribute(name: "address1_shippingmethodcode"): Xrm.Attributes.OptionSetAttribute;
-    getAttribute(name: "creditlimit"): Xrm.Attributes.NumberAttribute;
-    getAttribute(name: "creditonhold"): Xrm.Attributes.BooleanAttribute;
-    getAttribute(name: "description"): Xrm.Attributes.StringAttribute;
-    getAttribute(name: "donotbulkemail"): Xrm.Attributes.BooleanAttribute;
-    getAttribute(name: "donotemail"): Xrm.Attributes.BooleanAttribute;
-    getAttribute(name: "donotfax"): Xrm.Attributes.BooleanAttribute;
-    getAttribute(name: "donotphone"): Xrm.Attributes.BooleanAttribute;
-    getAttribute(name: "donotpostalmail"): Xrm.Attributes.BooleanAttribute;
-    getAttribute(name: "donotsendmm"): Xrm.Attributes.BooleanAttribute;
-    getAttribute(name: "fax"): Xrm.Attributes.StringAttribute;
-    getAttribute(name: "followemail"): Xrm.Attributes.BooleanAttribute;
-    getAttribute(name: "industrycode"): Xrm.Attributes.OptionSetAttribute;
-    getAttribute(name: "lastusedincampaign"): Xrm.Attributes.DateAttribute;
-    getAttribute(name: "msdyncrm_insights_placeholder"): Xrm.Attributes.StringAttribute;
-    getAttribute(name: "name"): Xrm.Attributes.StringAttribute;
-    getAttribute(name: "originatingleadid"): Xrm.Attributes.LookupAttribute;
-    getAttribute(name: "ownershipcode"): Xrm.Attributes.OptionSetAttribute;
-    getAttribute(name: "parentaccountid"): Xrm.Attributes.LookupAttribute;
-    getAttribute(name: "paymenttermscode"): Xrm.Attributes.OptionSetAttribute;
-    getAttribute(name: "preferredcontactmethodcode"): Xrm.Attributes.OptionSetAttribute;
-    getAttribute(name: "primarycontactid"): Xrm.Attributes.LookupAttribute;
-    getAttribute(name: "sic"): Xrm.Attributes.StringAttribute;
-    getAttribute(name: "telephone1"): Xrm.Attributes.StringAttribute;
-    getAttribute(name: "tickersymbol"): Xrm.Attributes.StringAttribute;
-    getAttribute(name: "transactioncurrencyid"): Xrm.Attributes.LookupAttribute;
-    getAttribute(name: "websiteurl"): Xrm.Attributes.StringAttribute;
-    getAttribute(name: string): Xrm.Attributes.Attribute;
+    /** Typisierter Feldzugriff: nur Felder die auf diesem Formular existieren */
+    getAttribute<K extends AccountAccountFormFields>(name: K): AccountAccountFormAttributeMap[K];
     getAttribute(index: number): Xrm.Attributes.Attribute;
     getAttribute(): Xrm.Attributes.Attribute[];
 
-    getControl(name: "address1_composite"): Xrm.Controls.StringControl;
-    getControl(name: "address1_freighttermscode"): Xrm.Controls.OptionSetControl;
-    getControl(name: "address1_line1"): Xrm.Controls.StringControl;
-    getControl(name: "address1_shippingmethodcode"): Xrm.Controls.OptionSetControl;
-    getControl(name: "creditlimit"): Xrm.Controls.NumberControl;
-    getControl(name: "creditonhold"): Xrm.Controls.StandardControl;
-    getControl(name: "description"): Xrm.Controls.StringControl;
-    getControl(name: "donotbulkemail"): Xrm.Controls.StandardControl;
-    getControl(name: "donotemail"): Xrm.Controls.StandardControl;
-    getControl(name: "donotfax"): Xrm.Controls.StandardControl;
-    getControl(name: "donotphone"): Xrm.Controls.StandardControl;
-    getControl(name: "donotpostalmail"): Xrm.Controls.StandardControl;
-    getControl(name: "donotsendmm"): Xrm.Controls.StandardControl;
-    getControl(name: "fax"): Xrm.Controls.StringControl;
-    getControl(name: "followemail"): Xrm.Controls.StandardControl;
-    getControl(name: "industrycode"): Xrm.Controls.OptionSetControl;
-    getControl(name: "lastusedincampaign"): Xrm.Controls.DateControl;
-    getControl(name: "msdyncrm_insights_placeholder"): Xrm.Controls.StringControl;
-    getControl(name: "name"): Xrm.Controls.StringControl;
-    getControl(name: "originatingleadid"): Xrm.Controls.LookupControl;
-    getControl(name: "ownershipcode"): Xrm.Controls.OptionSetControl;
-    getControl(name: "parentaccountid"): Xrm.Controls.LookupControl;
-    getControl(name: "paymenttermscode"): Xrm.Controls.OptionSetControl;
-    getControl(name: "preferredcontactmethodcode"): Xrm.Controls.OptionSetControl;
-    getControl(name: "primarycontactid"): Xrm.Controls.LookupControl;
-    getControl(name: "sic"): Xrm.Controls.StringControl;
-    getControl(name: "telephone1"): Xrm.Controls.StringControl;
-    getControl(name: "tickersymbol"): Xrm.Controls.StringControl;
-    getControl(name: "transactioncurrencyid"): Xrm.Controls.LookupControl;
-    getControl(name: "websiteurl"): Xrm.Controls.StringControl;
-    getControl(name: string): Xrm.Controls.Control;
+    /** Typisierter Control-Zugriff: nur Controls die auf diesem Formular existieren */
+    getControl<K extends AccountAccountFormFields>(name: K): AccountAccountFormControlMap[K];
     getControl(index: number): Xrm.Controls.Control;
     getControl(): Xrm.Controls.Control[];
   }
