@@ -186,7 +186,7 @@ npm install --save-dev @xrmforge/cli @types/xrm typescript esbuild
 
 **Step 3: Generate types from your environment.**
 
-Replace `YOUR_TENANT_ID` with your Azure AD tenant ID (find it at [whatismytenantid.com](https://www.whatismytenantid.com) by entering your domain). The client ID below is Microsoft's well-known sample App ID, so no own App Registration is needed.
+Replace `YOUR_TENANT_ID` with your Azure AD tenant ID (see [Authentication](#authentication) for how to find it). The client ID below is Microsoft's well-known sample App ID, so no own App Registration is needed.
 
 ```bash
 npx xrmforge generate \
@@ -316,7 +316,13 @@ Either `--entities` or `--solution` must be specified. When using `--solution`, 
 
 Three methods are supported, all powered by `@azure/identity` (MSAL). A fourth method (`token`) allows passing a pre-acquired Bearer token.
 
-**How to find your Tenant ID:** Go to [whatismytenantid.com](https://www.whatismytenantid.com), enter your domain (e.g. `contoso.onmicrosoft.com`), done. No Azure Portal needed.
+**How to find your Tenant ID:** Open your D365 environment, press F12, go to Console, and run:
+
+```javascript
+fetch("/api/data/v9.2/WhoAmI",{credentials:"include"}).then(r=>{console.log("Tenant ID:",JSON.parse(atob(r.headers.get("Authorization").split(".")[1])).tid)})
+```
+
+Alternatively, open `https://login.microsoftonline.com/YOUR_EMAIL_DOMAIN/.well-known/openid-configuration` in a browser (use your email domain like `contoso.com`, not the CRM URL). The tenant ID is in the `issuer` field.
 
 **Client ID:** For Interactive and Device Code, use Microsoft's well-known sample App ID: `51f81489-12ee-4a9e-aaae-a2591f45987d`. No own App Registration needed. For Client Credentials (CI/CD), you need your own App Registration (see [Azure App Registration](#azure-app-registration)).
 
@@ -714,19 +720,14 @@ This pattern avoids duplicating code across multiple bundles.
 
 XrmForge includes a deploy script that pushes WebResources directly to D365 via the Dataverse Web API. No external tools needed (no spkl, no XrmToolBox, no manual upload).
 
-**Setup:** Set two environment variables:
+**Setup:** Set environment variables for your target environment:
 
 ```bash
 export DATAVERSE_URL=https://myorg.crm4.dynamics.com
-export DATAVERSE_TOKEN=eyJ0eXAi...
+export AZURE_TENANT_ID=your-tenant-id
 ```
 
-To get your token quickly: open D365 in the browser, press F12, go to the Console, and run:
-
-```javascript
-// Copy your Bearer token to the clipboard
-copy((await fetch("/api/data/v9.2/WhoAmI", { credentials: "include" })).headers.get("Authorization"))
-```
+The deploy script uses `@azure/identity` (MSAL) for authentication. On first run, it opens a browser for interactive sign-in. Tokens are cached and renewed automatically, no manual copy-paste needed. For CI/CD, set `AZURE_CLIENT_SECRET` to use Client Credentials instead.
 
 **Deploy commands:**
 
