@@ -153,12 +153,14 @@ Du benötigst Administratorzugriff (oder zumindest Lesezugriff auf Entity-Metada
 
 ### Authentifizierung (eine der folgenden)
 
-XrmForge unterstützt mehrere Authentifizierungsmethoden. Nur eine wird benötigt:
+XrmForge unterstützt mehrere Authentifizierungsmethoden. Für Interactive und Device Code kann Microsofts bekannte Sample App ID (`51f81489-12ee-4a9e-aaae-a2591f45987d`) verwendet werden, eine eigene App-Registrierung ist zum Einstieg nicht nötig:
 
-- **Interaktiver Browser** (empfohlen für den Einstieg): Öffnet einen Browser, du meldest dich an. Erfordert eine Azure-App-Registrierung mit Redirect-URI.
-- **Device Code**: Zeigt einen Code an, den du unter microsoft.com/devicelogin eingibst. Funktioniert auf headless-Terminals. Erfordert eine App-Registrierung.
-- **Client Credentials**: Service Principal mit Client Secret. Für CI/CD-Pipelines. Erfordert eine App-Registrierung mit Admin-Zustimmung.
-- **Token**: Einen vorab abgerufenen Bearer-Token übergeben. Keine App-Registrierung nötig, wenn der Token extern beschafft wird.
+- **Interaktiver Browser** (empfohlen für den Einstieg): Öffnet einen Browser, du meldest dich an. Funktioniert mit der Microsoft Sample App ID, keine eigene App-Registrierung nötig.
+- **Device Code**: Zeigt einen Code an, den du unter microsoft.com/devicelogin eingibst. Funktioniert auf headless-Terminals. Funktioniert ebenfalls mit der Sample App ID.
+- **Client Credentials**: Service Principal mit Client Secret. Für CI/CD-Pipelines. Erfordert eine eigene App-Registrierung mit Admin-Zustimmung.
+- **Token**: Einen vorab abgerufenen Bearer-Token übergeben. Keine App-Registrierung nötig.
+
+Die Tenant ID lässt sich über [whatismytenantid.com](https://www.whatismytenantid.com) ermitteln, einfach den Domänennamen eingeben.
 
 Weitere Details unter [Authentifizierung](#authentifizierung) und [Azure App-Registrierung](#azure-app-registrierung) weiter unten.
 
@@ -184,20 +186,20 @@ npm install --save-dev @xrmforge/cli @types/xrm typescript esbuild
 
 **Schritt 3: Typen aus der Umgebung generieren.**
 
-`YOUR_TENANT_ID` und `YOUR_APP_ID` durch die Werte aus deiner Azure-App-Registrierung ersetzen (siehe [Azure App-Registrierung](#azure-app-registrierung)).
+`YOUR_TENANT_ID` durch die Azure AD Tenant ID ersetzen (ermittelbar über [whatismytenantid.com](https://www.whatismytenantid.com) mit dem Domänennamen). Die Client ID unten ist Microsofts bekannte Sample App ID, eine eigene App-Registrierung ist nicht nötig.
 
 ```bash
 npx xrmforge generate \
   --url https://myorg.crm4.dynamics.com \
   --auth interactive \
   --tenant-id YOUR_TENANT_ID \
-  --client-id YOUR_APP_ID \
+  --client-id 51f81489-12ee-4a9e-aaae-a2591f45987d \
   --entities account,contact,opportunity \
   --output ./generated \
   --secondary-language 1031
 ```
 
-Dadurch wird ein Browserfenster zur Authentifizierung geöffnet, die Entity-Metadaten werden gelesen und `.d.ts`-Dateien in `./generated/` geschrieben.
+Dadurch wird ein Browserfenster zur Authentifizierung geöffnet, die Entity-Metadaten werden gelesen und `.d.ts`-Dateien in `./generated/` geschrieben. `--secondary-language 1031` fügt deutsche Labels als JSDoc-Kommentare hinzu (optional).
 
 **Schritt 4: TypeScript einrichten.**
 

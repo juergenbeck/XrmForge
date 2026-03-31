@@ -153,12 +153,14 @@ You need admin access (or at least read access to entity metadata) to the Datave
 
 ### Authentication (one of these)
 
-XrmForge supports multiple authentication methods. You only need one:
+XrmForge supports multiple authentication methods. For Interactive and Device Code, you can use Microsoft's well-known sample App ID (`51f81489-12ee-4a9e-aaae-a2591f45987d`), so no own App Registration is required to get started:
 
-- **Interactive Browser** (recommended for getting started): Opens a browser, you sign in. Requires an Azure App Registration with redirect URI.
-- **Device Code**: Displays a code you enter at microsoft.com/devicelogin. Works on headless terminals. Requires an App Registration.
-- **Client Credentials**: Service Principal with client secret. For CI/CD pipelines. Requires an App Registration with admin consent.
-- **Token**: Pass a pre-acquired Bearer token. No App Registration needed if you get the token externally.
+- **Interactive Browser** (recommended for getting started): Opens a browser, you sign in. Works with the Microsoft sample App ID, no own App Registration needed.
+- **Device Code**: Displays a code you enter at microsoft.com/devicelogin. Works on headless terminals. Also works with the sample App ID.
+- **Client Credentials**: Service Principal with client secret. For CI/CD pipelines. Requires your own App Registration with admin consent.
+- **Token**: Pass a pre-acquired Bearer token. No App Registration needed.
+
+Your Tenant ID can be found at [whatismytenantid.com](https://www.whatismytenantid.com) by entering your domain name.
 
 See [Authentication](#authentication) and [Azure App Registration](#azure-app-registration) below for details.
 
@@ -184,20 +186,20 @@ npm install --save-dev @xrmforge/cli @types/xrm typescript esbuild
 
 **Step 3: Generate types from your environment.**
 
-Replace `YOUR_TENANT_ID` and `YOUR_APP_ID` with values from your Azure App Registration (see [Azure App Registration](#azure-app-registration) for how to get them).
+Replace `YOUR_TENANT_ID` with your Azure AD tenant ID (find it at [whatismytenantid.com](https://www.whatismytenantid.com) by entering your domain). The client ID below is Microsoft's well-known sample App ID, so no own App Registration is needed.
 
 ```bash
 npx xrmforge generate \
   --url https://myorg.crm4.dynamics.com \
   --auth interactive \
   --tenant-id YOUR_TENANT_ID \
-  --client-id YOUR_APP_ID \
+  --client-id 51f81489-12ee-4a9e-aaae-a2591f45987d \
   --entities account,contact,opportunity \
   --output ./generated \
   --secondary-language 1031
 ```
 
-This opens a browser window for authentication, reads entity metadata, and writes `.d.ts` files into `./generated/`.
+This opens a browser window for authentication, reads entity metadata, and writes `.d.ts` files into `./generated/`. The `--secondary-language 1031` adds German labels as JSDoc comments (optional).
 
 **Step 4: Set up TypeScript.**
 
