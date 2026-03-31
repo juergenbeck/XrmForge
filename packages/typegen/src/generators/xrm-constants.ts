@@ -74,3 +74,35 @@ export const enum ClientState {
   Online = 'Online',
   Offline = 'Offline',
 }
+
+// ─── WebApi Execute Constants ───────────────────────────────────────────────
+
+/** Operation type for Xrm.WebApi.execute getMetadata().operationType */
+export const enum OperationType {
+  /** Custom Action or OOB Action (POST) */
+  Action = 0,
+  /** Custom Function or OOB Function (GET) */
+  Function = 1,
+  /** CRUD operation (Create, Retrieve, Update, Delete) */
+  CRUD = 2,
+}
+
+/** Structural property for getMetadata().parameterTypes[].structuralProperty */
+export const enum StructuralProperty {
+  Unknown = 0,
+  PrimitiveType = 1,
+  ComplexType = 2,
+  EnumerationType = 3,
+  Collection = 4,
+  EntityType = 5,
+}
+
+/** Binding type for Custom API definitions */
+export const enum BindingType {
+  /** Nicht an eine Entity gebunden (global aufrufbar) */
+  Global = 0,
+  /** An einen einzelnen Entity-Datensatz gebunden */
+  Entity = 1,
+  /** An eine Entity-Collection gebunden */
+  EntityCollection = 2,
+}

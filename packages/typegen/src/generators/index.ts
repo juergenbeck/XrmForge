@@ -54,4 +54,36 @@ export {
   SaveMode,
   ClientType,
   ClientState,
+  OperationType,
+  StructuralProperty,
+  BindingType,
 } from './xrm-constants.js';
+
+// Action/Function Runtime Helpers
+export {
+  executeRequest,
+  executeMultiple,
+  createBoundAction,
+  createUnboundAction,
+  createBoundFunction,
+  createUnboundFunction,
+  withProgress,
+} from './action-runtime.js';
+export type {
+  ParameterMeta,
+  ParameterMetaMap,
+  BoundActionExecutor,
+  BoundActionWithParamsExecutor,
+  UnboundActionExecutor,
+  UnboundActionWithParamsExecutor,
+  UnboundFunctionExecutor,
+  BoundFunctionExecutor,
+} from './action-runtime.js';
+
+// Action/Function Generator
+export {
+  generateActionDeclarations,
+  generateActionModule,
+  groupCustomApis,
+} from './action-generator.js';
+export type { ActionGeneratorOptions, GroupedCustomApis } from './action-generator.js';
