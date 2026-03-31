@@ -316,6 +316,10 @@ Either `--entities` or `--solution` must be specified. When using `--solution`, 
 
 Three methods are supported, all powered by `@azure/identity` (MSAL). A fourth method (`token`) allows passing a pre-acquired Bearer token.
 
+**How to find your Tenant ID:** Go to [whatismytenantid.com](https://www.whatismytenantid.com), enter your domain (e.g. `contoso.onmicrosoft.com`), done. No Azure Portal needed.
+
+**Client ID:** For Interactive and Device Code, use Microsoft's well-known sample App ID: `51f81489-12ee-4a9e-aaae-a2591f45987d`. No own App Registration needed. For Client Credentials (CI/CD), you need your own App Registration (see [Azure App Registration](#azure-app-registration)).
+
 **Interactive (developer laptop, opens browser)**
 
 Best for local development. Opens a browser window for you to sign in.
@@ -325,21 +329,21 @@ npx xrmforge generate \
   --url https://myorg.crm4.dynamics.com \
   --auth interactive \
   --tenant-id YOUR_TENANT_ID \
-  --client-id YOUR_APP_ID \
+  --client-id 51f81489-12ee-4a9e-aaae-a2591f45987d \
   --entities account,contact \
   --output ./generated
 ```
 
 **Client Credentials (CI/CD, Service Principal)**
 
-Best for automated pipelines. Uses a client secret, no user interaction.
+Best for automated pipelines. Uses a client secret, no user interaction. Requires your own App Registration (see [Azure App Registration](#azure-app-registration)).
 
 ```bash
 npx xrmforge generate \
   --url https://myorg.crm4.dynamics.com \
   --auth client-credentials \
   --tenant-id YOUR_TENANT_ID \
-  --client-id YOUR_APP_ID \
+  --client-id YOUR_OWN_APP_ID \
   --client-secret YOUR_SECRET \
   --entities account,contact \
   --output ./generated
@@ -356,7 +360,7 @@ npx xrmforge generate \
   --url https://myorg.crm4.dynamics.com \
   --auth device-code \
   --tenant-id YOUR_TENANT_ID \
-  --client-id YOUR_APP_ID \
+  --client-id 51f81489-12ee-4a9e-aaae-a2591f45987d \
   --entities account,contact \
   --output ./generated
 ```
@@ -706,32 +710,55 @@ This pattern avoids duplicating code across multiple bundles.
 
 ## 9. Deploying to D365
 
-After building, the `dist/` directory contains `.js` files ready for upload.
+### Automated Deployment (recommended)
 
-**Naming convention for Web Resources:**
+XrmForge includes a deploy script that pushes WebResources directly to D365 via the Dataverse Web API. No external tools needed (no spkl, no XrmToolBox, no manual upload).
 
-Use the format `publisherprefix_/JS/Entity/Handler.js`. For example:
+**Setup:** Set two environment variables:
 
-- `contoso_/JS/Account/OnLoad.js`
-- `contoso_/JS/Contact/OnLoad.js`
-- `contoso_/JS/Shared/Notifications.js`
+```bash
+export DATAVERSE_URL=https://myorg.crm4.dynamics.com
+export DATAVERSE_TOKEN=eyJ0eXAi...
+```
 
-**Upload steps:**
+To get your token quickly: open D365 in the browser, press F12, go to the Console, and run:
 
-1. In your D365 solution, go to **Web Resources** and add a new JavaScript resource.
-2. Upload the `.js` file from `dist/`.
-3. Publish the Web Resource.
+```javascript
+// Copy your Bearer token to the clipboard
+copy((await fetch("/api/data/v9.2/WhoAmI", { credentials: "include" })).headers.get("Authorization"))
+```
 
-**Register a form event handler:**
+**Deploy commands:**
+
+```bash
+npm run deploy          # Build + deploy changed WebResources
+npm run deploy:dry      # Build + show what would be deployed (no changes)
+npm run deploy:force    # Build + deploy ALL WebResources (ignore hashes)
+npm run deploy:maps     # Build + deploy with source maps for debugging
+```
+
+The deploy script is **incremental**: it tracks SHA-256 hashes of deployed files and only uploads WebResources that actually changed. A full deploy of 7 WebResources takes about 3 seconds.
+
+**How it works:**
+
+1. Reads built `.js` files from `dist/`
+2. Compares SHA-256 hashes against `.deploy-hashes.json` (local state)
+3. Base64-encodes changed files
+4. Creates or updates WebResources via `POST`/`PATCH` to `webresourceset`
+5. Publishes all changed resources via `PublishXml`
+
+### Manual Upload (alternative)
+
+If you prefer manual deployment: in your D365 solution, go to Web Resources, upload the `.js` files from `dist/`, and publish.
+
+**Naming convention:** `publisherprefix_/JS/Entity/Handler.js`, for example `contoso_/JS/Account/OnLoad.js`.
+
+### Register a form event handler
 
 1. Open the form in the form designer.
 2. Go to **Form Properties**, then **Event Handlers**.
-3. Add a handler. Enter the function name exactly as defined by `globalName` plus the exported function name, for example: `Contoso.AccountForm.onLoad`.
+3. Add a handler. Enter the function name as `globalName.exportedFunction`, for example: `Contoso.Account.onLoad`.
 4. Add any shared libraries as **Dependencies** so they load first.
-
-**Source maps for debugging (optional):**
-
-Upload the `.js.map` files alongside the `.js` files. Browser DevTools will pick them up automatically, letting you debug in original TypeScript.
 
 ---
 

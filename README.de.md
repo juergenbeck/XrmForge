@@ -316,6 +316,10 @@ Entweder `--entities` oder `--solution` muss angegeben werden. Bei Verwendung vo
 
 Drei Methoden werden unterstützt, alle basierend auf `@azure/identity` (MSAL). Eine vierte Methode (`token`) erlaubt die Übergabe eines vorab abgerufenen Bearer-Tokens.
 
+**Tenant ID finden:** Auf [whatismytenantid.com](https://www.whatismytenantid.com) gehen, Domänennamen eingeben (z.B. `contoso.onmicrosoft.com`), fertig. Kein Azure Portal nötig.
+
+**Client ID:** Für Interactive und Device Code die bekannte Microsoft Sample App ID verwenden: `51f81489-12ee-4a9e-aaae-a2591f45987d`. Keine eigene App-Registrierung nötig. Für Client Credentials (CI/CD) wird eine eigene App-Registrierung benötigt (siehe [Azure App-Registrierung](#azure-app-registrierung)).
+
 **Interaktiv (Entwickler-Laptop, öffnet Browser)**
 
 Am besten für die lokale Entwicklung. Öffnet ein Browserfenster zur Anmeldung.
@@ -325,21 +329,21 @@ npx xrmforge generate \
   --url https://myorg.crm4.dynamics.com \
   --auth interactive \
   --tenant-id YOUR_TENANT_ID \
-  --client-id YOUR_APP_ID \
+  --client-id 51f81489-12ee-4a9e-aaae-a2591f45987d \
   --entities account,contact \
   --output ./generated
 ```
 
 **Client Credentials (CI/CD, Service Principal)**
 
-Am besten für automatisierte Pipelines. Verwendet ein Client Secret, keine Benutzerinteraktion.
+Am besten für automatisierte Pipelines. Verwendet ein Client Secret, keine Benutzerinteraktion. Erfordert eine eigene App-Registrierung (siehe [Azure App-Registrierung](#azure-app-registrierung)).
 
 ```bash
 npx xrmforge generate \
   --url https://myorg.crm4.dynamics.com \
   --auth client-credentials \
   --tenant-id YOUR_TENANT_ID \
-  --client-id YOUR_APP_ID \
+  --client-id YOUR_OWN_APP_ID \
   --client-secret YOUR_SECRET \
   --entities account,contact \
   --output ./generated
@@ -356,7 +360,7 @@ npx xrmforge generate \
   --url https://myorg.crm4.dynamics.com \
   --auth device-code \
   --tenant-id YOUR_TENANT_ID \
-  --client-id YOUR_APP_ID \
+  --client-id 51f81489-12ee-4a9e-aaae-a2591f45987d \
   --entities account,contact \
   --output ./generated
 ```
@@ -706,32 +710,55 @@ Dieses Muster vermeidet die Duplizierung von Code über mehrere Bundles.
 
 ## 9. In D365 deployen
 
-Nach dem Build enthält das `dist/`-Verzeichnis `.js`-Dateien, die zum Upload bereit sind.
+### Automatisiertes Deployment (empfohlen)
 
-**Namenskonvention für Web Resources:**
+XrmForge enthält ein Deploy-Script das WebResources direkt über die Dataverse Web API nach D365 pusht. Keine externen Tools nötig (kein spkl, kein XrmToolBox, kein manuelles Hochladen).
 
-Format: `publisherprefix_/JS/Entity/Handler.js`. Beispiele:
+**Einrichtung:** Zwei Umgebungsvariablen setzen:
 
-- `contoso_/JS/Account/OnLoad.js`
-- `contoso_/JS/Contact/OnLoad.js`
-- `contoso_/JS/Shared/Notifications.js`
+```bash
+export DATAVERSE_URL=https://myorg.crm4.dynamics.com
+export DATAVERSE_TOKEN=eyJ0eXAi...
+```
 
-**Upload-Schritte:**
+Token schnell abrufen: D365 im Browser öffnen, F12, Console, eingeben:
 
-1. In der D365-Lösung zu **Web Resources** gehen und eine neue JavaScript-Ressource hinzufügen.
-2. Die `.js`-Datei aus `dist/` hochladen.
-3. Die Web Resource veröffentlichen.
+```javascript
+// Bearer Token in die Zwischenablage kopieren
+copy((await fetch("/api/data/v9.2/WhoAmI", { credentials: "include" })).headers.get("Authorization"))
+```
 
-**Einen Formular-Ereignishandler registrieren:**
+**Deploy-Befehle:**
+
+```bash
+npm run deploy          # Build + geaenderte WebResources deployen
+npm run deploy:dry      # Build + anzeigen was deployed wuerde (keine Aenderungen)
+npm run deploy:force    # Build + ALLE WebResources neu deployen (Hashes ignorieren)
+npm run deploy:maps     # Build + mit Source Maps deployen (fuer Debugging)
+```
+
+Das Deploy-Script arbeitet **inkrementell**: Es verfolgt SHA-256-Hashes der deployten Dateien und lädt nur WebResources hoch die sich tatsächlich geändert haben. Ein vollständiges Deployment von 7 WebResources dauert etwa 3 Sekunden.
+
+**So funktioniert es:**
+
+1. Liest gebaute `.js`-Dateien aus `dist/`
+2. Vergleicht SHA-256-Hashes mit `.deploy-hashes.json` (lokaler Stand)
+3. Base64-kodiert geänderte Dateien
+4. Erstellt oder aktualisiert WebResources per `POST`/`PATCH` auf `webresourceset`
+5. Veröffentlicht alle geänderten Ressourcen per `PublishXml`
+
+### Manuelles Hochladen (Alternative)
+
+Wenn manuelles Deployment bevorzugt wird: in der D365-Lösung zu Web Resources gehen, die `.js`-Dateien aus `dist/` hochladen und veröffentlichen.
+
+**Namenskonvention:** `publisherprefix_/JS/Entity/Handler.js`, z.B. `contoso_/JS/Account/OnLoad.js`.
+
+### Formular-Ereignishandler registrieren
 
 1. Das Formular im Formulardesigner öffnen.
 2. Zu **Formulareigenschaften** gehen, dann **Ereignishandler**.
-3. Einen Handler hinzufügen. Den Funktionsnamen genau so eingeben, wie er durch `globalName` plus den exportierten Funktionsnamen definiert ist, zum Beispiel: `Contoso.AccountForm.onLoad`.
+3. Einen Handler hinzufügen. Funktionsnamen als `globalName.exportedFunction` eingeben, z.B.: `Contoso.Account.onLoad`.
 4. Gemeinsame Bibliotheken als **Abhängigkeiten** hinzufügen, damit sie zuerst geladen werden.
-
-**Source Maps zum Debuggen (optional):**
-
-Die `.js.map`-Dateien zusammen mit den `.js`-Dateien hochladen. Die Browser-DevTools erkennen sie automatisch und ermöglichen das Debuggen im originalen TypeScript-Quellcode.
 
 ---
 
