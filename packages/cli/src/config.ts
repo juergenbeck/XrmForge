@@ -8,8 +8,10 @@
  * ```json
  * {
  *   "url": "https://myorg.crm4.dynamics.com",
- *   "auth": "token",
- *   "entities": ["account", "contact", "opportunity"],
+ *   "auth": "interactive",
+ *   "tenantId": "your-tenant-id",
+ *   "solutions": ["MySolution", "MyOtherSolution"],
+ *   "entities": ["systemuser", "task"],
  *   "output": "./typings",
  *   "labelLanguage": 1033,
  *   "secondaryLanguage": 1031
@@ -34,8 +36,8 @@ export interface XrmForgeConfig {
   clientSecret?: string;
   /** Entity logical names */
   entities?: string[];
-  /** Solution unique name */
-  solution?: string;
+  /** Solution unique names (array or comma-separated string) */
+  solutions?: string[] | string;
   /** Output directory */
   output?: string;
   /** Primary label language LCID */
@@ -97,7 +99,12 @@ export function mergeWithCliOptions(
   if (!merged['tenantId'] && config.tenantId) merged['tenantId'] = config.tenantId;
   if (!merged['clientId'] && config.clientId) merged['clientId'] = config.clientId;
   if (!merged['clientSecret'] && config.clientSecret) merged['clientSecret'] = config.clientSecret;
-  if (!merged['solution'] && config.solution) merged['solution'] = config.solution;
+  // Solutions: CLI comma-separated string vs config array
+  if (!merged['solutions'] && config.solutions) {
+    merged['solutions'] = Array.isArray(config.solutions)
+      ? config.solutions.join(',')
+      : config.solutions;
+  }
   if (!merged['output'] && config.output) merged['output'] = config.output;
 
   // Entities: CLI comma-separated string vs config array

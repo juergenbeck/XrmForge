@@ -318,6 +318,27 @@ export class MetadataClient {
     return logicalNames;
   }
 
+  /**
+   * Get all entity LogicalNames from multiple solutions, merged and deduplicated.
+   *
+   * @param solutionUniqueNames - Array of solution unique names
+   * @returns Deduplicated array of entity LogicalNames
+   */
+  async getEntityNamesForSolutions(solutionUniqueNames: string[]): Promise<string[]> {
+    const allNames = new Set<string>();
+
+    for (const name of solutionUniqueNames) {
+      const names = await this.getEntityNamesForSolution(name);
+      for (const n of names) {
+        allNames.add(n);
+      }
+    }
+
+    const result = [...allNames].sort();
+    log.info(`${result.length} unique entities from ${solutionUniqueNames.length} solutions`);
+    return result;
+  }
+
   // ─── Aggregated Metadata ───────────────────────────────────────────────
 
   /**

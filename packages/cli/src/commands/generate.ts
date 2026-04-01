@@ -38,7 +38,7 @@ interface GenerateOptions {
   clientSecret?: string;
   token?: string;
   entities?: string;
-  solution?: string;
+  solutions?: string;
   output: string;
   labelLanguage: string;
   secondaryLanguage?: string;
@@ -67,7 +67,7 @@ export function registerGenerateCommand(program: Command): void {
 
     // Scope
     .option('--entities <list>', 'Comma-separated list of entity logical names (e.g. account,contact)')
-    .option('--solution <name>', 'Solution unique name to discover entities')
+    .option('--solutions <list>', 'Comma-separated solution unique names to discover entities')
 
     // Output
     .option('--output <dir>', 'Output directory for generated .d.ts files', './typings')
@@ -122,8 +122,8 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
   if (!opts.auth) {
     throw new Error('--auth is required. Set it via CLI flag or in xrmforge.config.json.');
   }
-  if (!opts.entities && !opts.solution) {
-    throw new Error('Either --entities or --solution must be specified (CLI or xrmforge.config.json).');
+  if (!opts.entities && !opts.solutions) {
+    throw new Error('Either --entities or --solutions must be specified (CLI or xrmforge.config.json).');
   }
 
   // Build auth config
@@ -135,8 +135,13 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
     ? opts.entities.split(',').map((e) => e.trim().toLowerCase())
     : [];
 
-  if (entities.length === 0 && !opts.solution) {
-    throw new Error('No entities specified. Use --entities or --solution.');
+  // Parse solutions list
+  const solutionNames = opts.solutions
+    ? opts.solutions.split(',').map((s) => s.trim())
+    : [];
+
+  if (entities.length === 0 && solutionNames.length === 0) {
+    throw new Error('No entities specified. Use --entities or --solutions.');
   }
 
   // Build label config (R8-05: validate LCID)
@@ -155,7 +160,10 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
   console.log(`\nXrmForge Type Generator`);
   console.log(`Environment: ${opts.url}`);
   console.log(`Auth method: ${opts.auth}`);
-  console.log(`Entities:    ${entities.length > 0 ? entities.join(', ') : `(from solution: ${opts.solution})`}`);
+  console.log(`Entities:    ${entities.length > 0 ? entities.join(', ') : '(none specified directly)'}`)
+  if (solutionNames.length > 0) {
+    console.log(`Solutions:   ${solutionNames.join(', ')}`);
+  }
   console.log(`Output:      ${opts.output}`);
   console.log(`Languages:   ${primaryLanguage}${secondaryLanguage ? ` + ${secondaryLanguage}` : ''}`);
   console.log('');
@@ -164,7 +172,7 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
   const orchestrator = new TypeGenerationOrchestrator(credential, {
     environmentUrl: opts.url,
     entities,
-    solutionName: opts.solution,
+    solutionNames: solutionNames.length > 0 ? solutionNames : undefined,
     outputDir: opts.output,
     labelConfig: { primaryLanguage, secondaryLanguage },
     generateForms: opts.forms,

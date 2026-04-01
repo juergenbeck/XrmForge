@@ -60,7 +60,7 @@ export class TypeGenerationOrchestrator {
     this.config = {
       environmentUrl: config.environmentUrl,
       entities: [...config.entities],
-      solutionName: config.solutionName ?? '',
+      solutionNames: config.solutionNames ?? [],
       outputDir: config.outputDir,
       labelConfig: config.labelConfig,
       generateEntities: config.generateEntities ?? true,
@@ -104,17 +104,18 @@ export class TypeGenerationOrchestrator {
 
     const metadataClient = new MetadataClient(httpClient);
 
-    // 1b. Resolve solution entities if solutionName is set
-    if (this.config.solutionName) {
-      this.logger.info(`Resolving entities from solution: ${this.config.solutionName}`);
-      const solutionEntityNames = await metadataClient.getEntityNamesForSolution(this.config.solutionName);
-      this.logger.info(`Found ${solutionEntityNames.length} entities in solution`);
-      // Solution entities override the manual list
-      this.config.entities = solutionEntityNames;
+    // 1b. Resolve solution entities if solutionNames is set
+    if (this.config.solutionNames && this.config.solutionNames.length > 0) {
+      this.logger.info(`Resolving entities from ${this.config.solutionNames.length} solution(s): ${this.config.solutionNames.join(', ')}`);
+      const solutionEntityNames = await metadataClient.getEntityNamesForSolutions(this.config.solutionNames);
+      this.logger.info(`Found ${solutionEntityNames.length} entities in solution(s)`);
+      // Merge solution entities with manually specified entities, deduplicate
+      const merged = new Set([...this.config.entities, ...solutionEntityNames]);
+      this.config.entities = [...merged].sort();
     }
 
     if (this.config.entities.length === 0) {
-      this.logger.warn('No entities to process. Check --entities or --solution.');
+      this.logger.warn('No entities to process. Check --entities or --solutions.');
       return {
         entities: [],
         totalFiles: 0,

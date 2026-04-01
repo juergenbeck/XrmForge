@@ -11,11 +11,11 @@ export interface GenerateConfig {
   /** Dataverse environment URL (e.g. "https://myorg.crm4.dynamics.com") */
   environmentUrl: string;
 
-  /** Entity logical names to generate types for (ignored if solutionName is set) */
+  /** Entity logical names to generate types for (merged with solution entities if both set) */
   entities: string[];
 
-  /** Solution unique name to discover entities automatically (overrides entities) */
-  solutionName?: string;
+  /** Solution unique names to discover entities automatically (merged with entities, deduplicated) */
+  solutionNames?: string[];
 
   /** Output directory for generated .d.ts files */
   outputDir: string;
