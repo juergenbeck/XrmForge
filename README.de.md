@@ -302,7 +302,7 @@ npx xrmforge generate [options]
 | `--client-secret <secret>` | Client Secret (nur für `client-credentials`) | -- |
 | `--token <token>` | Vorab abgerufener Bearer-Token (für `token`-Auth). Umgebungsvariable `XRMFORGE_TOKEN` bevorzugen | -- |
 | `--entities <list>` | Kommagetrennte logische Entity-Namen (z.B. `account,contact,opportunity`) | -- |
-| `--solution <name>` | Eindeutiger Lösungsname (findet alle Entities in der Lösung) | -- |
+| `--solutions <list>` | Komma-getrennte Lösungsnamen (findet alle Entities in diesen Lösungen) | -- |
 | `--output <dir>` | Ausgabeverzeichnis für generierte Dateien | `./typings` |
 | `--label-language <code>` | Primäre Label-Sprache (LCID) | `1033` (Englisch) |
 | `--secondary-language <code>` | Sekundäre Label-Sprache (LCID) für zweisprachige JSDoc-Kommentare | -- |
@@ -310,7 +310,7 @@ npx xrmforge generate [options]
 | `--no-optionsets` | OptionSet-Enum-Generierung überspringen | OptionSets aktiv |
 | `-v, --verbose` | Ausführliches/Debug-Logging aktivieren | Aus |
 
-Entweder `--entities` oder `--solution` muss angegeben werden. Bei Verwendung von `--solution` findet XrmForge alle Entities, die Teil dieser Lösung sind.
+Entweder `--entities` oder `--solutions` muss angegeben werden (oder beides). Bei `--solutions` findet XrmForge alle Entities in diesen Lösungen. Mehrere Lösungen werden zusammengeführt, Duplikate entfernt.
 
 ### Authentifizierung
 

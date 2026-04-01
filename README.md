@@ -302,7 +302,7 @@ npx xrmforge generate [options]
 | `--client-secret <secret>` | Client secret (for `client-credentials` only) | -- |
 | `--token <token>` | Pre-acquired Bearer token (for `token` auth). Prefer `XRMFORGE_TOKEN` env var | -- |
 | `--entities <list>` | Comma-separated entity logical names (e.g. `account,contact,opportunity`) | -- |
-| `--solution <name>` | Solution unique name (discovers all entities in the solution) | -- |
+| `--solutions <list>` | Comma-separated solution unique names (discovers all entities in those solutions) | -- |
 | `--output <dir>` | Output directory for generated files | `./typings` |
 | `--label-language <code>` | Primary label language LCID | `1033` (English) |
 | `--secondary-language <code>` | Secondary label language LCID (for dual-language JSDoc) | -- |
@@ -310,7 +310,7 @@ npx xrmforge generate [options]
 | `--no-optionsets` | Skip OptionSet enum generation | OptionSets enabled |
 | `-v, --verbose` | Enable verbose/debug logging | Off |
 
-Either `--entities` or `--solution` must be specified. When using `--solution`, XrmForge discovers all entities that are part of that solution.
+Either `--entities` or `--solutions` must be specified (or both). When using `--solutions`, XrmForge discovers all entities in those solutions. Multiple solutions are merged, duplicates removed.
 
 ### Authentication
 
