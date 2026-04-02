@@ -965,10 +965,10 @@ Install: `npm install -D @xrmforge/testing`
 | Package | Description | Status |
 |---------|-------------|--------|
 | `@xrmforge/typegen` | Core engine: metadata reading, type generation, Web API helpers, Xrm constants, action runtime, MockValues types | v0.2.0 |
-| `@xrmforge/testing` | Type-safe form mock builder: `createFormMock()`, MockAttribute, MockControl, MockUi, MockEventContext | v0.1.0 |
-| `@xrmforge/cli` | Command-line interface for generating types (`--actions` flag for Custom API executors) | v0.2.0 |
-| `@xrmforge/webapi` | Type-safe Web API client (retrieve, create, update, delete with generated entity types) | Planned |
-| `@xrmforge/formhelpers` | Form scripting utilities (tab management, field visibility, notifications) | Planned |
+| `@xrmforge/testing` | Type-safe form mock builder: `createFormMock()`, `fireOnChange()`, MockAttribute, MockControl, MockUi | v0.1.1 |
+| `@xrmforge/cli` | Command-line interface for generating types (`--actions`, `--actions-filter`) | v0.2.0 |
+| `@xrmforge/webapi` | Type-safe Web API client: `retrieve<T>()`, `retrieveMultiple<T>()`, `create()`, `update()`, `remove()`, QueryBuilder | v0.1.0 |
+| `@xrmforge/formhelpers` | TypedForm proxy: direct property access to form fields (`form.name.setValue()`) | v0.1.0 |
 | `@xrmforge/devkit` | Project scaffolding and build configuration templates | Planned |
 | `@xrmforge/pipeline` | CI/CD templates for Azure DevOps and GitHub Actions | Planned |
 | `@xrmforge/eslint-plugin` | D365-specific ESLint rules (e.g. no raw `getAttribute` strings, no magic numbers for OptionSets) | Planned |

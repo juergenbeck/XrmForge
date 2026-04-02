@@ -964,10 +964,10 @@ Installation: `npm install -D @xrmforge/testing`
 | Paket | Beschreibung | Status |
 |---------|-------------|--------|
 | `@xrmforge/typegen` | Kern-Engine: Metadaten lesen, Typgenerierung, Web-API-Helfer, Xrm-Konstanten, Action-Runtime, MockValues-Typen | v0.2.0 |
-| `@xrmforge/testing` | Typsicherer Formular-Mock-Builder: `createFormMock()`, MockAttribute, MockControl, MockUi, MockEventContext | v0.1.0 |
-| `@xrmforge/cli` | Kommandozeilenschnittstelle zur Typgenerierung (`--actions` Flag für Custom-API-Executors, `--actions-filter` für Prefix-Filter) | v0.2.0 |
-| `@xrmforge/webapi` | Typsicherer Web-API-Client (abrufen, erstellen, aktualisieren, löschen mit generierten Entity-Typen) | Geplant |
-| `@xrmforge/formhelpers` | Formularskript-Hilfsprogramme (Tab-Verwaltung, Feldsichtbarkeit, Benachrichtigungen) | Geplant |
+| `@xrmforge/testing` | Typsicherer Formular-Mock-Builder: `createFormMock()`, `fireOnChange()`, MockAttribute, MockControl, MockUi | v0.1.1 |
+| `@xrmforge/cli` | Kommandozeilenschnittstelle zur Typgenerierung (`--actions`, `--actions-filter`) | v0.2.0 |
+| `@xrmforge/webapi` | Typsicherer Web-API-Client: `retrieve<T>()`, `retrieveMultiple<T>()`, `create()`, `update()`, `remove()`, QueryBuilder | v0.1.0 |
+| `@xrmforge/formhelpers` | TypedForm-Proxy: Direkter Property-Zugriff auf Formularfelder (`form.name.setValue()`) | v0.1.0 |
 | `@xrmforge/devkit` | Projekt-Scaffolding und Build-Konfigurationsvorlagen | Geplant |
 | `@xrmforge/pipeline` | CI/CD-Vorlagen für Azure DevOps und GitHub Actions | Geplant |
 | `@xrmforge/eslint-plugin` | D365-spezifische ESLint-Regeln (z.B. keine rohen `getAttribute`-Strings, keine magischen Zahlen für OptionSets) | Geplant |
