@@ -1,0 +1,55 @@
+/**
+ * @xrmforge/typegen - Entity Names Enum Generator
+ *
+ * Generates a single const enum with all entity logical names.
+ * Eliminates raw strings in Xrm.WebApi calls.
+ *
+ * Output pattern:
+ * ```typescript
+ * declare namespace XrmForge {
+ *   const enum EntityNames {
+ *     Account = 'account',
+ *     Contact = 'contact',
+ *     Lead = 'lead',
+ *   }
+ * }
+ * ```
+ */
+
+import { toPascalCase } from './type-mapping.js';
+
+export interface EntityNamesGeneratorOptions {
+  /** Namespace (default: "XrmForge") */
+  namespace?: string;
+}
+
+/**
+ * Generate a const enum mapping entity PascalCase names to logical names.
+ *
+ * @param entityNames - Array of entity logical names
+ * @param options - Generator options
+ * @returns TypeScript declaration string
+ */
+export function generateEntityNamesEnum(
+  entityNames: string[],
+  options: EntityNamesGeneratorOptions = {},
+): string {
+  const namespace = options.namespace ?? 'XrmForge';
+  const sorted = [...entityNames].sort();
+
+  const lines: string[] = [];
+  lines.push(`declare namespace ${namespace} {`);
+  lines.push('  /** Entity logical names for Xrm.WebApi calls (compile-time only, zero runtime) */');
+  lines.push('  const enum EntityNames {');
+
+  for (const name of sorted) {
+    const pascal = toPascalCase(name);
+    lines.push(`    ${pascal} = '${name}',`);
+  }
+
+  lines.push('  }');
+  lines.push('}');
+  lines.push('');
+
+  return lines.join('\n');
+}

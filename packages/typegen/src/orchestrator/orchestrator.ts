@@ -18,6 +18,7 @@ import { generateEntityInterface } from '../generators/entity-generator.js';
 import { generateEntityOptionSets } from '../generators/optionset-generator.js';
 import { generateEntityForms } from '../generators/form-generator.js';
 import { generateActionDeclarations, generateActionModule, groupCustomApis } from '../generators/action-generator.js';
+import { generateEntityNamesEnum } from '../generators/entity-names-generator.js';
 import { addGeneratedHeader, writeAllFiles, generateBarrelIndex } from './file-writer.js';
 import type {
   GenerateConfig,
@@ -218,6 +219,18 @@ export class TypeGenerationOrchestrator {
       } else {
         this.logger.info('No Custom APIs found');
       }
+    }
+
+    // 2c. Generate EntityNames enum (all entities in one file)
+    if (this.config.entities.length > 0) {
+      const entityNamesContent = generateEntityNamesEnum(this.config.entities, {
+        namespace: this.config.namespacePrefix,
+      });
+      allFiles.push({
+        relativePath: 'entity-names.d.ts',
+        content: addGeneratedHeader(entityNamesContent),
+        type: 'entity',
+      });
     }
 
     // 3. Write barrel index

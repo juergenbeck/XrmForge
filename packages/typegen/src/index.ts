@@ -123,12 +123,14 @@ export {
   generateEntityFieldsEnum,
   generateEntityNavigationProperties,
   generateActivityPartyInterface,
+  generateEntityNamesEnum,
 } from './generators/index.js';
 
 export type {
   EntityGeneratorOptions,
   OptionSetGeneratorOptions,
   FormGeneratorOptions,
+  EntityNamesGeneratorOptions,
   EntityFieldsGeneratorOptions,
 } from './generators/index.js';
 
