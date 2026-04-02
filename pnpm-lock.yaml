@@ -55,6 +55,25 @@ importers:
         specifier: ^3.0.0
         version: 3.2.4(@types/node@22.19.15)
 
+  packages/formhelpers:
+    dependencies:
+      '@types/xrm':
+        specifier: '>=9.0.0'
+        version: 9.0.90
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.15
+      tsup:
+        specifier: ^8.3.0
+        version: 8.5.1(postcss@8.5.8)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.4(@types/node@22.19.15)
+
   packages/testing:
     dependencies:
       '@types/xrm':
@@ -92,6 +111,25 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^3.2.4
         version: 3.2.4(vitest@3.2.4(@types/node@22.19.15))
+      tsup:
+        specifier: ^8.3.0
+        version: 8.5.1(postcss@8.5.8)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.4(@types/node@22.19.15)
+
+  packages/webapi:
+    dependencies:
+      '@types/xrm':
+        specifier: '>=9.0.0'
+        version: 9.0.90
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.15
       tsup:
         specifier: ^8.3.0
         version: 8.5.1(postcss@8.5.8)(typescript@5.9.3)
