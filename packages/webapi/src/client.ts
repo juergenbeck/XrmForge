@@ -16,7 +16,7 @@
  * ```
  */
 
-import { QueryBuilder } from './query-builder.js';
+import type { QueryBuilder } from './query-builder.js';
 import { WebApiError } from './error.js';
 
 /**
