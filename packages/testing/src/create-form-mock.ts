@@ -145,5 +145,14 @@ export function createFormMock<TForm>(
         getOrCreateAttribute(fieldName),
       ) as unknown as Xrm.Events.EventContext;
     },
+
+    fireOnChange(fieldName: string): void {
+      const attr = getOrCreateAttribute(fieldName);
+      const eventContext = new MockEventContext(
+        formContext as unknown as Xrm.FormContext,
+        attr,
+      ) as unknown as Xrm.Events.EventContext;
+      attr.fireOnChange(eventContext);
+    },
   };
 }

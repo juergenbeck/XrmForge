@@ -44,4 +44,10 @@ export interface FormMock<TForm> {
 
   /** Create an Xrm.Events.EventContext with getEventSource (for onChange handlers) */
   asAttributeEventContext(fieldName: string): Xrm.Events.EventContext;
+
+  /**
+   * Fire all registered onChange handlers for a field.
+   * Creates an EventContext with the attribute as event source and calls all handlers.
+   */
+  fireOnChange(fieldName: string): void;
 }

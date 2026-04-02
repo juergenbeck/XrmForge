@@ -69,6 +69,16 @@ export class MockAttribute {
     return this._onChangeHandlers;
   }
 
+  /**
+   * Fire all registered onChange handlers with the given event context.
+   * @internal Called by FormMock.fireOnChange(fieldName)
+   */
+  fireOnChange(eventContext: Xrm.Events.EventContext): void {
+    for (const handler of this._onChangeHandlers) {
+      handler(eventContext);
+    }
+  }
+
   getAttributeType(): string {
     return 'string';
   }

@@ -139,4 +139,68 @@ describe('createFormMock', () => {
     mock.getAttribute('name').setRequiredLevel('required');
     expect(mock.formContext.getAttribute('name').getRequiredLevel()).toBe('required');
   });
+
+  it('should fire onChange handlers via fireOnChange', () => {
+    const mock = createFormMock<TestAccountForm>({
+      name: 'Contoso',
+    } satisfies TestAccountFormMockValues);
+
+    let handlerCalled = false;
+    let receivedFormContext: unknown = null;
+    let receivedEventSource: unknown = null;
+
+    mock.getAttribute('name').addOnChange((ctx) => {
+      handlerCalled = true;
+      receivedFormContext = ctx.getFormContext();
+      receivedEventSource = ctx.getEventSource();
+    });
+
+    mock.fireOnChange('name');
+
+    expect(handlerCalled).toBe(true);
+    expect(receivedFormContext).toBeDefined();
+    expect((receivedEventSource as any).getName()).toBe('name');
+  });
+
+  it('should fire multiple onChange handlers in order', () => {
+    const mock = createFormMock<TestAccountForm>({
+      revenue: 100000,
+    } satisfies TestAccountFormMockValues);
+
+    const callOrder: number[] = [];
+    mock.getAttribute('revenue').addOnChange(() => callOrder.push(1));
+    mock.getAttribute('revenue').addOnChange(() => callOrder.push(2));
+
+    mock.fireOnChange('revenue');
+
+    expect(callOrder).toEqual([1, 2]);
+  });
+
+  it('should allow handler to read and modify other fields', () => {
+    const mock = createFormMock<TestAccountForm>({
+      revenue: 100000,
+      creditonhold: false,
+    } satisfies TestAccountFormMockValues);
+
+    // Simuliere echte Geschäftslogik: wenn revenue > 50000, creditonhold = true
+    mock.getAttribute('revenue').addOnChange((ctx) => {
+      const fc = ctx.getFormContext() as TestAccountForm;
+      const rev = fc.getAttribute('revenue').getValue() as number;
+      if (rev > 50000) {
+        fc.getAttribute('creditonhold').setValue(true);
+      }
+    });
+
+    mock.fireOnChange('revenue');
+
+    expect(mock.getValue('creditonhold')).toBe(true);
+  });
+
+  it('should not throw when firing onChange with no handlers', () => {
+    const mock = createFormMock<TestAccountForm>({
+      name: 'Contoso',
+    } satisfies TestAccountFormMockValues);
+
+    expect(() => mock.fireOnChange('name')).not.toThrow();
+  });
 });
