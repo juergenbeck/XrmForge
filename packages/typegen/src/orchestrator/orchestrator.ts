@@ -68,6 +68,7 @@ export class TypeGenerationOrchestrator {
       generateForms: config.generateForms ?? true,
       generateOptionSets: config.generateOptionSets ?? true,
       generateActions: config.generateActions ?? false,
+      actionsFilter: config.actionsFilter ?? '',
       useCache: config.useCache ?? false,
       cacheDir: config.cacheDir ?? '.xrmforge/cache',
       namespacePrefix: config.namespacePrefix ?? 'XrmForge',
@@ -165,7 +166,15 @@ export class TypeGenerationOrchestrator {
     // 2b. Generate Custom API Action/Function executors
     if (this.config.generateActions && !signal?.aborted) {
       this.logger.info('Fetching Custom APIs...');
-      const customApis = await metadataClient.getCustomApis();
+      let customApis = await metadataClient.getCustomApis();
+
+      // Apply prefix filter if configured
+      if (this.config.actionsFilter) {
+        const prefix = this.config.actionsFilter.toLowerCase();
+        const before = customApis.length;
+        customApis = customApis.filter((api) => api.api.uniquename.toLowerCase().startsWith(prefix));
+        this.logger.info(`Filtered Custom APIs by prefix "${this.config.actionsFilter}": ${before} -> ${customApis.length}`);
+      }
 
       if (customApis.length > 0) {
         const importPath = '@xrmforge/typegen';

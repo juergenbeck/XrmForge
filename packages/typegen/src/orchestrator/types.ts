@@ -35,6 +35,9 @@ export interface GenerateConfig {
   /** Whether to generate Custom API Action/Function executors (default: false) */
   generateActions?: boolean;
 
+  /** Filter Custom APIs by uniquename prefix (e.g. "markant_"). Only APIs matching the prefix are generated. */
+  actionsFilter?: string;
+
   /**
    * Whether to use metadata cache for faster re-generation.
    * @alpha Not yet implemented. Setting this to true will throw a ConfigError.

@@ -45,6 +45,7 @@ interface GenerateOptions {
   forms: boolean;
   optionsets: boolean;
   actions: boolean;
+  actionsFilter?: string;
   verbose: boolean;
 }
 
@@ -81,6 +82,7 @@ export function registerGenerateCommand(program: Command): void {
     .option('--no-forms', 'Skip form interface generation')
     .option('--no-optionsets', 'Skip OptionSet enum generation')
     .option('--actions', 'Generate Custom API Action/Function executors', false)
+    .option('--actions-filter <prefix>', 'Only generate Custom APIs whose uniquename starts with this prefix (e.g. "markant_")')
 
     // Verbosity
     .option('-v, --verbose', 'Enable verbose logging', false)
@@ -180,6 +182,7 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
     generateForms: opts.forms,
     generateOptionSets: opts.optionsets,
     generateActions: opts.actions,
+    actionsFilter: opts.actionsFilter,
   });
 
   // Support Ctrl+C and SIGTERM (R8-07: Docker/K8s sends SIGTERM)
