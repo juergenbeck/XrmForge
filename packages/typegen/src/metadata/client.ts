@@ -31,6 +31,12 @@ import type {
   SolutionComponent,
   EntityTypeInfo,
 } from './types.js';
+import type {
+  CustomApiTypeInfo,
+  CustomApiMetadata,
+  CustomApiRequestParameter,
+  CustomApiResponseProperty,
+} from './custom-api-types.js';
 
 const log = createLogger('metadata');
 
@@ -392,6 +398,89 @@ export class MetadataClient {
   async getMultipleEntityTypeInfos(logicalNames: string[]): Promise<EntityTypeInfo[]> {
     log.info(`Fetching type info for ${logicalNames.length} entities`);
     return Promise.all(logicalNames.map((name) => this.getEntityTypeInfo(name)));
+  }
+
+  // ─── Custom API Metadata ───────────────────────────────────────────────
+
+  /**
+   * Fetch all Custom APIs with their request parameters and response properties.
+   *
+   * Queries the customapi, customapirequestparameter, and customapiresponseproperty
+   * tables and joins them into CustomApiTypeInfo objects.
+   *
+   * @param solutionFilter - Optional: filter by solution unique name
+   * @returns Array of complete Custom API definitions
+   */
+  async getCustomApis(solutionFilter?: string): Promise<CustomApiTypeInfo[]> {
+    log.info('Fetching Custom APIs...');
+
+    // 1. Load all Custom APIs
+    let apiUrl = '/customapis?$select=uniquename,bindingtype,isfunction,boundentitylogicalname,displayname,description';
+    if (solutionFilter) {
+      const safeSolution = DataverseHttpClient.sanitizeIdentifier(solutionFilter);
+      apiUrl += `&$filter=solutionid/uniquename eq '${safeSolution}'`;
+    }
+
+    const apis = await this.http.get<ODataCollection<CustomApiMetadata & { customapiid: string }>>(apiUrl);
+    log.info(`Found ${apis.value.length} Custom APIs`);
+
+    if (apis.value.length === 0) return [];
+
+    // 2. Load all request parameters
+    const params = await this.http.get<ODataCollection<CustomApiRequestParameter & { _customapiid_value: string }>>(
+      '/customapirequestparameters?$select=uniquename,type,isoptional,logicalentityname,description,_customapiid_value',
+    );
+
+    // 3. Load all response properties
+    const props = await this.http.get<ODataCollection<CustomApiResponseProperty & { _customapiid_value: string }>>(
+      '/customapiresponseproperties?$select=uniquename,type,logicalentityname,description,_customapiid_value',
+    );
+
+    // 4. Group parameters and properties by Custom API ID
+    const paramsByApi = new Map<string, CustomApiRequestParameter[]>();
+    for (const p of params.value) {
+      const apiId = p._customapiid_value;
+      if (!paramsByApi.has(apiId)) paramsByApi.set(apiId, []);
+      paramsByApi.get(apiId)!.push({
+        uniquename: p.uniquename,
+        type: p.type,
+        isoptional: p.isoptional,
+        logicalentityname: p.logicalentityname,
+        description: p.description,
+      });
+    }
+
+    const propsByApi = new Map<string, CustomApiResponseProperty[]>();
+    for (const p of props.value) {
+      const apiId = p._customapiid_value;
+      if (!propsByApi.has(apiId)) propsByApi.set(apiId, []);
+      propsByApi.get(apiId)!.push({
+        uniquename: p.uniquename,
+        type: p.type,
+        logicalentityname: p.logicalentityname,
+        description: p.description,
+      });
+    }
+
+    // 5. Build CustomApiTypeInfo objects
+    const result: CustomApiTypeInfo[] = [];
+    for (const api of apis.value) {
+      result.push({
+        api: {
+          uniquename: api.uniquename,
+          bindingtype: api.bindingtype,
+          isfunction: api.isfunction,
+          boundentitylogicalname: api.boundentitylogicalname,
+          displayname: api.displayname,
+          description: api.description,
+        },
+        requestParameters: paramsByApi.get(api.customapiid) ?? [],
+        responseProperties: propsByApi.get(api.customapiid) ?? [],
+      });
+    }
+
+    log.info(`Loaded ${result.length} Custom APIs with parameters and response properties`);
+    return result;
   }
 
   // ─── Internal Helpers ──────────────────────────────────────────────────

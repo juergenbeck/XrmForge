@@ -167,6 +167,55 @@ const FORM_CONTROL_TYPE_MAP: Record<string, string> = {
   PartyList: 'Xrm.Controls.LookupControl',
 };
 
+// ─── Mock Value Types (for @xrmforge/testing) ──────────────────────────────
+
+/**
+ * Map Dataverse AttributeType to JavaScript value type for mock objects.
+ * Used by the form generator to create MockValues types for @xrmforge/testing.
+ *
+ * @param attributeType - The AttributeType from Dataverse metadata
+ * @returns TypeScript value type string (e.g. "string | null", "number | null")
+ */
+export function getFormMockValueType(attributeType: string): string {
+  const mapping = FORM_MOCK_VALUE_TYPE_MAP[attributeType];
+  if (mapping) return mapping;
+
+  return 'unknown';
+}
+
+/** Dataverse AttributeType to JavaScript value type */
+const FORM_MOCK_VALUE_TYPE_MAP: Record<string, string> = {
+  // String types
+  String: 'string | null',
+  Memo: 'string | null',
+  EntityName: 'string | null',
+
+  // Numeric types
+  Integer: 'number | null',
+  BigInt: 'number | null',
+  Decimal: 'number | null',
+  Double: 'number | null',
+  Money: 'number | null',
+
+  // Boolean
+  Boolean: 'boolean | null',
+
+  // OptionSet types (numeric values at runtime)
+  Picklist: 'number | null',
+  State: 'number | null',
+  Status: 'number | null',
+  MultiSelectPicklist: 'number[] | null',
+
+  // Date/Time
+  DateTime: 'Date | null',
+
+  // Lookup types
+  Lookup: 'Xrm.LookupValue[] | null',
+  Customer: 'Xrm.LookupValue[] | null',
+  Owner: 'Xrm.LookupValue[] | null',
+  PartyList: 'Xrm.LookupValue[] | null',
+};
+
 // ─── Identifier Utilities ────────────────────────────────────────────────────
 
 /**

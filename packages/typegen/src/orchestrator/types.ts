@@ -32,6 +32,9 @@ export interface GenerateConfig {
   /** Whether to generate OptionSet enums (default: true) */
   generateOptionSets?: boolean;
 
+  /** Whether to generate Custom API Action/Function executors (default: false) */
+  generateActions?: boolean;
+
   /**
    * Whether to use metadata cache for faster re-generation.
    * @alpha Not yet implemented. Setting this to true will throw a ConfigError.
@@ -73,7 +76,7 @@ export interface GeneratedFile {
   content: string;
 
   /** Type of generated content */
-  type: 'entity' | 'optionset' | 'form';
+  type: 'entity' | 'optionset' | 'form' | 'action';
 }
 
 /** Overall result of the generation process */

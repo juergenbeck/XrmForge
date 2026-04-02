@@ -1,33 +1,41 @@
 {
-  "name": "@xrmforge/cli",
-  "version": "0.2.0",
-  "description": "CLI for XrmForge - TypeScript type generator for Dynamics 365",
+  "name": "@xrmforge/testing",
+  "version": "0.1.0",
+  "description": "Type-safe testing utilities for Dynamics 365 form scripts",
   "keywords": [
     "dynamics-365",
     "typescript",
     "xrm",
-    "dataverse",
-    "cli",
-    "code-generation"
+    "testing",
+    "mock",
+    "form-scripts",
+    "dataverse"
   ],
   "license": "MIT",
   "author": "XrmForge Contributors",
-  "homepage": "https://github.com/juergenbeck/XrmForge/tree/main/packages/cli",
+  "homepage": "https://github.com/juergenbeck/XrmForge/tree/main/packages/testing",
   "repository": {
     "type": "git",
     "url": "https://github.com/juergenbeck/XrmForge.git",
-    "directory": "packages/cli"
+    "directory": "packages/testing"
   },
   "bugs": {
     "url": "https://github.com/juergenbeck/XrmForge/issues"
   },
   "type": "module",
-  "bin": {
-    "xrmforge": "./dist/index.js"
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
   },
   "files": [
     "dist"
   ],
+  "sideEffects": false,
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -37,15 +45,14 @@
     "lint": "eslint src/",
     "clean": "rm -rf dist"
   },
-  "dependencies": {
-    "@xrmforge/typegen": "workspace:*",
-    "commander": "^13.0.0"
-  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsup": "^8.3.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
+  },
+  "peerDependencies": {
+    "@types/xrm": ">=9.0.0"
   },
   "engines": {
     "node": ">=20.0.0"

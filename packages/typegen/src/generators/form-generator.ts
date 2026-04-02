@@ -46,7 +46,12 @@
  */
 
 import type { ParsedForm, AttributeMetadata, SpecialControlType } from '../metadata/types.js';
-import { getFormAttributeType, getFormControlType, toPascalCase } from './type-mapping.js';
+import {
+  getFormAttributeType,
+  getFormControlType,
+  getFormMockValueType,
+  toPascalCase,
+} from './type-mapping.js';
 import { transliterateUmlauts, formatDualLabel, getPrimaryLabel, type LabelConfig, DEFAULT_LABEL_CONFIG } from './label-utils.js';
 
 /** Map special control types to @types/xrm control interfaces */
@@ -352,6 +357,17 @@ export function generateFormInterface(
   }
 
   lines.push('  }');
+
+  // 7. MockValues type for @xrmforge/testing
+  const mockValuesName = `${interfaceName}MockValues`;
+  lines.push('');
+  lines.push(`  /** Mock value types for "${form.name}" form (used with @xrmforge/testing) */`);
+  lines.push(`  type ${mockValuesName} = {`);
+  for (const field of fields) {
+    const mockType = getFormMockValueType(field.attributeType);
+    lines.push(`    ${field.logicalName}?: ${mockType};`);
+  }
+  lines.push('  };');
 
   lines.push('}');
   lines.push('');

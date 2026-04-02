@@ -17,6 +17,7 @@ import type { EntityTypeInfo, OptionSetMetadata } from '../metadata/types.js';
 import { generateEntityInterface } from '../generators/entity-generator.js';
 import { generateEntityOptionSets } from '../generators/optionset-generator.js';
 import { generateEntityForms } from '../generators/form-generator.js';
+import { generateActionDeclarations, generateActionModule, groupCustomApis } from '../generators/action-generator.js';
 import { addGeneratedHeader, writeAllFiles, generateBarrelIndex } from './file-writer.js';
 import type {
   GenerateConfig,
@@ -66,6 +67,7 @@ export class TypeGenerationOrchestrator {
       generateEntities: config.generateEntities ?? true,
       generateForms: config.generateForms ?? true,
       generateOptionSets: config.generateOptionSets ?? true,
+      generateActions: config.generateActions ?? false,
       useCache: config.useCache ?? false,
       cacheDir: config.cacheDir ?? '.xrmforge/cache',
       namespacePrefix: config.namespacePrefix ?? 'XrmForge',
@@ -157,6 +159,55 @@ export class TypeGenerationOrchestrator {
           files: [],
           warnings: [`Failed to process: ${errorMsg}`],
         });
+      }
+    }
+
+    // 2b. Generate Custom API Action/Function executors
+    if (this.config.generateActions && !signal?.aborted) {
+      this.logger.info('Fetching Custom APIs...');
+      const customApis = await metadataClient.getCustomApis();
+
+      if (customApis.length > 0) {
+        const importPath = '@xrmforge/typegen';
+        const grouped = groupCustomApis(customApis);
+
+        for (const [key, apis] of grouped.actions) {
+          const entityName = key === 'global' ? undefined : key;
+          const declarations = generateActionDeclarations(apis, false, entityName, { importPath });
+          const module = generateActionModule(apis, false, { importPath });
+
+          allFiles.push({
+            relativePath: `actions/${key}.d.ts`,
+            content: addGeneratedHeader(declarations),
+            type: 'action',
+          });
+          allFiles.push({
+            relativePath: `actions/${key}.ts`,
+            content: addGeneratedHeader(module),
+            type: 'action',
+          });
+        }
+
+        for (const [key, apis] of grouped.functions) {
+          const entityName = key === 'global' ? undefined : key;
+          const declarations = generateActionDeclarations(apis, true, entityName, { importPath });
+          const module = generateActionModule(apis, true, { importPath });
+
+          allFiles.push({
+            relativePath: `functions/${key}.d.ts`,
+            content: addGeneratedHeader(declarations),
+            type: 'action',
+          });
+          allFiles.push({
+            relativePath: `functions/${key}.ts`,
+            content: addGeneratedHeader(module),
+            type: 'action',
+          });
+        }
+
+        this.logger.info(`Generated ${grouped.actions.size} action groups, ${grouped.functions.size} function groups`);
+      } else {
+        this.logger.info('No Custom APIs found');
       }
     }
 

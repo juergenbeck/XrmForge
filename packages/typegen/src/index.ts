@@ -64,6 +64,7 @@ export {
 } from './metadata/index.js';
 export type { LabelConfig } from './metadata/index.js';
 export type { XmlParser, XmlElement } from './metadata/index.js';
+export type { CustomApiTypeInfo } from './metadata/index.js';
 export type {
   EntityMetadata,
   AttributeMetadata,
@@ -100,7 +101,9 @@ export {
   toPascalCase,
   toLookupValueProperty,
   isLookupType,
+  isPartyListType,
   shouldIncludeInEntityInterface,
+  getFormMockValueType,
 } from './generators/index.js';
 
 // ─── Generator Label Utilities ───────────────────────────────────────────────
@@ -117,12 +120,73 @@ export {
   generateEntityOptionSets,
   generateFormInterface,
   generateEntityForms,
+  generateEntityFieldsEnum,
+  generateEntityNavigationProperties,
+  generateActivityPartyInterface,
 } from './generators/index.js';
 
 export type {
   EntityGeneratorOptions,
   OptionSetGeneratorOptions,
   FormGeneratorOptions,
+  EntityFieldsGeneratorOptions,
+} from './generators/index.js';
+
+// ─── Web API Helpers ─────────────────────────────────────────────────────────
+export {
+  select,
+  selectExpand,
+  parseLookup,
+  parseLookups,
+  parseFormattedValue,
+} from './generators/index.js';
+
+// ─── Xrm API Constants ──────────────────────────────────────────────────────
+export {
+  DisplayState,
+  FormNotificationLevel,
+  RequiredLevel,
+  SubmitMode,
+  SaveMode,
+  ClientType,
+  ClientState,
+  OperationType,
+  StructuralProperty,
+  BindingType,
+} from './generators/index.js';
+
+// ─── Action/Function Runtime ─────────────────────────────────────────────────
+export {
+  executeRequest,
+  executeMultiple,
+  createBoundAction,
+  createUnboundAction,
+  createBoundFunction,
+  createUnboundFunction,
+  withProgress,
+} from './generators/index.js';
+
+export type {
+  ParameterMeta,
+  ParameterMetaMap,
+  BoundActionExecutor,
+  BoundActionWithParamsExecutor,
+  UnboundActionExecutor,
+  UnboundActionWithParamsExecutor,
+  UnboundFunctionExecutor,
+  BoundFunctionExecutor,
+} from './generators/index.js';
+
+// ─── Action/Function Generator ───────────────────────────────────────────────
+export {
+  generateActionDeclarations,
+  generateActionModule,
+  groupCustomApis,
+} from './generators/index.js';
+
+export type {
+  ActionGeneratorOptions,
+  GroupedCustomApis,
 } from './generators/index.js';
 
 // ─── Orchestrator (Public API) ───────────────────────────────────────────────

@@ -44,6 +44,7 @@ interface GenerateOptions {
   secondaryLanguage?: string;
   forms: boolean;
   optionsets: boolean;
+  actions: boolean;
   verbose: boolean;
 }
 
@@ -79,6 +80,7 @@ export function registerGenerateCommand(program: Command): void {
     // Feature toggles
     .option('--no-forms', 'Skip form interface generation')
     .option('--no-optionsets', 'Skip OptionSet enum generation')
+    .option('--actions', 'Generate Custom API Action/Function executors', false)
 
     // Verbosity
     .option('-v, --verbose', 'Enable verbose logging', false)
@@ -177,6 +179,7 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
     labelConfig: { primaryLanguage, secondaryLanguage },
     generateForms: opts.forms,
     generateOptionSets: opts.optionsets,
+    generateActions: opts.actions,
   });
 
   // Support Ctrl+C and SIGTERM (R8-07: Docker/K8s sends SIGTERM)

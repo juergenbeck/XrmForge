@@ -9,6 +9,7 @@ export {
   isLookupType,
   isPartyListType,
   shouldIncludeInEntityInterface,
+  getFormMockValueType,
 } from './type-mapping.js';
 
 // ActivityParty Base Interface
