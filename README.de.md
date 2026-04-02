@@ -111,6 +111,7 @@ Jedes Feld, jedes Formular, jede Custom API wird zu einem Vertrag zur Kompilierz
 - **Web-API-Hilfsfunktionen** -- `select()`, `parseLookup()`, `parseFormattedValue()`, `withProgress()` und mehr.
 - **Xrm-Konstanten** -- `DisplayState`, `FormNotificationLevel`, `RequiredLevel`, `SubmitMode`, `SaveMode`, `ClientType`, `OperationType` und andere als `const enum`. Keine rohen Strings mehr.
 - **Zweisprachige Labels** -- JSDoc-Kommentare zeigen beide Sprachen: `/** Account Name | Firmenname */`. Autovervollständigung in VS Code zeigt beide.
+- **Formular-Tests** -- `@xrmforge/testing`-Paket: Typsicherer Mock-Builder für D365-Formulare. `createFormMock<AccountForm>({ name: 'Contoso' })` erzeugt ein zur Kompilierzeit validiertes Mock-Objekt mit `getAttribute()`, `getControl()`, `ui.setFormNotification()` und Event-Context-Unterstützung. Kein `as any` mehr. **(NEU in v0.2.0)**
 - **esbuild-Build-Pipeline** -- IIFE-Bundles für D365, bereit zum Upload als Web Resources. Build in unter einer Sekunde.
 
 ---
@@ -917,15 +918,55 @@ const requests = [
 const responses = await executeMultiple(requests);
 ```
 
+### Formularskripte testen (NEU in v0.2.0)
+
+`@xrmforge/testing` erzeugt typsichere Mock-Objekte aus generierten Formular-Interfaces. Kein `as any` mehr, kein manuelles `XrmMockGenerator.Attribute.createString("name", ...)`:
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { createFormMock } from '@xrmforge/testing';
+
+type AccountForm = XrmForge.Forms.Account.AccountMainForm;
+type MockValues = XrmForge.Forms.Account.AccountMainFormMockValues;
+
+describe('Account onLoad', () => {
+  it('sollte MPK-Feld sperren wenn Wert gesetzt', () => {
+    const mock = createFormMock<AccountForm>({
+      markant_ismpk: 1,  // Compile-Fehler bei falschem Typ
+    } satisfies MockValues);
+
+    if (mock.getValue('markant_ismpk') === 0 || mock.getValue('markant_ismpk') === 1) {
+      mock.getControl('markant_ismpk').setDisabled(true);
+    }
+
+    expect(mock.getControl('markant_ismpk').getDisabled()).toBe(true);
+  });
+
+  it('sollte EventContext fuer onLoad-Handler bereitstellen', () => {
+    const mock = createFormMock<AccountForm>(
+      { name: 'Contoso' } satisfies MockValues,
+      { entityName: 'account', entityId: 'abc-123' },
+    );
+
+    const ctx = mock.asEventContext();
+    const fc = ctx.getFormContext() as AccountForm;
+    expect(fc.getAttribute('name').getValue()).toBe('Contoso');
+  });
+});
+```
+
+Installation: `npm install -D @xrmforge/testing`
+
 ---
 
 ## 12. Pakete
 
 | Paket | Beschreibung | Status |
 |---------|-------------|--------|
-| `@xrmforge/typegen` | Kern-Engine: Metadaten lesen, Typgenerierung, Web-API-Helfer, Xrm-Konstanten, Action-Runtime | v0.1.0 |
-| `@xrmforge/cli` | Kommandozeilenschnittstelle zur Typgenerierung | v0.1.0 |
-| `@xrmforge/webapi` | Typsicherer Web-API-Client (abrufen, erstellen, aktualisieren, löschen mit generierten Entity-Typen) | In Entwicklung |
+| `@xrmforge/typegen` | Kern-Engine: Metadaten lesen, Typgenerierung, Web-API-Helfer, Xrm-Konstanten, Action-Runtime, MockValues-Typen | v0.2.0 |
+| `@xrmforge/testing` | Typsicherer Formular-Mock-Builder: `createFormMock()`, MockAttribute, MockControl, MockUi, MockEventContext | v0.1.0 |
+| `@xrmforge/cli` | Kommandozeilenschnittstelle zur Typgenerierung (`--actions` Flag für Custom-API-Executors, `--actions-filter` für Prefix-Filter) | v0.2.0 |
+| `@xrmforge/webapi` | Typsicherer Web-API-Client (abrufen, erstellen, aktualisieren, löschen mit generierten Entity-Typen) | Geplant |
 | `@xrmforge/formhelpers` | Formularskript-Hilfsprogramme (Tab-Verwaltung, Feldsichtbarkeit, Benachrichtigungen) | Geplant |
 | `@xrmforge/devkit` | Projekt-Scaffolding und Build-Konfigurationsvorlagen | Geplant |
 | `@xrmforge/pipeline` | CI/CD-Vorlagen für Azure DevOps und GitHub Actions | Geplant |
@@ -1018,14 +1059,20 @@ Wenn esbuild einen Import nicht auflösen kann:
 
 ## 15. Roadmap
 
-Geplante Erweiterungen für kommende Versionen:
+### Ausgeliefert in v0.2.0
+
+- **`@xrmforge/testing`** -- Typsicherer Formular-Mock-Builder mit Compile-Time-Feldvalidierung.
+- **Custom-API-Live-Generierung** -- `--actions` Flag fragt customapi/customapirequestparameter/customapiresponseproperty-Tabellen aus Dataverse ab und generiert typisierte Executors. `--actions-filter markant_` filtert auf relevante APIs.
+- **MockValues-Typen** -- Jedes generierte Formular-Interface enthält einen `MockValues`-Typ, der Felder auf ihre JavaScript-Werttypen abbildet, zur Verwendung mit `@xrmforge/testing`.
+- **Lösungsbasierte Erkennung** -- `--solutions Sales,Service` erkennt Entities aus Dataverse-Lösungen automatisch.
+
+### Geplant
 
 - **`@xrmforge/webapi`** -- Ein typsicherer Web-API-Client, der generierte Entity-Interfaces für `retrieve`-, `create`-, `update`- und `delete`-Operationen verwendet. Keine untypisierten `Record<string, unknown>`-Antworten mehr.
 - **`@xrmforge/formhelpers`** -- Hilfsfunktionen für häufige Formularskript-Muster: Tab/Abschnitt-Sichtbarkeit, Feldsperrung, Lookup-Filterung, Ribbon-Control.
 - **`@xrmforge/devkit`** -- Projekt-Scaffolding (`xrmforge init`), tsconfig-Vorlagen, Build-Konfiguration und Beispielprojekte.
 - **`@xrmforge/pipeline`** -- Einsatzbereite CI/CD-Pipeline-Vorlagen für Azure DevOps (YAML) und GitHub Actions. Automatisierte Typgenerierung, Typprüfung, Build und Web-Resource-Deployment.
 - **`@xrmforge/eslint-plugin`** -- ESLint-Regeln speziell für die D365-Entwicklung. Warnt vor rohen `getAttribute("string")`-Aufrufen, magischen OptionSet-Zahlen, fehlendem Fehlerhandling in asynchronen Formularhandlern und mehr.
-- **Lösungsbasierte Erkennung** -- Automatisch Typen für alle Entities einer Dataverse-Lösung generieren.
 - **Inkrementelle Generierung** -- Nur Typen für Entities neu generieren, deren Metadaten sich seit dem letzten Lauf geändert haben.
 
 ---
