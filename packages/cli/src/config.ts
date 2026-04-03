@@ -21,6 +21,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import type { BuildConfig } from '@xrmforge/devkit';
 
 /** Shape of xrmforge.config.json */
 export interface XrmForgeConfig {
@@ -52,6 +53,8 @@ export interface XrmForgeConfig {
   cache?: boolean;
   /** Directory for metadata cache files */
   cacheDir?: string;
+  /** Build configuration for WebResource bundling */
+  build?: BuildConfig;
 }
 
 const CONFIG_FILENAME = 'xrmforge.config.json';

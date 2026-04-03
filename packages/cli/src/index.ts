@@ -14,6 +14,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
 import { registerGenerateCommand } from './commands/generate.js';
+import { registerBuildCommand } from './commands/build.js';
 
 // Read version from package.json (single source of truth)
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -27,5 +28,6 @@ program
   .version(pkg.version);
 
 registerGenerateCommand(program);
+registerBuildCommand(program);
 
 program.parse();
