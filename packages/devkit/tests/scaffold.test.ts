@@ -1,0 +1,187 @@
+import { describe, it, expect, afterEach } from 'vitest';
+import { promises as fs } from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import { scaffoldProject } from '../src/scaffold/scaffold.js';
+import { BuildError } from '../src/errors.js';
+
+let tmpDirs: string[] = [];
+
+async function createTmpDir(): Promise<string> {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'xrmforge-scaffold-'));
+  tmpDirs.push(dir);
+  return dir;
+}
+
+afterEach(async () => {
+  for (const dir of tmpDirs) {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+  tmpDirs = [];
+});
+
+describe('scaffoldProject', () => {
+  it('should create all expected files', async () => {
+    const dir = await createTmpDir();
+
+    const result = await scaffoldProject({
+      targetDir: dir,
+      projectName: 'my-d365-project',
+      prefix: 'contoso',
+      namespace: 'Contoso',
+    });
+
+    expect(result.filesCreated).toContain('package.json');
+    expect(result.filesCreated).toContain('tsconfig.json');
+    expect(result.filesCreated).toContain('xrmforge.config.json');
+    expect(result.filesCreated).toContain('vitest.config.ts');
+    expect(result.filesCreated).toContain('.gitignore');
+    expect(result.filesCreated).toContain('src/forms/example-form.ts');
+    expect(result.filesCreated).toContain('typings/.gitkeep');
+    expect(result.filesCreated).toContain('tests/forms/example-form.test.ts');
+    expect(result.filesCreated).toHaveLength(8);
+  });
+
+  it('should use project name in package.json', async () => {
+    const dir = await createTmpDir();
+
+    await scaffoldProject({
+      targetDir: dir,
+      projectName: 'markant-webresources',
+      prefix: 'markant',
+      namespace: 'Markant',
+    });
+
+    const pkg = JSON.parse(await fs.readFile(path.join(dir, 'package.json'), 'utf-8'));
+    expect(pkg.name).toBe('markant-webresources');
+  });
+
+  it('should use prefix in xrmforge.config.json outDir', async () => {
+    const dir = await createTmpDir();
+
+    await scaffoldProject({
+      targetDir: dir,
+      projectName: 'test',
+      prefix: 'contoso',
+      namespace: 'Contoso',
+    });
+
+    const config = JSON.parse(await fs.readFile(path.join(dir, 'xrmforge.config.json'), 'utf-8'));
+    expect(config.build.outDir).toBe('./dist/contoso_/JS');
+  });
+
+  it('should use namespace in example form script', async () => {
+    const dir = await createTmpDir();
+
+    await scaffoldProject({
+      targetDir: dir,
+      projectName: 'test',
+      prefix: 'contoso',
+      namespace: 'Contoso',
+    });
+
+    const form = await fs.readFile(path.join(dir, 'src/forms/example-form.ts'), 'utf-8');
+    expect(form).toContain('Contoso.Example.onLoad');
+  });
+
+  it('should use namespace in xrmforge.config.json entry', async () => {
+    const dir = await createTmpDir();
+
+    await scaffoldProject({
+      targetDir: dir,
+      projectName: 'test',
+      prefix: 'myprefix',
+      namespace: 'MyPrefix',
+    });
+
+    const config = JSON.parse(await fs.readFile(path.join(dir, 'xrmforge.config.json'), 'utf-8'));
+    expect(config.build.entries.example_form.namespace).toBe('MyPrefix.Example');
+  });
+
+  it('should use namespace in test file', async () => {
+    const dir = await createTmpDir();
+
+    await scaffoldProject({
+      targetDir: dir,
+      projectName: 'test',
+      prefix: 'contoso',
+      namespace: 'Contoso',
+    });
+
+    const test = await fs.readFile(path.join(dir, 'tests/forms/example-form.test.ts'), 'utf-8');
+    expect(test).toContain('Contoso.Example');
+  });
+
+  it('should generate valid tsconfig.json with @types/xrm', async () => {
+    const dir = await createTmpDir();
+
+    await scaffoldProject({
+      targetDir: dir,
+      projectName: 'test',
+      prefix: 'contoso',
+      namespace: 'Contoso',
+    });
+
+    const tsconfig = JSON.parse(await fs.readFile(path.join(dir, 'tsconfig.json'), 'utf-8'));
+    expect(tsconfig.compilerOptions.types).toContain('xrm');
+    expect(tsconfig.compilerOptions.target).toBe('ES2020');
+    expect(tsconfig.compilerOptions.strict).toBe(true);
+  });
+
+  it('should throw when directory is not empty', async () => {
+    const dir = await createTmpDir();
+    await fs.writeFile(path.join(dir, 'existing-file.txt'), 'content');
+
+    await expect(scaffoldProject({
+      targetDir: dir,
+      projectName: 'test',
+      prefix: 'contoso',
+      namespace: 'Contoso',
+    })).rejects.toThrow(BuildError);
+  });
+
+  it('should allow directory with only dotfiles', async () => {
+    const dir = await createTmpDir();
+    await fs.writeFile(path.join(dir, '.git'), 'gitdir');
+
+    const result = await scaffoldProject({
+      targetDir: dir,
+      projectName: 'test',
+      prefix: 'contoso',
+      namespace: 'Contoso',
+    });
+
+    expect(result.filesCreated.length).toBeGreaterThan(0);
+  });
+
+  it('should create target directory if it does not exist', async () => {
+    const dir = path.join(await createTmpDir(), 'nested', 'project');
+
+    const result = await scaffoldProject({
+      targetDir: dir,
+      projectName: 'test',
+      prefix: 'contoso',
+      namespace: 'Contoso',
+    });
+
+    expect(result.filesCreated.length).toBe(8);
+    const exists = await fs.access(path.join(dir, 'package.json')).then(() => true).catch(() => false);
+    expect(exists).toBe(true);
+  });
+
+  it('should include @xrmforge packages in devDependencies', async () => {
+    const dir = await createTmpDir();
+
+    await scaffoldProject({
+      targetDir: dir,
+      projectName: 'test',
+      prefix: 'contoso',
+      namespace: 'Contoso',
+    });
+
+    const pkg = JSON.parse(await fs.readFile(path.join(dir, 'package.json'), 'utf-8'));
+    expect(pkg.devDependencies['@xrmforge/cli']).toBeDefined();
+    expect(pkg.devDependencies['@xrmforge/testing']).toBeDefined();
+    expect(pkg.devDependencies['@types/xrm']).toBeDefined();
+  });
+});

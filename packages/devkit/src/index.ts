@@ -16,5 +16,9 @@ export { validateBuildConfig, resolveBuildConfig } from './config.js';
 export type { BuildResult, BuildResultEntry } from './builder/index.js';
 export { build, watch } from './builder/index.js';
 
+// ─── Scaffold ───────────────────────────────────────────────────────────────
+export type { ScaffoldConfig, ScaffoldResult } from './scaffold/index.js';
+export { scaffoldProject } from './scaffold/index.js';
+
 // ─── Errors ─────────────────────────────────────────────────────────────────
 export { BuildError, BuildErrorCode } from './errors.js';
