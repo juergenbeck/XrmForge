@@ -256,6 +256,7 @@ export function createUnboundAction<
   paramMeta?: ParameterMetaMap,
 ): UnboundActionExecutor | UnboundActionWithParamsExecutor<TParams, TResult> {
   return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- return type varies (Response or parsed JSON)
     async execute(params?: TParams): Promise<any> {
       const req = buildUnboundRequest(
         operationName, OperationType.Action, paramMeta, params,

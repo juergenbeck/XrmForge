@@ -57,10 +57,13 @@ export class MockUi {
             getLabel: () => sectionName,
             setLabel: () => {},
             getParent: () => ({}) as Xrm.Controls.Tab,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Xrm.Collection overloaded get()
             controls: { forEach: () => {}, get: (() => null) as any, getLength: () => 0 },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Xrm.Collection overloaded get()
           })) as any,
           getLength: () => 0,
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Xrm.Collection overloaded get()
         controls: { forEach: () => {}, get: (() => null) as any, getLength: () => 0 },
       }) as unknown as Xrm.Controls.Tab,
     forEach: () => {},

@@ -104,6 +104,7 @@ export function createFormMock<TForm>(
       isValid: () => true,
       attributes: {
         forEach: () => {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Xrm.Collection.ItemCollection has complex overloaded get()
         get: (() => null) as any,
         getLength: () => attributes.size,
       },
