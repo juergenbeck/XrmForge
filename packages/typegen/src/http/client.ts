@@ -192,31 +192,6 @@ export class DataverseHttpClient {
     return allResults;
   }
 
-  /**
-   * Execute a POST request that is semantically a read operation.
-   * Used for Dataverse actions like RetrieveMetadataChanges that require POST
-   * but do not modify data. Allowed even in read-only mode.
-   *
-   * @param path - API path (relative to apiUrl)
-   * @param body - JSON body to send
-   * @param signal - Optional AbortSignal to cancel the request
-   */
-  async postReadOnly<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
-    const ALLOWED_PATHS = ['/RetrieveMetadataChanges'];
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-
-    if (!ALLOWED_PATHS.some((p) => normalizedPath.startsWith(p))) {
-      throw new ApiRequestError(
-        ErrorCode.API_REQUEST_FAILED,
-        `postReadOnly is only allowed for safe read operations: ${ALLOWED_PATHS.join(', ')}. Got: "${normalizedPath}"`,
-        { path: normalizedPath },
-      );
-    }
-
-    const url = this.resolveUrl(path);
-    return this.executeWithConcurrency<T>(url, signal, 'POST', body);
-  }
-
   // ─── Read-Only Enforcement ─────────────────────────────────────────────
 
   /**
