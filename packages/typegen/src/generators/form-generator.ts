@@ -304,6 +304,54 @@ export function generateFormInterface(
     }
   }
 
+  // 4d. Subgrid/QuickView const enum (all special controls with stable IDs)
+  const specialControls = form.allSpecialControls || [];
+  const subgrids = specialControls.filter((sc) => sc.controlType === 'subgrid' || sc.controlType === 'editablegrid');
+  const quickViews = specialControls.filter((sc) => sc.controlType === 'quickview');
+
+  if (subgrids.length > 0) {
+    const subgridsEnumName = `${baseName}FormSubgrids`;
+    lines.push(`  /** Subgrid constants for "${form.name}" (compile-time only, zero runtime) */`);
+    lines.push(`  const enum ${subgridsEnumName} {`);
+    const usedMembers = new Set<string>();
+    for (const sg of subgrids) {
+      let member = toSafeFormName(sg.id) || toPascalCase(sg.id);
+      const original = member;
+      let counter = 2;
+      while (usedMembers.has(member)) {
+        member = `${original}${counter}`;
+        counter++;
+      }
+      usedMembers.add(member);
+      const label = sg.targetEntityType ? `Subgrid: ${sg.targetEntityType}` : `Subgrid`;
+      lines.push(`    /** ${label} */`);
+      lines.push(`    ${member} = '${sg.id}',`);
+    }
+    lines.push('  }');
+    lines.push('');
+  }
+
+  if (quickViews.length > 0) {
+    const qvEnumName = `${baseName}FormQuickViews`;
+    lines.push(`  /** Quick View constants for "${form.name}" (compile-time only, zero runtime) */`);
+    lines.push(`  const enum ${qvEnumName} {`);
+    const usedMembers = new Set<string>();
+    for (const qv of quickViews) {
+      let member = toSafeFormName(qv.id) || toPascalCase(qv.id);
+      const original = member;
+      let counter = 2;
+      while (usedMembers.has(member)) {
+        member = `${original}${counter}`;
+        counter++;
+      }
+      usedMembers.add(member);
+      lines.push(`    /** Quick View */`);
+      lines.push(`    ${member} = '${qv.id}',`);
+    }
+    lines.push('  }');
+    lines.push('');
+  }
+
   // 5. Form Interface: generic getAttribute/getControl with compile-time validation
   lines.push(`  /** ${form.name} */`);
   lines.push(`  interface ${interfaceName} extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> {`);
@@ -316,7 +364,6 @@ export function generateFormInterface(
   lines.push(`    getControl<K extends ${fieldsTypeName}>(name: K): ${ctrlMapName}[K];`);
 
   // Typed getControl overloads for special controls (subgrids, quick views, etc.)
-  const specialControls = form.allSpecialControls || [];
   for (const sc of specialControls) {
     const xrmType = specialControlToXrmType(sc.controlType);
     if (xrmType) {
