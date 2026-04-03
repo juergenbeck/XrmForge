@@ -34,6 +34,8 @@ export async function retrieve<T>(
   id: string,
   queryOrString?: QueryBuilder | string,
 ): Promise<T> {
+  if (!entityName) throw new WebApiError('entityName is required', 0, 'InvalidArgument');
+  if (!id) throw new WebApiError('id is required', 0, 'InvalidArgument');
   const queryStr = resolveQuery(queryOrString);
   try {
     const result = await Xrm.WebApi.retrieveRecord(entityName, id, queryStr);
@@ -43,23 +45,51 @@ export async function retrieve<T>(
   }
 }
 
+/** Options for retrieveMultiple */
+export interface RetrieveMultipleOptions {
+  /**
+   * Maximum number of pages to fetch. Each page contains up to 5000 records.
+   * - undefined or 1: fetch only the first page (default, backwards-compatible)
+   * - Infinity: fetch all pages (follow all nextLink references)
+   * - n: fetch at most n pages
+   */
+  maxPages?: number;
+}
+
 /**
  * Retrieve multiple records with optional query.
+ *
+ * By default, returns only the first page of results (up to 5000 records).
+ * Use `options.maxPages` to fetch additional pages.
  *
  * @typeParam T - Generated entity interface
  * @param entityName - Entity logical name
  * @param queryOrString - QueryBuilder instance or raw OData query string
+ * @param options - Pagination options
  * @returns Array of records typed as T
  * @throws {WebApiError} on API failure
  */
 export async function retrieveMultiple<T>(
   entityName: string,
   queryOrString?: QueryBuilder | string,
+  options?: RetrieveMultipleOptions,
 ): Promise<T[]> {
   const queryStr = resolveQuery(queryOrString);
+  if (!entityName) throw new WebApiError('entityName is required', 0, 'InvalidArgument');
+  const maxPages = options?.maxPages ?? 1;
+
   try {
-    const result = await Xrm.WebApi.retrieveMultipleRecords(entityName, queryStr);
-    return result.entities as unknown as T[];
+    let result = await Xrm.WebApi.retrieveMultipleRecords(entityName, queryStr);
+    const allEntities = [...result.entities];
+    let page = 1;
+
+    while (result.nextLink && page < maxPages) {
+      result = await Xrm.WebApi.retrieveMultipleRecords(entityName, result.nextLink);
+      allEntities.push(...result.entities);
+      page++;
+    }
+
+    return allEntities as unknown as T[];
   } catch (error) {
     throw WebApiError.fromXrmError(error);
   }
@@ -77,6 +107,7 @@ export async function create(
   entityName: string,
   data: Record<string, unknown>,
 ): Promise<string> {
+  if (!entityName) throw new WebApiError('entityName is required', 0, 'InvalidArgument');
   try {
     const result = await Xrm.WebApi.createRecord(entityName, data);
     return result.id;
@@ -98,6 +129,8 @@ export async function update(
   id: string,
   data: Record<string, unknown>,
 ): Promise<void> {
+  if (!entityName) throw new WebApiError('entityName is required', 0, 'InvalidArgument');
+  if (!id) throw new WebApiError('id is required', 0, 'InvalidArgument');
   try {
     await Xrm.WebApi.updateRecord(entityName, id, data);
   } catch (error) {
@@ -116,6 +149,8 @@ export async function remove(
   entityName: string,
   id: string,
 ): Promise<void> {
+  if (!entityName) throw new WebApiError('entityName is required', 0, 'InvalidArgument');
+  if (!id) throw new WebApiError('id is required', 0, 'InvalidArgument');
   try {
     await Xrm.WebApi.deleteRecord(entityName, id);
   } catch (error) {

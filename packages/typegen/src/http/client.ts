@@ -100,6 +100,8 @@ export class DataverseHttpClient {
   private readonly readOnly: boolean;
 
   private cachedToken: CachedToken | null = null;
+  /** Pending token refresh promise (prevents concurrent token requests) */
+  private pendingTokenRefresh: Promise<string> | null = null;
 
   // Semaphore for concurrency control (non-recursive)
   private activeConcurrentRequests = 0;
@@ -275,6 +277,21 @@ export class DataverseHttpClient {
       return this.cachedToken.token;
     }
 
+    // If a refresh is already in progress, wait for it instead of starting a second one
+    if (this.pendingTokenRefresh) {
+      return this.pendingTokenRefresh;
+    }
+
+    this.pendingTokenRefresh = this.refreshToken();
+    try {
+      return await this.pendingTokenRefresh;
+    } finally {
+      this.pendingTokenRefresh = null;
+    }
+  }
+
+  /** Internal: actually acquire a new token from the credential provider. */
+  private async refreshToken(): Promise<string> {
     log.debug('Requesting new access token');
 
     const scope = `${this.baseUrl}/.default`;

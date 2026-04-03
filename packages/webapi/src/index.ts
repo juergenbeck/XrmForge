@@ -7,5 +7,6 @@
  */
 
 export { webApi, retrieve, retrieveMultiple, create, update, remove } from './client.js';
+export type { RetrieveMultipleOptions } from './client.js';
 export { QueryBuilder, createQuery, query } from './query-builder.js';
 export { WebApiError } from './error.js';

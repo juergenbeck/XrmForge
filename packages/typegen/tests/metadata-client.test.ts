@@ -518,3 +518,100 @@ describe('MetadataClient.getEntityTypeInfo', () => {
     expect(mockFetch).toHaveBeenCalledTimes(8);
   });
 });
+
+// ─── Custom APIs (R6-01) ────────────────────────────────────────────────────
+
+describe('MetadataClient.getCustomApis', () => {
+  it('should fetch and join Custom APIs with parameters and properties', async () => {
+    const mockFetch = vi.fn()
+      // Call 1: customapis
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({
+          value: [
+            { customapiid: 'api-1', uniquename: 'markant_test', bindingtype: 0, isfunction: false, boundentitylogicalname: null, displayname: 'Test', description: '' },
+          ],
+        }),
+        text: () => Promise.resolve('{}'),
+      })
+      // Call 2: customapirequestparameters
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({
+          value: [
+            { _customapiid_value: 'api-1', uniquename: 'Input', type: 10, isoptional: false, logicalentityname: null, description: 'Input param' },
+          ],
+        }),
+        text: () => Promise.resolve('{}'),
+      })
+      // Call 3: customapiresponseproperties
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({
+          value: [
+            { _customapiid_value: 'api-1', uniquename: 'Output', type: 10, logicalentityname: null, description: 'Output prop' },
+          ],
+        }),
+        text: () => Promise.resolve('{}'),
+      });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const client = createClient();
+    const apis = await client.getCustomApis();
+
+    expect(apis).toHaveLength(1);
+    expect(apis[0]!.api.uniquename).toBe('markant_test');
+    expect(apis[0]!.requestParameters).toHaveLength(1);
+    expect(apis[0]!.requestParameters[0]!.uniquename).toBe('Input');
+    expect(apis[0]!.responseProperties).toHaveLength(1);
+    expect(apis[0]!.responseProperties[0]!.uniquename).toBe('Output');
+  });
+
+  it('should return empty array when no Custom APIs exist', async () => {
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({ value: [] }),
+        text: () => Promise.resolve('{}'),
+      });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const client = createClient();
+    const apis = await client.getCustomApis();
+
+    expect(apis).toHaveLength(0);
+    // Should only make 1 call (short-circuit when no APIs)
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── Multiple Entity Type Infos ─────────────────────────────────────────────
+
+describe('MetadataClient.getMultipleEntityTypeInfos', () => {
+  it('should fetch type info for multiple entities in parallel', async () => {
+    // Need 2x8 calls (one per entity, each with 8 sub-calls)
+    const makeEntityResponses = (name: string) => [
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ LogicalName: name, SchemaName: name, EntitySetName: name + 's', DisplayName: { LocalizedLabels: [] }, PrimaryIdAttribute: name + 'id', PrimaryNameAttribute: 'name', MetadataId: 'e', Attributes: [] }), text: () => Promise.resolve('{}') },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
+    ];
+
+    const mockFetch = vi.fn();
+    for (const resp of [...makeEntityResponses('account'), ...makeEntityResponses('contact')]) {
+      mockFetch.mockResolvedValueOnce(resp);
+    }
+    vi.stubGlobal('fetch', mockFetch);
+
+    const client = createClient();
+    const results = await client.getMultipleEntityTypeInfos(['account', 'contact']);
+
+    expect(results).toHaveLength(2);
+    expect(results[0]!.entity.LogicalName).toBe('account');
+    expect(results[1]!.entity.LogicalName).toBe('contact');
+  });
+});

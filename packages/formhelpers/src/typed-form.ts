@@ -74,7 +74,11 @@ export function typedForm<
   TAttrMap extends Record<string, Xrm.Attributes.Attribute> = Record<string, Xrm.Attributes.Attribute>,
 >(formContext: Xrm.FormContext): TypedForm<TForm, TFields, TAttrMap> {
   return new Proxy(formContext as unknown as TypedForm<TForm, TFields, TAttrMap>, {
-    get(_target, prop: string) {
+    get(_target, prop) {
+      // Symbols and non-string keys: delegate to formContext
+      if (typeof prop !== 'string') {
+        return (formContext as unknown as Record<symbol, unknown>)[prop];
+      }
       if (prop === '$context') return formContext;
       if (prop === '$control') {
         return (name: string) => formContext.getControl(name);
@@ -84,6 +88,18 @@ export function typedForm<
       if (attr) return attr;
       // Fallback to FormContext properties (data, ui, etc.)
       return (formContext as unknown as Record<string, unknown>)[prop];
+    },
+
+    set(_target, prop, _value) {
+      throw new TypeError(
+        `Cannot assign to '${String(prop)}'. Use form.${String(prop)}.setValue() instead.`,
+      );
+    },
+
+    has(_target, prop) {
+      if (typeof prop !== 'string') return false;
+      if (prop === '$context' || prop === '$control') return true;
+      return formContext.getAttribute(prop) !== null;
     },
   });
 }

@@ -38,4 +38,37 @@ describe('MockEntity', () => {
     const entity = new MockEntity('account', '', attrs);
     expect(entity.getId()).toBe('{00000000-0000-0000-0000-000000000000}');
   });
+
+  it('should return empty string for getPrimaryAttributeValue', () => {
+    const attrs = new Map<string, MockAttribute>();
+    const entity = new MockEntity('account', 'abc', attrs);
+    expect(entity.getPrimaryAttributeValue()).toBe('');
+  });
+
+  it('should return empty string for getDataXml', () => {
+    const attrs = new Map<string, MockAttribute>();
+    const entity = new MockEntity('account', 'abc', attrs);
+    expect(entity.getDataXml()).toBe('');
+  });
+
+  it('should have attributes collection', () => {
+    const attrs = new Map<string, MockAttribute>();
+    const entity = new MockEntity('account', 'abc', attrs);
+    expect(entity.attributes.getLength()).toBe(0);
+  });
+
+  it('should have a save method that resolves', () => {
+    const attrs = new Map<string, MockAttribute>();
+    const entity = new MockEntity('account', 'abc', attrs);
+    let called = false;
+    entity.save().then(() => { called = true; });
+    expect(called).toBe(true);
+  });
+
+  it('should not be dirty when no attributes changed', () => {
+    const attr = new MockAttribute('name', 'Contoso');
+    const attrs = new Map([['name', attr]]);
+    const entity = new MockEntity('account', 'abc', attrs);
+    expect(entity.getIsDirty()).toBe(false);
+  });
 });

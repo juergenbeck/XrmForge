@@ -73,4 +73,56 @@ describe('MockAttribute', () => {
     attr.removeOnChange(handler);
     expect(attr.getOnChangeHandlers()).toHaveLength(0);
   });
+
+  it('should not crash when removing non-registered handler', () => {
+    const attr = new MockAttribute('name');
+    const handler = () => {};
+    attr.removeOnChange(handler);
+    expect(attr.getOnChangeHandlers()).toHaveLength(0);
+  });
+
+  it('should fire onChange handlers', () => {
+    const attr = new MockAttribute('name', 'initial');
+    let fired = false;
+    attr.addOnChange(() => { fired = true; });
+    attr.fireOnChange({} as Xrm.Events.EventContext);
+    expect(fired).toBe(true);
+  });
+
+  it('should fire multiple onChange handlers in order', () => {
+    const attr = new MockAttribute('name');
+    const order: number[] = [];
+    attr.addOnChange(() => order.push(1));
+    attr.addOnChange(() => order.push(2));
+    attr.fireOnChange({} as Xrm.Events.EventContext);
+    expect(order).toEqual([1, 2]);
+  });
+
+  it('getAttributeType should return string', () => {
+    const attr = new MockAttribute('name');
+    expect(attr.getAttributeType()).toBe('string');
+  });
+
+  it('getFormat should return null', () => {
+    const attr = new MockAttribute('name');
+    expect(attr.getFormat()).toBeNull();
+  });
+
+  it('getParent should return an object', () => {
+    const attr = new MockAttribute('name');
+    expect(attr.getParent()).toBeDefined();
+  });
+
+  it('getUserPrivilege should return full access', () => {
+    const attr = new MockAttribute('name');
+    const priv = attr.getUserPrivilege();
+    expect(priv.canRead).toBe(true);
+    expect(priv.canUpdate).toBe(true);
+    expect(priv.canCreate).toBe(true);
+  });
+
+  it('controls collection should exist', () => {
+    const attr = new MockAttribute('name');
+    expect(attr.controls.getLength()).toBe(0);
+  });
 });

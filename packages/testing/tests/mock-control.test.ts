@@ -42,4 +42,32 @@ describe('MockControl', () => {
     ctrl.clearNotification('warn-1');
     expect(ctrl.getNotifications().size).toBe(0);
   });
+
+  it('should use default uniqueId for notifications', () => {
+    const ctrl = new MockControl('revenue');
+    ctrl.setNotification('Fehler');
+    expect(ctrl.getNotifications().get('_default')).toBe('Fehler');
+    ctrl.clearNotification();
+    expect(ctrl.getNotifications().size).toBe(0);
+  });
+
+  it('getControlType should return standard', () => {
+    const ctrl = new MockControl('revenue');
+    expect(ctrl.getControlType()).toBe('standard');
+  });
+
+  it('getParent should return an object', () => {
+    const ctrl = new MockControl('revenue');
+    expect(ctrl.getParent()).toBeDefined();
+  });
+
+  it('addPreSearch should not throw', () => {
+    const ctrl = new MockControl('lookupfield');
+    expect(() => ctrl.addPreSearch(() => {})).not.toThrow();
+  });
+
+  it('addCustomFilter should not throw', () => {
+    const ctrl = new MockControl('lookupfield');
+    expect(() => ctrl.addCustomFilter('<fetch/>', 'account')).not.toThrow();
+  });
 });

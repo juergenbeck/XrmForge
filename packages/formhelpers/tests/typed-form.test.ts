@@ -133,3 +133,69 @@ describe('typedForm with controls', () => {
     expect(ctrl.getDisabled()).toBe(true);
   });
 });
+
+describe('typedForm set trap', () => {
+  it('should throw TypeError on property assignment', () => {
+    const fc = createMockFormContext();
+    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc) as any;
+
+    expect(() => { form.name = 'direct'; }).toThrow(TypeError);
+    expect(() => { form.name = 'direct'; }).toThrow("Use form.name.setValue() instead");
+  });
+
+  it('should throw TypeError on $context assignment', () => {
+    const fc = createMockFormContext();
+    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc) as any;
+
+    expect(() => { form.$context = null; }).toThrow(TypeError);
+  });
+
+  it('should throw TypeError on unknown property assignment', () => {
+    const fc = createMockFormContext();
+    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc) as any;
+
+    expect(() => { form.unknown_field = 42; }).toThrow(TypeError);
+  });
+});
+
+describe('typedForm has trap', () => {
+  it('should return true for existing fields', () => {
+    const fc = createMockFormContext();
+    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
+
+    expect('name' in form).toBe(true);
+    expect('revenue' in form).toBe(true);
+  });
+
+  it('should return true for $context and $control', () => {
+    const fc = createMockFormContext();
+    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
+
+    expect('$context' in form).toBe(true);
+    expect('$control' in form).toBe(true);
+  });
+
+  it('should return false for non-existing fields', () => {
+    const fc = createMockFormContext();
+    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
+
+    expect('nonexistent_field' in form).toBe(false);
+  });
+
+  it('should return false for symbol keys', () => {
+    const fc = createMockFormContext();
+    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
+
+    expect(Symbol.toPrimitive in form).toBe(false);
+  });
+});
+
+describe('typedForm symbol handling', () => {
+  it('should handle Symbol.toPrimitive via get trap', () => {
+    const fc = createMockFormContext();
+    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc) as any;
+
+    // Symbol keys delegate to formContext, which likely returns undefined
+    expect(() => form[Symbol.toPrimitive]).not.toThrow();
+  });
+});

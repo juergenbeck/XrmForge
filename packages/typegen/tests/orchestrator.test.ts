@@ -9,6 +9,8 @@ import type { EntityTypeInfo, AttributeMetadata, PicklistAttributeMetadata, Opti
 vi.mock('../src/metadata/client.js', () => ({
   MetadataClient: vi.fn().mockImplementation(() => ({
     getEntityTypeInfo: vi.fn(),
+    getEntityNamesForSolutions: vi.fn().mockResolvedValue([]),
+    getCustomApis: vi.fn().mockResolvedValue([]),
   })),
 }));
 
@@ -411,5 +413,197 @@ describe('TypeGenerationOrchestrator', () => {
     expect(result.entities[1].entityLogicalName).toBe('badentity');
     expect(result.entities[1].files).toHaveLength(0);
     expect(result.entities[1].warnings[0]).toContain('Entity not found');
+  });
+
+  it('should resolve entities from solutionNames', async () => {
+    const credential = createMockCredential();
+    const mockAccountInfo = createMockEntityInfo('account');
+
+    const mockGetEntityTypeInfo = vi.fn().mockResolvedValue(mockAccountInfo);
+    const mockGetEntityNamesForSolutions = vi.fn().mockResolvedValue(['account', 'contact']);
+
+    vi.mocked(MetadataClient).mockImplementation(() => ({
+      getEntityTypeInfo: mockGetEntityTypeInfo,
+      getEntityNamesForSolutions: mockGetEntityNamesForSolutions,
+      getCustomApis: vi.fn().mockResolvedValue([]),
+      getEntityWithAttributes: vi.fn(),
+      getEntityAttributes: vi.fn(),
+      getEntityForms: vi.fn(),
+      getGlobalOptionSets: vi.fn(),
+      getSolutionEntities: vi.fn(),
+    }) as unknown as InstanceType<typeof MetadataClient>);
+
+    const orchestrator = new TypeGenerationOrchestrator(credential, {
+      environmentUrl: 'https://test.crm4.dynamics.com',
+      entities: [],
+      solutionNames: ['MySolution'],
+      outputDir: './typings',
+      labelConfig: { primaryLanguage: 1033 },
+    });
+
+    const result = await orchestrator.generate();
+
+    expect(mockGetEntityNamesForSolutions).toHaveBeenCalledWith(['MySolution']);
+    expect(result.entities).toHaveLength(2);
+  });
+
+  it('should return warning when no entities after resolution', async () => {
+    const credential = createMockCredential();
+
+    const mockGetEntityNamesForSolutions = vi.fn().mockResolvedValue([]);
+
+    vi.mocked(MetadataClient).mockImplementation(() => ({
+      getEntityTypeInfo: vi.fn(),
+      getEntityNamesForSolutions: mockGetEntityNamesForSolutions,
+      getCustomApis: vi.fn().mockResolvedValue([]),
+      getEntityWithAttributes: vi.fn(),
+      getEntityAttributes: vi.fn(),
+      getEntityForms: vi.fn(),
+      getGlobalOptionSets: vi.fn(),
+      getSolutionEntities: vi.fn(),
+    }) as unknown as InstanceType<typeof MetadataClient>);
+
+    const orchestrator = new TypeGenerationOrchestrator(credential, {
+      environmentUrl: 'https://test.crm4.dynamics.com',
+      entities: [],
+      outputDir: './typings',
+      labelConfig: { primaryLanguage: 1033 },
+    });
+
+    const result = await orchestrator.generate();
+
+    expect(result.entities).toHaveLength(0);
+    expect(result.totalWarnings).toBe(1);
+  });
+
+  it('should generate Custom API action files when generateActions=true', async () => {
+    const credential = createMockCredential();
+    const mockAccountInfo = createMockEntityInfo('account');
+
+    const mockCustomApis = [{
+      api: { uniquename: 'markant_testaction', name: 'TestAction', isfunction: false, isprivate: false, bindingtype: 0, boundentitylogicalname: null },
+      requestParameters: [],
+      responseProperties: [],
+    }];
+
+    vi.mocked(MetadataClient).mockImplementation(() => ({
+      getEntityTypeInfo: vi.fn().mockResolvedValue(mockAccountInfo),
+      getEntityNamesForSolutions: vi.fn().mockResolvedValue([]),
+      getCustomApis: vi.fn().mockResolvedValue(mockCustomApis),
+      getEntityWithAttributes: vi.fn(),
+      getEntityAttributes: vi.fn(),
+      getEntityForms: vi.fn(),
+      getGlobalOptionSets: vi.fn(),
+      getSolutionEntities: vi.fn(),
+    }) as unknown as InstanceType<typeof MetadataClient>);
+
+    const orchestrator = new TypeGenerationOrchestrator(credential, {
+      environmentUrl: 'https://test.crm4.dynamics.com',
+      entities: ['account'],
+      outputDir: './typings',
+      labelConfig: { primaryLanguage: 1033 },
+      generateActions: true,
+    });
+
+    const result = await orchestrator.generate();
+
+    const allFiles = result.entities.flatMap((e) => e.files);
+    // The action files are in the top-level totalFiles count
+    expect(result.totalFiles).toBeGreaterThan(allFiles.length);
+  });
+
+  it('should filter Custom APIs by actionsFilter prefix', async () => {
+    const credential = createMockCredential();
+    const mockAccountInfo = createMockEntityInfo('account');
+
+    const mockCustomApis = [
+      { api: { uniquename: 'markant_myaction', name: 'MyAction', isfunction: false, isprivate: false, bindingtype: 0, boundentitylogicalname: null }, requestParameters: [], responseProperties: [] },
+      { api: { uniquename: 'other_action', name: 'OtherAction', isfunction: false, isprivate: false, bindingtype: 0, boundentitylogicalname: null }, requestParameters: [], responseProperties: [] },
+    ];
+
+    vi.mocked(MetadataClient).mockImplementation(() => ({
+      getEntityTypeInfo: vi.fn().mockResolvedValue(mockAccountInfo),
+      getEntityNamesForSolutions: vi.fn().mockResolvedValue([]),
+      getCustomApis: vi.fn().mockResolvedValue(mockCustomApis),
+      getEntityWithAttributes: vi.fn(),
+      getEntityAttributes: vi.fn(),
+      getEntityForms: vi.fn(),
+      getGlobalOptionSets: vi.fn(),
+      getSolutionEntities: vi.fn(),
+    }) as unknown as InstanceType<typeof MetadataClient>);
+
+    const orchestrator = new TypeGenerationOrchestrator(credential, {
+      environmentUrl: 'https://test.crm4.dynamics.com',
+      entities: ['account'],
+      outputDir: './typings',
+      labelConfig: { primaryLanguage: 1033 },
+      generateActions: true,
+      actionsFilter: 'markant_',
+    });
+
+    const result = await orchestrator.generate();
+
+    // Should filter to only 1 action (markant_ prefix)
+    expect(result.totalFiles).toBeGreaterThan(0);
+  });
+
+  it('should respect generateForms=false and generateOptionSets=false', async () => {
+    const credential = createMockCredential();
+    const mockEntityInfo = createMockEntityInfo('account');
+
+    vi.mocked(MetadataClient).mockImplementation(() => ({
+      getEntityTypeInfo: vi.fn().mockResolvedValue(mockEntityInfo),
+      getEntityNamesForSolutions: vi.fn().mockResolvedValue([]),
+      getCustomApis: vi.fn().mockResolvedValue([]),
+      getEntityWithAttributes: vi.fn(),
+      getEntityAttributes: vi.fn(),
+      getEntityForms: vi.fn(),
+      getGlobalOptionSets: vi.fn(),
+      getSolutionEntities: vi.fn(),
+    }) as unknown as InstanceType<typeof MetadataClient>);
+
+    const orchestrator = new TypeGenerationOrchestrator(credential, {
+      environmentUrl: 'https://test.crm4.dynamics.com',
+      entities: ['account'],
+      outputDir: './typings',
+      labelConfig: { primaryLanguage: 1033 },
+      generateForms: false,
+      generateOptionSets: false,
+    });
+
+    const result = await orchestrator.generate();
+
+    const fileTypes = result.entities[0].files.map((f) => f.type);
+    expect(fileTypes).toContain('entity');
+    expect(fileTypes).not.toContain('form');
+    expect(fileTypes).not.toContain('optionset');
+  });
+
+  it('should generate EntityNames enum file', async () => {
+    const credential = createMockCredential();
+    const mockEntityInfo = createMockEntityInfo('account');
+
+    vi.mocked(MetadataClient).mockImplementation(() => ({
+      getEntityTypeInfo: vi.fn().mockResolvedValue(mockEntityInfo),
+      getEntityNamesForSolutions: vi.fn().mockResolvedValue([]),
+      getCustomApis: vi.fn().mockResolvedValue([]),
+      getEntityWithAttributes: vi.fn(),
+      getEntityAttributes: vi.fn(),
+      getEntityForms: vi.fn(),
+      getGlobalOptionSets: vi.fn(),
+      getSolutionEntities: vi.fn(),
+    }) as unknown as InstanceType<typeof MetadataClient>);
+
+    const orchestrator = new TypeGenerationOrchestrator(credential, {
+      environmentUrl: 'https://test.crm4.dynamics.com',
+      entities: ['account'],
+      outputDir: './typings',
+      labelConfig: { primaryLanguage: 1033 },
+    });
+
+    const result = await orchestrator.generate();
+
+    // totalFiles includes entity-names.d.ts and index.d.ts on top of entity files
+    expect(result.totalFiles).toBeGreaterThan(result.entities[0].files.length);
   });
 });

@@ -139,6 +139,51 @@ describe('createCredential - device-code', () => {
   });
 });
 
+// ─── Token ──────────────────────────────────────────────────────────────────
+
+describe('createCredential - token', () => {
+  it('should create a static token credential', () => {
+    const config: AuthConfig = {
+      method: 'token',
+      token: 'eyJ0eXAiOiJKV1QiLCJhbGci...',
+    };
+
+    const credential = createCredential(config);
+    expect(credential).toBeDefined();
+    expect(credential.getToken).toBeDefined();
+  });
+
+  it('should return the token via getToken()', async () => {
+    const config: AuthConfig = {
+      method: 'token',
+      token: 'my-static-token',
+    };
+
+    const credential = createCredential(config);
+    const result = await credential.getToken('scope');
+    expect(result!.token).toBe('my-static-token');
+    expect(result!.expiresOnTimestamp).toBeGreaterThan(Date.now());
+  });
+
+  it('should throw when token is empty', () => {
+    const config: AuthConfig = {
+      method: 'token',
+      token: '',
+    };
+
+    expect(() => createCredential(config)).toThrow(AuthenticationError);
+  });
+
+  it('should throw when token is only whitespace', () => {
+    const config: AuthConfig = {
+      method: 'token',
+      token: '   ',
+    };
+
+    expect(() => createCredential(config)).toThrow(AuthenticationError);
+  });
+});
+
 // ─── Exhaustiveness ──────────────────────────────────────────────────────────
 
 describe('createCredential - unknown method', () => {

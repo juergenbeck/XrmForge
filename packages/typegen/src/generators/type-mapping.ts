@@ -11,6 +11,9 @@
  */
 
 import type { AttributeMetadata } from '../metadata/types.js';
+import { createLogger } from '../logger.js';
+
+const log = createLogger('type-mapping');
 
 // ─── Entity Data Types (Web API responses) ───────────────────────────────────
 
@@ -28,6 +31,7 @@ export function getEntityPropertyType(attributeType: string, isLookup: boolean =
   const mapping = ENTITY_TYPE_MAP[attributeType];
   if (mapping) return mapping;
 
+  log.warn(`Unmapped AttributeType "${attributeType}" falling back to "unknown"`);
   return 'unknown'; // Unmapped types get 'unknown' (safer than 'any')
 }
 
@@ -86,6 +90,7 @@ export function getFormAttributeType(attributeType: string): string {
   const mapping = FORM_ATTRIBUTE_TYPE_MAP[attributeType];
   if (mapping) return mapping;
 
+  log.warn(`Unmapped form AttributeType "${attributeType}" falling back to generic Attribute`);
   return 'Xrm.Attributes.Attribute'; // Generic fallback
 }
 
