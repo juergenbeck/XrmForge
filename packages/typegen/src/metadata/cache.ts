@@ -51,10 +51,12 @@ export class MetadataCache {
   private readonly cacheFilePath: string;
 
   /**
-   * @param projectRoot - Root directory of the project (where .xrmforge/ will be created)
+   * @param cacheDir - Directory where cache files are stored.
+   *   Can be an absolute path or relative to cwd.
+   *   Defaults to ".xrmforge/cache" when constructed without argument.
    */
-  constructor(projectRoot: string) {
-    this.cacheDir = path.join(projectRoot, CACHE_DIR);
+  constructor(cacheDir: string = CACHE_DIR) {
+    this.cacheDir = path.resolve(cacheDir);
     this.cacheFilePath = path.join(this.cacheDir, CACHE_FILE);
   }
 

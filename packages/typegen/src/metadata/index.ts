@@ -1,5 +1,7 @@
 export { MetadataClient } from './client.js';
 export { MetadataCache } from './cache.js';
+export { ChangeDetector } from './change-detector.js';
+export type { ChangeDetectionResult } from './change-detector.js';
 export {
   getPrimaryLabel,
   getJSDocLabel,

@@ -46,6 +46,8 @@ interface GenerateOptions {
   optionsets: boolean;
   actions: boolean;
   actionsFilter?: string;
+  cache: boolean;
+  cacheDir: string;
   verbose: boolean;
 }
 
@@ -83,6 +85,11 @@ export function registerGenerateCommand(program: Command): void {
     .option('--no-optionsets', 'Skip OptionSet enum generation')
     .option('--actions', 'Generate Custom API Action/Function executors', false)
     .option('--actions-filter <prefix>', 'Only generate Custom APIs whose uniquename starts with this prefix (e.g. "markant_")')
+
+    // Cache
+    .option('--cache', 'Enable metadata cache for incremental generation', false)
+    .option('--no-cache', 'Force full metadata refresh (disables cache)')
+    .option('--cache-dir <dir>', 'Directory for metadata cache files', '.xrmforge/cache')
 
     // Verbosity
     .option('-v, --verbose', 'Enable verbose logging', false)
@@ -170,6 +177,9 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
   }
   console.log(`Output:      ${opts.output}`);
   console.log(`Languages:   ${primaryLanguage}${secondaryLanguage ? ` + ${secondaryLanguage}` : ''}`);
+  if (opts.cache) {
+    console.log(`Cache:       enabled (${opts.cacheDir})`);
+  }
   console.log('');
 
   // Create orchestrator and run
@@ -183,6 +193,8 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
     generateOptionSets: opts.optionsets,
     generateActions: opts.actions,
     actionsFilter: opts.actionsFilter,
+    useCache: opts.cache,
+    cacheDir: opts.cacheDir,
   });
 
   // Support Ctrl+C and SIGTERM (R8-07: Docker/K8s sends SIGTERM)
@@ -203,6 +215,14 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
   console.log(`  Files:     ${result.totalFiles}`);
   console.log(`  Warnings:  ${result.totalWarnings}`);
   console.log(`  Duration:  ${result.durationMs}ms`);
+  if (result.cacheStats) {
+    const cs = result.cacheStats;
+    if (cs.fullRefresh) {
+      console.log(`  Cache:     full refresh (${cs.entitiesFetched} entities fetched)`);
+    } else {
+      console.log(`  Cache:     ${cs.entitiesFromCache} from cache, ${cs.entitiesFetched} fetched, ${cs.entitiesDeleted} deleted`);
+    }
+  }
 
   // Show warnings
   if (result.totalWarnings > 0) {

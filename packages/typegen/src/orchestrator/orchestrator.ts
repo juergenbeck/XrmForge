@@ -11,7 +11,10 @@
 
 import type { TokenCredential } from '@azure/identity';
 import { MetadataClient } from '../metadata/client.js';
+import { MetadataCache } from '../metadata/cache.js';
+import { ChangeDetector } from '../metadata/change-detector.js';
 import { DataverseHttpClient } from '../http/client.js';
+import { ErrorCode } from '../errors.js';
 import { createLogger, type Logger } from '../logger.js';
 import type { EntityTypeInfo, OptionSetMetadata } from '../metadata/types.js';
 import { generateEntityInterface } from '../generators/entity-generator.js';
@@ -19,12 +22,13 @@ import { generateEntityOptionSets } from '../generators/optionset-generator.js';
 import { generateEntityForms } from '../generators/form-generator.js';
 import { generateActionDeclarations, generateActionModule, groupCustomApis } from '../generators/action-generator.js';
 import { generateEntityNamesEnum } from '../generators/entity-names-generator.js';
-import { addGeneratedHeader, writeAllFiles, generateBarrelIndex } from './file-writer.js';
+import { addGeneratedHeader, writeAllFiles, generateBarrelIndex, deleteOrphanedFiles } from './file-writer.js';
 import type {
   GenerateConfig,
   GenerationResult,
   EntityGenerationResult,
   GeneratedFile,
+  CacheStats,
 } from './types.js';
 
 /**
@@ -49,14 +53,6 @@ export class TypeGenerationOrchestrator {
   constructor(credential: TokenCredential, config: GenerateConfig, logger?: Logger) {
     this.credential = credential;
     this.logger = logger ?? createLogger('orchestrator');
-
-    // @alpha: useCache is not yet implemented (planned for v0.2.0)
-    if (config.useCache) {
-      throw new Error(
-        'Metadata caching is not yet implemented (planned for v0.2.0). ' +
-        'Remove the useCache option or set it to false.',
-      );
-    }
 
     // Apply defaults
     this.config = {
@@ -98,6 +94,7 @@ export class TypeGenerationOrchestrator {
     this.logger.info('Starting type generation', {
       entities: this.config.entities,
       outputDir: this.config.outputDir,
+      useCache: this.config.useCache,
     });
 
     // 1. Create HTTP client and metadata client
@@ -128,100 +125,92 @@ export class TypeGenerationOrchestrator {
       };
     }
 
-    // 2. Fetch metadata and generate for each entity (parallel, R7-07)
-    // DataverseHttpClient already has concurrency control (maxConcurrency),
-    // so parallel dispatch here is safe and significantly faster for 5+ entities.
-    this.logger.info(`Processing ${this.config.entities.length} entities in parallel`);
+    // 2. Determine cache strategy
+    let cacheStats: CacheStats | undefined;
+    const entitiesToFetch = new Set<string>(this.config.entities);
+    const cachedEntityInfos: Record<string, EntityTypeInfo> = {};
+    let cache: MetadataCache | undefined;
+    let newVersionStamp: string | null = null;
+    const deletedEntityNames: string[] = [];
 
-    const settled = await Promise.allSettled(
-      this.config.entities.map((entityName) => {
-        // Skip entities if aborted before they start
-        if (signal?.aborted) {
-          return Promise.reject(new Error('Generation aborted'));
+    if (this.config.useCache) {
+      const cacheResult = await this.resolveCache(httpClient, entitiesToFetch);
+      cache = cacheResult.cache;
+      newVersionStamp = cacheResult.newVersionStamp;
+      cacheStats = cacheResult.stats;
+
+      // Move cached entities out of the fetch set
+      for (const [name, info] of Object.entries(cacheResult.cachedEntities)) {
+        cachedEntityInfos[name] = info;
+        entitiesToFetch.delete(name);
+      }
+      deletedEntityNames.push(...cacheResult.deletedEntityNames);
+    }
+
+    // 3. Fetch metadata for entities that need fetching (parallel, R7-07)
+    const fetchList = [...entitiesToFetch];
+    const failedEntities = new Map<string, string>(); // entityName -> errorMsg
+    if (fetchList.length > 0) {
+      this.logger.info(`Fetching ${fetchList.length} entities from Dataverse`);
+
+      const settled = await Promise.allSettled(
+        fetchList.map((entityName) => {
+          if (signal?.aborted) {
+            return Promise.reject(new Error('Generation aborted'));
+          }
+          return metadataClient.getEntityTypeInfo(entityName).then((info) => {
+            this.logger.info(`Fetched entity: ${entityName}`);
+            return { entityName, info };
+          });
+        }),
+      );
+
+      for (let i = 0; i < settled.length; i++) {
+        const outcome = settled[i]!;
+        const entityName = fetchList[i]!;
+
+        if (outcome.status === 'fulfilled') {
+          cachedEntityInfos[outcome.value.entityName] = outcome.value.info;
+        } else {
+          const errorMsg = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
+          this.logger.error(`Failed to fetch entity: ${entityName}`, { error: outcome.reason });
+          failedEntities.set(entityName, errorMsg);
         }
-        return this.processEntity(entityName, metadataClient).then((result) => {
-          this.logger.info(`Completed entity: ${entityName} (${result.files.length} files)`);
-          return result;
-        });
-      }),
-    );
+      }
+    }
 
-    for (let i = 0; i < settled.length; i++) {
-      const outcome = settled[i]!;
-      const entityName = this.config.entities[i]!;
+    // 3b. Generate types for all entities in order (cached + freshly fetched)
+    this.logger.info(`Generating types for ${this.config.entities.length - failedEntities.size} entities`);
 
-      if (outcome.status === 'fulfilled') {
-        entityResults.push(outcome.value);
-        allFiles.push(...outcome.value.files);
-      } else {
-        const errorMsg = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
-        this.logger.error(`Failed to process entity: ${entityName}`, { error: outcome.reason });
+    for (const entityName of this.config.entities) {
+      if (signal?.aborted) break;
+
+      // Check if fetch failed for this entity
+      if (failedEntities.has(entityName)) {
         entityResults.push({
           entityLogicalName: entityName,
           files: [],
-          warnings: [`Failed to process: ${errorMsg}`],
+          warnings: [`Failed to process: ${failedEntities.get(entityName)}`],
         });
+        continue;
       }
+
+      const entityInfo = cachedEntityInfos[entityName];
+      if (!entityInfo) continue; // Should not happen, but safety guard
+
+      const result = this.generateEntityFiles(entityName, entityInfo);
+      this.logger.info(`Generated entity: ${entityName} (${result.files.length} files)`);
+      entityResults.push(result);
+      allFiles.push(...result.files);
     }
 
-    // 2b. Generate Custom API Action/Function executors
+    // 3c. Generate Custom API Action/Function executors
     if (this.config.generateActions && !signal?.aborted) {
-      this.logger.info('Fetching Custom APIs...');
-      let customApis = await metadataClient.getCustomApis();
-
-      // Apply prefix filter if configured
-      if (this.config.actionsFilter) {
-        const prefix = this.config.actionsFilter.toLowerCase();
-        const before = customApis.length;
-        customApis = customApis.filter((api) => api.api.uniquename.toLowerCase().startsWith(prefix));
-        this.logger.info(`Filtered Custom APIs by prefix "${this.config.actionsFilter}": ${before} -> ${customApis.length}`);
-      }
-
-      if (customApis.length > 0) {
-        const importPath = '@xrmforge/typegen';
-        const grouped = groupCustomApis(customApis);
-
-        for (const [key, apis] of grouped.actions) {
-          const entityName = key === 'global' ? undefined : key;
-          const declarations = generateActionDeclarations(apis, false, entityName, { importPath });
-          const module = generateActionModule(apis, false, { importPath });
-
-          allFiles.push({
-            relativePath: `actions/${key}.d.ts`,
-            content: addGeneratedHeader(declarations),
-            type: 'action',
-          });
-          allFiles.push({
-            relativePath: `actions/${key}.ts`,
-            content: addGeneratedHeader(module),
-            type: 'action',
-          });
-        }
-
-        for (const [key, apis] of grouped.functions) {
-          const entityName = key === 'global' ? undefined : key;
-          const declarations = generateActionDeclarations(apis, true, entityName, { importPath });
-          const module = generateActionModule(apis, true, { importPath });
-
-          allFiles.push({
-            relativePath: `functions/${key}.d.ts`,
-            content: addGeneratedHeader(declarations),
-            type: 'action',
-          });
-          allFiles.push({
-            relativePath: `functions/${key}.ts`,
-            content: addGeneratedHeader(module),
-            type: 'action',
-          });
-        }
-
-        this.logger.info(`Generated ${grouped.actions.size} action groups, ${grouped.functions.size} function groups`);
-      } else {
-        this.logger.info('No Custom APIs found');
-      }
+      const actionFiles = await this.generateActions(metadataClient);
+      allFiles.push(...actionFiles);
     }
 
-    // 2c. Generate EntityNames enum (all entities in one file)
+    // 3d. Generate EntityNames enum (all entities in one file)
     if (this.config.entities.length > 0) {
       const entityNamesContent = generateEntityNamesEnum(this.config.entities, {
         namespace: this.config.namespacePrefix,
@@ -233,20 +222,32 @@ export class TypeGenerationOrchestrator {
       });
     }
 
-    // 3. Write barrel index
+    // 4. Write barrel index
     if (allFiles.length > 0) {
       const indexContent = generateBarrelIndex(allFiles);
       const indexFile: GeneratedFile = {
         relativePath: 'index.d.ts',
-
         content: indexContent,
         type: 'entity',
       };
       allFiles.push(indexFile);
     }
 
-    // 4. Write all files to disk (non-fatal: file write errors become warnings)
+    // 5. Write all files to disk (non-fatal: file write errors become warnings)
     const writeResult = await writeAllFiles(this.config.outputDir, allFiles);
+
+    // 5b. Delete orphaned .d.ts files for deleted entities
+    if (deletedEntityNames.length > 0) {
+      const deleted = await deleteOrphanedFiles(this.config.outputDir, deletedEntityNames);
+      if (deleted > 0) {
+        this.logger.info(`Deleted ${deleted} orphaned files for removed entities`);
+      }
+    }
+
+    // 6. Update cache with new data
+    if (this.config.useCache && cache) {
+      await this.updateCache(cache, cachedEntityInfos, deletedEntityNames, newVersionStamp);
+    }
 
     const durationMs = Date.now() - startTime;
     const entityWarnings = entityResults.reduce((sum, r) => sum + r.warnings.length, 0);
@@ -263,6 +264,7 @@ export class TypeGenerationOrchestrator {
       totalFiles: allFiles.length,
       totalWarnings,
       durationMs,
+      cacheUsed: cacheStats?.cacheUsed ?? false,
     });
 
     return {
@@ -270,21 +272,159 @@ export class TypeGenerationOrchestrator {
       totalFiles: allFiles.length,
       totalWarnings,
       durationMs,
+      cacheStats,
     };
   }
 
   /**
-   * Process a single entity: fetch metadata, generate all output files.
+   * Resolve the cache: load existing cache, detect changes, determine which
+   * entities need to be fetched vs. can be served from cache.
+   *
+   * On any failure (corrupt cache, expired stamp), falls back to full refresh.
    */
-  private async processEntity(
+  private async resolveCache(
+    httpClient: DataverseHttpClient,
+    requestedEntities: Set<string>,
+  ): Promise<{
+    cache: MetadataCache;
+    cachedEntities: Record<string, EntityTypeInfo>;
+    deletedEntityNames: string[];
+    newVersionStamp: string | null;
+    stats: CacheStats;
+  }> {
+    const cache = new MetadataCache(this.config.cacheDir);
+    const changeDetector = new ChangeDetector(httpClient);
+
+    // Try to load existing cache
+    let cacheData;
+    try {
+      cacheData = await cache.load(this.config.environmentUrl);
+    } catch {
+      this.logger.warn('Failed to load metadata cache, performing full refresh');
+      cacheData = null;
+    }
+
+    if (!cacheData || !cacheData.manifest.serverVersionStamp) {
+      // No cache or no stamp: full refresh, but get initial stamp for next run
+      this.logger.info('No valid cache found, performing full metadata refresh');
+      const stamp = await changeDetector.getInitialVersionStamp();
+      return {
+        cache,
+        cachedEntities: {},
+        deletedEntityNames: [],
+        newVersionStamp: stamp,
+        stats: {
+          cacheUsed: true,
+          fullRefresh: true,
+          entitiesFromCache: 0,
+          entitiesFetched: requestedEntities.size,
+          entitiesDeleted: 0,
+        },
+      };
+    }
+
+    // Cache exists with stamp: try delta detection
+    let changeResult;
+    try {
+      changeResult = await changeDetector.detectChanges(cacheData.manifest.serverVersionStamp);
+    } catch (error: unknown) {
+      // Expired stamp or other error: fall back to full refresh
+      const isExpired = error instanceof Error &&
+        error.message.includes(ErrorCode.META_VERSION_STAMP_EXPIRED);
+      if (isExpired) {
+        this.logger.warn('Cache version stamp expired (>90 days), performing full refresh');
+      } else {
+        this.logger.warn('Change detection failed, performing full refresh', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      const stamp = await changeDetector.getInitialVersionStamp();
+      return {
+        cache,
+        cachedEntities: {},
+        deletedEntityNames: [],
+        newVersionStamp: stamp,
+        stats: {
+          cacheUsed: true,
+          fullRefresh: true,
+          entitiesFromCache: 0,
+          entitiesFetched: requestedEntities.size,
+          entitiesDeleted: 0,
+        },
+      };
+    }
+
+    // Delta detection succeeded: determine which entities to fetch
+    const changedSet = new Set(changeResult.changedEntityNames);
+    const cachedEntities: Record<string, EntityTypeInfo> = {};
+    let entitiesFromCache = 0;
+    let entitiesFetched = 0;
+
+    for (const entityName of requestedEntities) {
+      if (changedSet.has(entityName) || !cacheData.entityTypeInfos[entityName]) {
+        // Entity changed or not in cache: needs fresh fetch
+        entitiesFetched++;
+      } else {
+        // Entity unchanged and in cache: use cached version
+        cachedEntities[entityName] = cacheData.entityTypeInfos[entityName]!;
+        entitiesFromCache++;
+      }
+    }
+
+    // Deleted entities that were in our entity list
+    const deletedEntityNames = changeResult.deletedEntityNames.filter(
+      (name) => requestedEntities.has(name),
+    );
+
+    this.logger.info(`Cache delta: ${entitiesFromCache} from cache, ${entitiesFetched} to fetch, ${deletedEntityNames.length} deleted`);
+
+    return {
+      cache,
+      cachedEntities,
+      deletedEntityNames,
+      newVersionStamp: changeResult.newVersionStamp,
+      stats: {
+        cacheUsed: true,
+        fullRefresh: false,
+        entitiesFromCache,
+        entitiesFetched,
+        entitiesDeleted: deletedEntityNames.length,
+      },
+    };
+  }
+
+  /**
+   * Update the metadata cache after a successful generation run.
+   */
+  private async updateCache(
+    cache: MetadataCache,
+    entityTypeInfos: Record<string, EntityTypeInfo>,
+    deletedEntityNames: string[],
+    newVersionStamp: string | null,
+  ): Promise<void> {
+    try {
+      if (deletedEntityNames.length > 0) {
+        await cache.removeEntities(this.config.environmentUrl, deletedEntityNames, newVersionStamp);
+      }
+      await cache.save(this.config.environmentUrl, entityTypeInfos, newVersionStamp);
+      this.logger.info('Metadata cache updated');
+    } catch (error: unknown) {
+      // Cache update failure is non-fatal
+      this.logger.warn('Failed to update metadata cache', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /**
+   * Generate all output files for a single entity from its metadata.
+   */
+  private generateEntityFiles(
     entityName: string,
-    metadataClient: MetadataClient,
-  ): Promise<EntityGenerationResult> {
+    entityInfo: EntityTypeInfo,
+  ): EntityGenerationResult {
     const warnings: string[] = [];
     const files: GeneratedFile[] = [];
-
-    // Fetch complete metadata
-    const entityInfo = await metadataClient.getEntityTypeInfo(entityName);
 
     // Generate entity interface
     if (this.config.generateEntities) {
@@ -294,7 +434,6 @@ export class TypeGenerationOrchestrator {
       });
       files.push({
         relativePath: `entities/${entityName}.d.ts`,
-
         content: addGeneratedHeader(entityContent),
         type: 'entity',
       });
@@ -315,7 +454,6 @@ export class TypeGenerationOrchestrator {
           const combinedContent = optionSets.map((os) => os.content).join('\n');
           files.push({
             relativePath: `optionsets/${entityName}.d.ts`,
-    
             content: addGeneratedHeader(combinedContent),
             type: 'optionset',
           });
@@ -343,7 +481,6 @@ export class TypeGenerationOrchestrator {
           const combinedContent = formResults.map((f) => f.content).join('\n');
           files.push({
             relativePath: `forms/${entityName}.d.ts`,
-    
             content: addGeneratedHeader(combinedContent),
             type: 'form',
           });
@@ -354,6 +491,69 @@ export class TypeGenerationOrchestrator {
     }
 
     return { entityLogicalName: entityName, files, warnings };
+  }
+
+  /**
+   * Generate Custom API Action/Function executor files.
+   */
+  private async generateActions(metadataClient: MetadataClient): Promise<GeneratedFile[]> {
+    const files: GeneratedFile[] = [];
+
+    this.logger.info('Fetching Custom APIs...');
+    let customApis = await metadataClient.getCustomApis();
+
+    // Apply prefix filter if configured
+    if (this.config.actionsFilter) {
+      const prefix = this.config.actionsFilter.toLowerCase();
+      const before = customApis.length;
+      customApis = customApis.filter((api) => api.api.uniquename.toLowerCase().startsWith(prefix));
+      this.logger.info(`Filtered Custom APIs by prefix "${this.config.actionsFilter}": ${before} -> ${customApis.length}`);
+    }
+
+    if (customApis.length > 0) {
+      const importPath = '@xrmforge/typegen';
+      const grouped = groupCustomApis(customApis);
+
+      for (const [key, apis] of grouped.actions) {
+        const entityName = key === 'global' ? undefined : key;
+        const declarations = generateActionDeclarations(apis, false, entityName, { importPath });
+        const module = generateActionModule(apis, false, { importPath });
+
+        files.push({
+          relativePath: `actions/${key}.d.ts`,
+          content: addGeneratedHeader(declarations),
+          type: 'action',
+        });
+        files.push({
+          relativePath: `actions/${key}.ts`,
+          content: addGeneratedHeader(module),
+          type: 'action',
+        });
+      }
+
+      for (const [key, apis] of grouped.functions) {
+        const entityName = key === 'global' ? undefined : key;
+        const declarations = generateActionDeclarations(apis, true, entityName, { importPath });
+        const module = generateActionModule(apis, true, { importPath });
+
+        files.push({
+          relativePath: `functions/${key}.d.ts`,
+          content: addGeneratedHeader(declarations),
+          type: 'action',
+        });
+        files.push({
+          relativePath: `functions/${key}.ts`,
+          content: addGeneratedHeader(module),
+          type: 'action',
+        });
+      }
+
+      this.logger.info(`Generated ${grouped.actions.size} action groups, ${grouped.functions.size} function groups`);
+    } else {
+      this.logger.info('No Custom APIs found');
+    }
+
+    return files;
   }
 
   /**

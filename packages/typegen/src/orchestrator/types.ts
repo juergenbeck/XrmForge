@@ -40,16 +40,16 @@ export interface GenerateConfig {
 
   /**
    * Whether to use metadata cache for faster re-generation.
-   * @alpha Not yet implemented. Setting this to true will throw a ConfigError.
-   * Planned for v0.2.0.
+   * When enabled, only changed entities are re-fetched from Dataverse
+   * using RetrieveMetadataChanges delta detection.
+   * On first run or expired cache, a full refresh is performed automatically.
    * @defaultValue false
    */
   useCache?: boolean;
 
   /**
-   * Cache directory for metadata cache.
-   * @alpha Not yet implemented. Ignored until useCache is implemented.
-   * Planned for v0.2.0.
+   * Directory for metadata cache files.
+   * Relative paths are resolved from the current working directory.
    * @defaultValue ".xrmforge/cache"
    */
   cacheDir?: string;
@@ -82,6 +82,20 @@ export interface GeneratedFile {
   type: 'entity' | 'optionset' | 'form' | 'action';
 }
 
+/** Statistics about cache usage during generation */
+export interface CacheStats {
+  /** Whether the cache was used in this run */
+  cacheUsed: boolean;
+  /** Whether this was a full refresh (no prior cache or expired stamp) */
+  fullRefresh: boolean;
+  /** Number of entities loaded from cache (unchanged) */
+  entitiesFromCache: number;
+  /** Number of entities fetched from Dataverse (new or changed) */
+  entitiesFetched: number;
+  /** Number of entities removed (deleted in Dataverse) */
+  entitiesDeleted: number;
+}
+
 /** Overall result of the generation process */
 export interface GenerationResult {
   /** Per-entity results */
@@ -95,4 +109,7 @@ export interface GenerationResult {
 
   /** Duration in milliseconds */
   durationMs: number;
+
+  /** Cache statistics (present when useCache was enabled) */
+  cacheStats?: CacheStats;
 }

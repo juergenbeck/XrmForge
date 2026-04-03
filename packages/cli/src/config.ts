@@ -48,6 +48,10 @@ export interface XrmForgeConfig {
   forms?: boolean;
   /** Generate OptionSet enums */
   optionsets?: boolean;
+  /** Enable metadata cache for incremental generation */
+  cache?: boolean;
+  /** Directory for metadata cache files */
+  cacheDir?: string;
 }
 
 const CONFIG_FILENAME = 'xrmforge.config.json';
@@ -126,6 +130,14 @@ export function mergeWithCliOptions(
   }
   if (merged['optionsets'] === undefined && config.optionsets !== undefined) {
     merged['optionsets'] = config.optionsets;
+  }
+
+  // Cache options
+  if (merged['cache'] === undefined && config.cache !== undefined) {
+    merged['cache'] = config.cache;
+  }
+  if (!merged['cacheDir'] && config.cacheDir) {
+    merged['cacheDir'] = config.cacheDir;
   }
 
   return merged;

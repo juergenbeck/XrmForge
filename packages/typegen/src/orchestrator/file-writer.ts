@@ -14,7 +14,7 @@
  *   index.d.ts            (barrel reference file)
  */
 
-import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, unlink } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import type { GeneratedFile } from './types.js';
 
@@ -84,6 +84,36 @@ export async function writeAllFiles(outputDir: string, files: GeneratedFile[]): 
   }
 
   return result;
+}
+
+/**
+ * Delete orphaned .d.ts files for entities that were removed from Dataverse.
+ * Removes entity, optionset, and form files for the given entity names.
+ *
+ * @param outputDir - Base output directory
+ * @param deletedEntityNames - Entity logical names whose files should be removed
+ * @returns Number of files deleted
+ */
+export async function deleteOrphanedFiles(outputDir: string, deletedEntityNames: string[]): Promise<number> {
+  let deleted = 0;
+  const subdirs = ['entities', 'optionsets', 'forms'];
+
+  for (const entityName of deletedEntityNames) {
+    for (const subdir of subdirs) {
+      const filePath = join(outputDir, subdir, `${entityName}.d.ts`);
+      try {
+        await unlink(filePath);
+        deleted++;
+      } catch (error: unknown) {
+        // File might not exist (entity had no forms/optionsets), that's fine
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw error;
+        }
+      }
+    }
+  }
+
+  return deleted;
 }
 
 /** File header for generated .d.ts files */

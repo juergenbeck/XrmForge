@@ -164,8 +164,9 @@ export class ChangeDetector {
   private isExpiredVersionStampError(error: unknown): boolean {
     const msg = error instanceof Error ? error.message : String(error);
     // Check message and context.responseBody (HttpClient puts body text in context)
-    const contextBody = (error as Record<string, unknown>)?.context
-      ? String((error as Record<string, Record<string, unknown>>).context.responseBody ?? '')
+    const errorRecord = error as Record<string, Record<string, unknown>> | undefined;
+    const contextBody = errorRecord?.context
+      ? String(errorRecord.context['responseBody'] ?? '')
       : '';
     const combined = msg + contextBody;
     return combined.includes(EXPIRED_VERSION_STAMP_ERROR) || combined.includes('ExpiredVersionStamp');

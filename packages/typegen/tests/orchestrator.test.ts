@@ -276,7 +276,7 @@ describe('TypeGenerationOrchestrator', () => {
     }
   });
 
-  it('should throw when useCache is set to true (@alpha, R7-01)', () => {
+  it('should accept useCache=true without throwing', () => {
     const credential = createMockCredential();
 
     expect(() => new TypeGenerationOrchestrator(credential, {
@@ -285,7 +285,7 @@ describe('TypeGenerationOrchestrator', () => {
       outputDir: './typings',
       labelConfig: { primaryLanguage: 1033 },
       useCache: true,
-    })).toThrowError(/not yet implemented/);
+    })).not.toThrow();
   });
 
   it('should not throw when useCache is false or omitted', () => {

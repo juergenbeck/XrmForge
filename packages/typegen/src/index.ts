@@ -51,6 +51,7 @@ export type { HttpClientOptions } from './http/index.js';
 export {
   MetadataClient,
   MetadataCache,
+  ChangeDetector,
   parseForm,
   extractControlFields,
   FastXmlParser,
@@ -63,6 +64,7 @@ export {
   DEFAULT_LABEL_CONFIG,
 } from './metadata/index.js';
 export type { LabelConfig } from './metadata/index.js';
+export type { ChangeDetectionResult } from './metadata/index.js';
 export type { XmlParser, XmlElement } from './metadata/index.js';
 export type { CustomApiTypeInfo } from './metadata/index.js';
 export type {
@@ -199,4 +201,5 @@ export type {
   GenerationResult,
   EntityGenerationResult,
   GeneratedFile,
+  CacheStats,
 } from './orchestrator/index.js';
