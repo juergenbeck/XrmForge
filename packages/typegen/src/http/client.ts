@@ -325,13 +325,15 @@ export class DataverseHttpClient {
     try {
       tokenResponse = await this.credential.getToken(scope);
     } catch (error: unknown) {
+      const cause = error instanceof Error ? error.message : String(error);
       throw new AuthenticationError(
         ErrorCode.AUTH_TOKEN_FAILED,
         `Failed to acquire access token for ${this.baseUrl}. ` +
-          `Verify your authentication configuration.`,
+          `Verify your authentication configuration.\n` +
+          `Cause: ${cause}`,
         {
           environmentUrl: this.baseUrl,
-          originalError: error instanceof Error ? error.message : String(error),
+          originalError: cause,
         },
       );
     }

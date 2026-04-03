@@ -130,7 +130,7 @@ describe('ChangeDetector.detectChanges', () => {
     expect((error as MetadataError).code).toBe(ErrorCode.META_VERSION_STAMP_EXPIRED);
   });
 
-  it('should send correct request body format', async () => {
+  it('should send correct GET request with URL parameters', async () => {
     const mockFn = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -145,11 +145,11 @@ describe('ChangeDetector.detectChanges', () => {
 
     expect(mockFn).toHaveBeenCalledTimes(1);
     const [url, options] = mockFn.mock.calls[0]!;
-    expect(url).toContain('/RetrieveMetadataChanges');
-    expect(options.method).toBe('POST');
-    const body = JSON.parse(options.body);
-    expect(body.ClientVersionStamp).toBe('my-stamp');
-    expect(body.DeletedMetadataFilters).toBe('Entity');
+    expect(url).toContain('/RetrieveMetadataChanges(');
+    expect(url).toContain('ClientVersionStamp=@s');
+    expect(url).toContain('DeletedMetadataFilters=@d');
+    expect(url).toContain("@s='my-stamp'");
+    expect(options.method).toBe('GET');
   });
 });
 
@@ -168,7 +168,7 @@ describe('ChangeDetector.getInitialVersionStamp', () => {
     expect(stamp).toBe('initial-stamp-789');
   });
 
-  it('should send request without ClientVersionStamp', async () => {
+  it('should send GET request without ClientVersionStamp', async () => {
     const mockFn = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -181,7 +181,9 @@ describe('ChangeDetector.getInitialVersionStamp', () => {
     const detector = new ChangeDetector(createClient());
     await detector.getInitialVersionStamp();
 
-    const body = JSON.parse(mockFn.mock.calls[0]![1].body);
-    expect(body.ClientVersionStamp).toBeUndefined();
+    const [url, options] = mockFn.mock.calls[0]!;
+    expect(url).toContain('/RetrieveMetadataChanges(');
+    expect(url).not.toContain('ClientVersionStamp');
+    expect(options.method).toBe('GET');
   });
 });

@@ -51,20 +51,24 @@ export class ChangeDetector {
   async detectChanges(clientVersionStamp: string): Promise<ChangeDetectionResult> {
     log.info('Detecting metadata changes since last run');
 
-    const requestBody = {
-      Query: {
-        Criteria: {
-          FilterOperator: 'And',
-          Conditions: [],
-        },
-        Properties: {
-          AllProperties: false,
-          PropertyNames: ['LogicalName'],
-        },
+    const query = {
+      Criteria: {
+        FilterOperator: 'And',
+        Conditions: [],
       },
-      ClientVersionStamp: clientVersionStamp,
-      DeletedMetadataFilters: 'Entity',
+      Properties: {
+        AllProperties: false,
+        PropertyNames: ['LogicalName'],
+      },
     };
+
+    // RetrieveMetadataChanges is a Function (GET), not an Action (POST).
+    // Parameters are passed as URL parameters using parameter aliases.
+    const queryJson = encodeURIComponent(JSON.stringify(query));
+    const deletedFilter = `Microsoft.Dynamics.CRM.DeletedMetadataFilters'Default'`;
+
+    const path = `/RetrieveMetadataChanges(Query=@q,ClientVersionStamp=@s,DeletedMetadataFilters=@d)` +
+      `?@q=${queryJson}&@s='${clientVersionStamp}'&@d=${deletedFilter}`;
 
     interface RetrieveMetadataChangesResponse {
       EntityMetadata: Array<{
@@ -81,10 +85,7 @@ export class ChangeDetector {
 
     let response: RetrieveMetadataChangesResponse;
     try {
-      response = await this.http.postReadOnly<RetrieveMetadataChangesResponse>(
-        '/RetrieveMetadataChanges',
-        requestBody,
-      );
+      response = await this.http.get<RetrieveMetadataChangesResponse>(path);
     } catch (error: unknown) {
       // Check for expired version stamp
       if (this.isExpiredVersionStampError(error)) {
@@ -134,27 +135,26 @@ export class ChangeDetector {
   async getInitialVersionStamp(): Promise<string> {
     log.info('Fetching initial server version stamp');
 
-    const requestBody = {
-      Query: {
-        Criteria: {
-          FilterOperator: 'And',
-          Conditions: [],
-        },
-        Properties: {
-          AllProperties: false,
-          PropertyNames: ['LogicalName'],
-        },
+    const query = {
+      Criteria: {
+        FilterOperator: 'And',
+        Conditions: [],
+      },
+      Properties: {
+        AllProperties: false,
+        PropertyNames: ['LogicalName'],
       },
     };
+
+    // RetrieveMetadataChanges is a Function (GET) - no ClientVersionStamp for initial call
+    const queryParam = encodeURIComponent(JSON.stringify(query));
+    const path = `/RetrieveMetadataChanges(Query=@q)?@q=${queryParam}`;
 
     interface InitialResponse {
       ServerVersionStamp: string;
     }
 
-    const response = await this.http.postReadOnly<InitialResponse>(
-      '/RetrieveMetadataChanges',
-      requestBody,
-    );
+    const response = await this.http.get<InitialResponse>(path);
 
     log.info('Initial version stamp acquired');
     return response.ServerVersionStamp;
