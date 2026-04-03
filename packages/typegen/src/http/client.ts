@@ -192,6 +192,31 @@ export class DataverseHttpClient {
     return allResults;
   }
 
+  /**
+   * Execute a POST request that is semantically a read operation.
+   * Used for Dataverse actions like RetrieveMetadataChanges that require POST
+   * but do not modify data. Allowed even in read-only mode.
+   *
+   * @param path - API path (relative to apiUrl)
+   * @param body - JSON body to send
+   * @param signal - Optional AbortSignal to cancel the request
+   */
+  async postReadOnly<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+    const ALLOWED_PATHS = ['/RetrieveMetadataChanges'];
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+    if (!ALLOWED_PATHS.some((p) => normalizedPath.startsWith(p))) {
+      throw new ApiRequestError(
+        ErrorCode.API_REQUEST_FAILED,
+        `postReadOnly is only allowed for safe read operations: ${ALLOWED_PATHS.join(', ')}. Got: "${normalizedPath}"`,
+        { path: normalizedPath },
+      );
+    }
+
+    const url = this.resolveUrl(path);
+    return this.executeWithConcurrency<T>(url, signal, 'POST', body);
+  }
+
   // ─── Read-Only Enforcement ─────────────────────────────────────────────
 
   /**
@@ -339,10 +364,10 @@ export class DataverseHttpClient {
    * The semaphore is acquired ONCE per logical request. Retries happen
    * INSIDE the semaphore to avoid the recursive slot exhaustion bug.
    */
-  private async executeWithConcurrency<T>(url: string, signal?: AbortSignal): Promise<T> {
+  private async executeWithConcurrency<T>(url: string, signal?: AbortSignal, method: 'GET' | 'POST' = 'GET', requestBody?: unknown): Promise<T> {
     await this.acquireSlot();
     try {
-      return await this.executeWithRetry<T>(url, 1, 0, signal);
+      return await this.executeWithRetry<T>(url, 1, 0, signal, method, requestBody);
     } finally {
       this.releaseSlot();
     }
@@ -370,7 +395,7 @@ export class DataverseHttpClient {
 
   // ─── Retry Logic (runs INSIDE a single concurrency slot) ─────────────────
 
-  private async executeWithRetry<T>(url: string, attempt: number, rateLimitRetries: number = 0, signal?: AbortSignal): Promise<T> {
+  private async executeWithRetry<T>(url: string, attempt: number, rateLimitRetries: number = 0, signal?: AbortSignal, method: 'GET' | 'POST' = 'GET', requestBody?: unknown): Promise<T> {
     // Check if already aborted before starting
     if (signal?.aborted) {
       throw new ApiRequestError(
@@ -392,17 +417,23 @@ export class DataverseHttpClient {
 
     let response: Response;
     try {
-      log.debug(`GET ${url}`, { attempt });
+      log.debug(`${method} ${url}`, { attempt });
+
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        Prefer: 'odata.include-annotations="*"',
+      };
+      if (method === 'POST') {
+        headers['Content-Type'] = 'application/json';
+      }
 
       response = await fetch(url, {
-        method: 'GET', // Explicit: never rely on default
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'OData-MaxVersion': '4.0',
-          'OData-Version': '4.0',
-          Accept: 'application/json',
-          Prefer: 'odata.include-annotations="*"',
-        },
+        method,
+        headers,
+        body: requestBody !== undefined ? JSON.stringify(requestBody) : undefined,
         signal: controller.signal,
       });
     } catch (fetchError: unknown) {
@@ -427,7 +458,7 @@ export class DataverseHttpClient {
             url,
           });
           await this.sleep(delay);
-          return this.executeWithRetry<T>(url, attempt + 1, rateLimitRetries, signal);
+          return this.executeWithRetry<T>(url, attempt + 1, rateLimitRetries, signal, method, requestBody);
         }
 
         throw new ApiRequestError(
@@ -445,7 +476,7 @@ export class DataverseHttpClient {
           error: fetchError instanceof Error ? fetchError.message : String(fetchError),
         });
         await this.sleep(delay);
-        return this.executeWithRetry<T>(url, attempt + 1, rateLimitRetries, signal);
+        return this.executeWithRetry<T>(url, attempt + 1, rateLimitRetries, signal, method, requestBody);
       }
 
       throw new ApiRequestError(
@@ -464,10 +495,10 @@ export class DataverseHttpClient {
     // ── Handle HTTP Errors ──
 
     if (!response.ok) {
-      return this.handleHttpError<T>(response, url, attempt, rateLimitRetries, signal);
+      return this.handleHttpError<T>(response, url, attempt, rateLimitRetries, signal, method, requestBody);
     }
 
-    log.debug(`GET ${url} -> ${response.status}`, { attempt });
+    log.debug(`${method} ${url} -> ${response.status}`, { attempt });
     return response.json() as Promise<T>;
   }
 
@@ -477,6 +508,8 @@ export class DataverseHttpClient {
     attempt: number,
     rateLimitRetries: number,
     signal?: AbortSignal,
+    method: 'GET' | 'POST' = 'GET',
+    requestBody?: unknown,
   ): Promise<T> {
     const body = await response.text();
 
@@ -502,14 +535,14 @@ export class DataverseHttpClient {
 
       await this.sleep(retryAfterMs);
       // Do NOT increment attempt for 429: these are not "failures", they are throttling
-      return this.executeWithRetry<T>(url, attempt, rateLimitRetries + 1, signal);
+      return this.executeWithRetry<T>(url, attempt, rateLimitRetries + 1, signal, method, requestBody);
     }
 
     // 401 Unauthorized: clear token cache and retry once
     if (response.status === 401 && attempt === 1) {
       log.warn('HTTP 401 received, clearing token cache and retrying');
       this.cachedToken = null;
-      return this.executeWithRetry<T>(url, attempt + 1, 0, signal);
+      return this.executeWithRetry<T>(url, attempt + 1, 0, signal, method, requestBody);
     }
 
     // 5xx Server Errors: retryable
@@ -519,7 +552,7 @@ export class DataverseHttpClient {
         `Server error ${response.status}, retrying in ${delay}ms (${attempt}/${this.maxRetries})`,
       );
       await this.sleep(delay);
-      return this.executeWithRetry<T>(url, attempt + 1, rateLimitRetries, signal);
+      return this.executeWithRetry<T>(url, attempt + 1, rateLimitRetries, signal, method, requestBody);
     }
 
     // Non-retryable error: throw
