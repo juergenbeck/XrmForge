@@ -25,7 +25,7 @@ XrmForge liest die Dataverse-Metadaten deiner Umgebung und generiert TypeScript-
   - [Ein Formularskript schreiben](#ein-formularskript-schreiben)
   - [Web-API-Abfragen mit Fields-Enum](#web-api-abfragen-mit-fields-enum)
   - [Custom-Action-Executors](#custom-action-executors)
-- [8. Für D365 bauen (esbuild)](#8-für-d365-bauen-esbuild)
+- [8. Fuer D365 bauen](#8-fuer-d365-bauen)
   - [Warum IIFE?](#warum-iife)
   - [build.mjs](#buildmjs)
   - [package.json-Skripte](#packagejson-skripte)
@@ -111,8 +111,9 @@ Jedes Feld, jedes Formular, jede Custom API wird zu einem Vertrag zur Kompilierz
 - **Web-API-Hilfsfunktionen** -- `select()`, `parseLookup()`, `parseFormattedValue()`, `withProgress()` und mehr.
 - **Xrm-Konstanten** -- `DisplayState`, `FormNotificationLevel`, `RequiredLevel`, `SubmitMode`, `SaveMode`, `ClientType`, `OperationType` und andere als `const enum`. Keine rohen Strings mehr.
 - **Zweisprachige Labels** -- JSDoc-Kommentare zeigen beide Sprachen: `/** Account Name | Firmenname */`. Autovervollständigung in VS Code zeigt beide.
-- **Formular-Tests** -- `@xrmforge/testing`-Paket: Typsicherer Mock-Builder für D365-Formulare. `createFormMock<AccountForm>({ name: 'Contoso' })` erzeugt ein zur Kompilierzeit validiertes Mock-Objekt mit `getAttribute()`, `getControl()`, `ui.setFormNotification()` und Event-Context-Unterstützung. Kein `as any` mehr. **(NEU in v0.2.0)**
-- **esbuild-Build-Pipeline** -- IIFE-Bundles für D365, bereit zum Upload als Web Resources. Build in unter einer Sekunde.
+- **Formular-Tests** -- `@xrmforge/testing`-Paket: Typsicherer Mock-Builder fuer D365-Formulare. `createFormMock<AccountForm>({ name: 'Contoso' })` erzeugt ein zur Kompilierzeit validiertes Mock-Objekt mit `getAttribute()`, `getControl()`, `ui.setFormNotification()` und Event-Context-Unterstuetzung. Kein `as any` mehr.
+- **Inkrementelle Generierung** -- `--cache` Flag aktiviert Metadata-Caching. Nur Entities mit geaenderten Metadaten werden neu geladen, per `RetrieveMetadataChanges` Delta-Erkennung. Erster Lauf: Full Refresh. Folge-Laeufe: 10x schneller.
+- **Build-Orchestrierung** -- `xrmforge build` erzeugt IIFE-Bundles aus deklarativer Config. Keine esbuild-Config-Dateien noetig. `xrmforge build --watch` fuer inkrementelle Rebuilds (~10ms). Basiert auf `@xrmforge/devkit`.
 
 ---
 
@@ -604,101 +605,95 @@ async function winQuote(quoteId: string): Promise<void> {
 
 ---
 
-## 8. Für D365 bauen (esbuild)
+## 8. Fuer D365 bauen
 
 ### Warum IIFE?
 
-Dynamics 365 lädt Web Resources über `<script>`-Tags. Funktionen müssen global zugänglich sein, damit das Formular-Event-Handler-System sie per Name aufrufen kann (z.B. `Contoso.AccountForm.onLoad`). Das IIFE-Format (Immediately Invoked Function Expression) kapselt den Modulcode und stellt ihn unter einem globalen Namespace bereit.
+Dynamics 365 laedt Web Resources ueber `<script>`-Tags. Funktionen muessen global zugaenglich sein, damit das Formular-Event-Handler-System sie per Name aufrufen kann (z.B. `Contoso.AccountForm.onLoad`). Das IIFE-Format (Immediately Invoked Function Expression) kapselt den Modulcode und stellt ihn unter einem globalen Namespace bereit.
 
-### build.mjs
+### Option A: `xrmforge build` (empfohlen)
 
-`build.mjs` im Projektstamm erstellen. Dies ist ein vollständiges, kopierbereitetes Build-Skript:
+Eine `build`-Sektion in `xrmforge.config.json` hinzufuegen:
+
+```json
+{
+  "build": {
+    "outDir": "./dist/contoso_/JS",
+    "target": "es2020",
+    "sourcemap": true,
+    "minify": true,
+    "entries": {
+      "account_form": {
+        "input": "./src/forms/account-form.ts",
+        "namespace": "Contoso.AccountForm",
+        "out": "Account/OnLoad.js"
+      },
+      "contact_form": {
+        "input": "./src/forms/contact-form.ts",
+        "namespace": "Contoso.ContactForm",
+        "out": "Contact/OnLoad.js"
+      },
+      "shared_notifications": {
+        "input": "./src/shared/notifications.ts",
+        "namespace": "Contoso.Shared",
+        "out": "Shared/Notifications.js"
+      }
+    }
+  }
+}
+```
+
+Dann bauen:
+
+```bash
+xrmforge build            # Alle Entries bauen (parallel, IIFE-Bundles)
+xrmforge build --watch    # Watch-Modus (~10ms inkrementelle Rebuilds)
+xrmforge build --minify   # Ueberschreibung: Ausgabe minimieren
+xrmforge build --no-sourcemap  # Ueberschreibung: Source Maps deaktivieren
+```
+
+Keine `build.mjs`, keine `esbuild.config.ts`, keine direkte esbuild-Abhaengigkeit noetig. Das `@xrmforge/devkit`-Paket uebernimmt alles.
+
+### Option B: Manuelles build.mjs
+
+Wer volle Kontrolle ueber esbuild behalten moechte, kann `build.mjs` im Projektstamm erstellen:
 
 ```javascript
 import * as esbuild from "esbuild";
 
-// Jeder Eintrag erzeugt eine Web-Resource-.js-Datei.
-// globalName bestimmt den D365-Funktions-Namespace.
 const webResources = [
   {
     entry: "src/forms/account-form.ts",
     globalName: "Contoso.AccountForm",
     out: "contoso_/JS/Account/OnLoad.js",
   },
-  {
-    entry: "src/forms/contact-form.ts",
-    globalName: "Contoso.ContactForm",
-    out: "contoso_/JS/Contact/OnLoad.js",
-  },
-  {
-    entry: "src/shared/notifications.ts",
-    globalName: "Contoso.Shared",
-    out: "contoso_/JS/Shared/Notifications.js",
-  },
 ];
 
-const isDev = process.argv.includes("--dev");
-const isWatch = process.argv.includes("--watch");
-
 for (const wr of webResources) {
-  const options = {
+  await esbuild.build({
     entryPoints: [wr.entry],
     bundle: true,
     format: "iife",
     globalName: wr.globalName,
     outfile: `dist/${wr.out}`,
     target: ["es2020"],
-    minify: !isDev,
-    sourcemap: isDev ? "inline" : true,
-  };
-
-  if (isWatch) {
-    const ctx = await esbuild.context(options);
-    await ctx.watch();
-    console.log(`Watching: ${wr.entry}`);
-  } else {
-    await esbuild.build(options);
-    console.log(`Built: dist/${wr.out}`);
-  }
+    minify: true,
+    sourcemap: true,
+  });
 }
-
-if (!isWatch) {
-  console.log("\nBuild abgeschlossen.");
-}
-```
-
-Ausführen:
-
-```bash
-node build.mjs           # Produktions-Build (minimiert, externe Source Maps)
-node build.mjs --dev     # Entwicklungs-Build (nicht minimiert, eingebettete Source Maps)
-node build.mjs --watch   # Watch-Modus (baut bei Dateiänderungen neu)
 ```
 
 ### package.json-Skripte
-
-Diese Skripte zur `package.json` hinzufügen:
 
 ```json
 {
   "scripts": {
     "generate": "xrmforge generate",
     "typecheck": "tsc --noEmit",
-    "build": "node build.mjs",
-    "build:dev": "node build.mjs --dev",
-    "watch": "node build.mjs --watch"
+    "build": "xrmforge build",
+    "watch": "xrmforge build --watch"
   }
 }
-```
-
-Verwendung:
-
-```bash
-npm run generate    # Typen aus Dataverse neu generieren
-npm run typecheck   # Typen prüfen ohne Ausgabe zu erzeugen
-npm run build       # Produktions-Build
-npm run build:dev   # Entwicklungs-Build mit eingebetteten Source Maps
-npm run watch       # Watch-Modus für schnelle Entwicklung
 ```
 
 ### Gemeinsame Bibliotheken
@@ -706,12 +701,12 @@ npm run watch       # Watch-Modus für schnelle Entwicklung
 Wenn mehrere Formularskripte dieselben Hilfsfunktionen verwenden (z.B. Benachrichtigungshelfer, DSGVO-Logik, Validierung), diese in eine gemeinsame Bibliothek auslagern:
 
 1. `src/shared/notifications.ts` mit dem gemeinsamen Code erstellen.
-2. In `build.mjs` mit eigenem `globalName` (z.B. `Contoso.Shared`) hinzufügen.
-3. In Formularskripten auf gemeinsame Funktionen über den globalen Namespace zugreifen: `Contoso.Shared.showNotification(...)`.
+2. Als Entry in `xrmforge.config.json` mit eigenem `namespace` (z.B. `Contoso.Shared`) hinzufuegen.
+3. In Formularskripten auf gemeinsame Funktionen ueber den globalen Namespace zugreifen: `Contoso.Shared.showNotification(...)`.
 4. In D365 die gemeinsame `.js`-Datei als Web Resource hochladen.
-5. Bei jedem Formular, das sie verwendet, die gemeinsame Web Resource als **Abhängigkeit** hinzufügen (Formulareigenschaften, dann Ereignishandler, dann Abhängigkeiten). Dadurch stellt D365 sicher, dass die gemeinsame Bibliothek vor dem Formularskript geladen wird.
+5. Bei jedem Formular, das sie verwendet, die gemeinsame Web Resource als **Abhaengigkeit** hinzufuegen (Formulareigenschaften, dann Ereignishandler, dann Abhaengigkeiten). Dadurch stellt D365 sicher, dass die gemeinsame Bibliothek vor dem Formularskript geladen wird.
 
-Dieses Muster vermeidet die Duplizierung von Code über mehrere Bundles.
+Dieses Muster vermeidet die Duplizierung von Code ueber mehrere Bundles.
 
 ---
 
@@ -963,14 +958,14 @@ Installation: `npm install -D @xrmforge/testing`
 
 | Paket | Beschreibung | Status |
 |---------|-------------|--------|
-| `@xrmforge/typegen` | Kern-Engine: Metadaten lesen, Typgenerierung, Web-API-Helfer, Xrm-Konstanten, Action-Runtime, MockValues-Typen | v0.2.0 |
+| `@xrmforge/typegen` | Kern-Engine: Metadaten, Typgenerierung, Web-API-Helfer, Xrm-Konstanten, Action-Runtime, MockValues-Typen, inkrementelle Generierung mit Metadata-Cache | v0.4.0 |
 | `@xrmforge/testing` | Typsicherer Formular-Mock-Builder: `createFormMock()`, `fireOnChange()`, MockAttribute, MockControl, MockUi | v0.1.1 |
-| `@xrmforge/cli` | Kommandozeilenschnittstelle zur Typgenerierung (`--actions`, `--actions-filter`) | v0.2.0 |
+| `@xrmforge/cli` | Kommandozeile: `generate` (mit `--cache`), `build` (mit `--watch`) | v0.3.2 |
 | `@xrmforge/webapi` | Typsicherer Web-API-Client: `retrieve<T>()`, `retrieveMultiple<T>()`, `create()`, `update()`, `remove()`, QueryBuilder | v0.1.0 |
 | `@xrmforge/formhelpers` | TypedForm-Proxy: Direkter Property-Zugriff auf Formularfelder (`form.name.setValue()`) | v0.1.0 |
-| `@xrmforge/devkit` | Projekt-Scaffolding und Build-Konfigurationsvorlagen | Geplant |
-| `@xrmforge/pipeline` | CI/CD-Vorlagen für Azure DevOps und GitHub Actions | Geplant |
-| `@xrmforge/eslint-plugin` | D365-spezifische ESLint-Regeln (z.B. keine rohen `getAttribute`-Strings, keine magischen Zahlen für OptionSets) | Geplant |
+| `@xrmforge/devkit` | Build-Orchestrierung: esbuild IIFE-Bundles fuer D365 WebResources, `xrmforge build`, Watch-Modus | v0.1.0 |
+| `@xrmforge/pipeline` | CI/CD-Vorlagen fuer Azure DevOps und GitHub Actions | Geplant |
+| `@xrmforge/eslint-plugin` | D365-spezifische ESLint-Regeln (z.B. keine rohen `getAttribute`-Strings, keine magischen Zahlen fuer OptionSets) | Geplant |
 
 ---
 
@@ -983,7 +978,7 @@ git clone https://github.com/juergenbeck/XrmForge.git
 cd XrmForge
 pnpm install
 pnpm build
-pnpm test       # 400 Tests über 2 Pakete
+pnpm test       # 616 Tests über 6 Pakete
 pnpm typecheck  # TypeScript Strict Mode
 pnpm lint       # ESLint v9
 ```
@@ -1059,21 +1054,22 @@ Wenn esbuild einen Import nicht auflösen kann:
 
 ## 15. Roadmap
 
-### Ausgeliefert in v0.2.0
+### Ausgeliefert
 
-- **`@xrmforge/testing`** -- Typsicherer Formular-Mock-Builder mit Compile-Time-Feldvalidierung.
-- **Custom-API-Live-Generierung** -- `--actions` Flag fragt customapi/customapirequestparameter/customapiresponseproperty-Tabellen aus Dataverse ab und generiert typisierte Executors. `--actions-filter markant_` filtert auf relevante APIs.
-- **MockValues-Typen** -- Jedes generierte Formular-Interface enthält einen `MockValues`-Typ, der Felder auf ihre JavaScript-Werttypen abbildet, zur Verwendung mit `@xrmforge/testing`.
-- **Lösungsbasierte Erkennung** -- `--solutions Sales,Service` erkennt Entities aus Dataverse-Lösungen automatisch.
+- **`@xrmforge/testing`** (v0.1.1) -- Typsicherer Formular-Mock-Builder mit Compile-Time-Feldvalidierung.
+- **`@xrmforge/webapi`** (v0.1.0) -- Typsicherer Web-API-Client: `retrieve<T>()`, `retrieveMultiple<T>()`, `create()`, `update()`, `remove()`, QueryBuilder mit Pagination.
+- **`@xrmforge/formhelpers`** (v0.1.0) -- TypedForm-Proxy fuer direkten Property-Zugriff auf Formularfelder.
+- **`@xrmforge/devkit`** (v0.1.0) -- Build-Orchestrierung: `xrmforge build` mit IIFE-Bundles, Watch-Modus, deklarativer Config.
+- **Custom-API-Live-Generierung** -- `--actions` generiert typisierte Executors. `--actions-filter` fuer Prefix-Filterung.
+- **Loesungsbasierte Erkennung** -- `--solutions Sales,Service` erkennt Entities aus Dataverse-Loesungen automatisch.
+- **Inkrementelle Generierung** -- `--cache` aktiviert Metadata-Caching mit Delta-Erkennung per `RetrieveMetadataChanges`. 10x schneller bei Folge-Laeufen.
 
 ### Geplant
 
-- **`@xrmforge/webapi`** -- Ein typsicherer Web-API-Client, der generierte Entity-Interfaces für `retrieve`-, `create`-, `update`- und `delete`-Operationen verwendet. Keine untypisierten `Record<string, unknown>`-Antworten mehr.
-- **`@xrmforge/formhelpers`** -- Hilfsfunktionen für häufige Formularskript-Muster: Tab/Abschnitt-Sichtbarkeit, Feldsperrung, Lookup-Filterung, Ribbon-Control.
-- **`@xrmforge/devkit`** -- Projekt-Scaffolding (`xrmforge init`), tsconfig-Vorlagen, Build-Konfiguration und Beispielprojekte.
-- **`@xrmforge/pipeline`** -- Einsatzbereite CI/CD-Pipeline-Vorlagen für Azure DevOps (YAML) und GitHub Actions. Automatisierte Typgenerierung, Typprüfung, Build und Web-Resource-Deployment.
-- **`@xrmforge/eslint-plugin`** -- ESLint-Regeln speziell für die D365-Entwicklung. Warnt vor rohen `getAttribute("string")`-Aufrufen, magischen OptionSet-Zahlen, fehlendem Fehlerhandling in asynchronen Formularhandlern und mehr.
-- **Inkrementelle Generierung** -- Nur Typen für Entities neu generieren, deren Metadaten sich seit dem letzten Lauf geändert haben.
+- **`xrmforge init`** -- Projekt-Scaffolding: tsconfig-Vorlagen, Build-Konfiguration, Beispielprojekte.
+- **`@xrmforge/pipeline`** -- CI/CD-Pipeline-Vorlagen fuer Azure DevOps (YAML) und GitHub Actions.
+- **`@xrmforge/eslint-plugin`** -- ESLint-Regeln speziell fuer D365-Entwicklung.
+- **webpack-Unterstuetzung** -- Tier-2-Bundler fuer Teams mit bestehendem webpack-Setup.
 
 ---
 
