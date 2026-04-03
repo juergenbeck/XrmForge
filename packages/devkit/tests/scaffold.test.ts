@@ -39,7 +39,9 @@ describe('scaffoldProject', () => {
     expect(result.filesCreated).toContain('src/forms/example-form.ts');
     expect(result.filesCreated).toContain('typings/.gitkeep');
     expect(result.filesCreated).toContain('tests/forms/example-form.test.ts');
-    expect(result.filesCreated).toHaveLength(8);
+    expect(result.filesCreated).toContain('.github/workflows/ci.yml');
+    expect(result.filesCreated).toContain('azure-pipelines.yml');
+    expect(result.filesCreated).toHaveLength(10);
   });
 
   it('should use project name in package.json', async () => {
@@ -128,6 +130,41 @@ describe('scaffoldProject', () => {
     expect(tsconfig.compilerOptions.strict).toBe(true);
   });
 
+  it('should generate GitHub Actions CI workflow', async () => {
+    const dir = await createTmpDir();
+
+    await scaffoldProject({
+      targetDir: dir,
+      projectName: 'test',
+      prefix: 'contoso',
+      namespace: 'Contoso',
+    });
+
+    const ci = await fs.readFile(path.join(dir, '.github/workflows/ci.yml'), 'utf-8');
+    expect(ci).toContain('xrmforge generate');
+    expect(ci).toContain('xrmforge build');
+    expect(ci).toContain('vitest run');
+    expect(ci).toContain('tsc --noEmit');
+    expect(ci).toContain('XRMFORGE_CLIENT_ID');
+  });
+
+  it('should generate Azure DevOps pipeline', async () => {
+    const dir = await createTmpDir();
+
+    await scaffoldProject({
+      targetDir: dir,
+      projectName: 'test',
+      prefix: 'contoso',
+      namespace: 'Contoso',
+    });
+
+    const pipeline = await fs.readFile(path.join(dir, 'azure-pipelines.yml'), 'utf-8');
+    expect(pipeline).toContain('xrmforge generate');
+    expect(pipeline).toContain('xrmforge build');
+    expect(pipeline).toContain('ubuntu-latest');
+    expect(pipeline).toContain('XRMFORGE_TENANT_ID');
+  });
+
   it('should throw when directory is not empty', async () => {
     const dir = await createTmpDir();
     await fs.writeFile(path.join(dir, 'existing-file.txt'), 'content');
@@ -164,7 +201,7 @@ describe('scaffoldProject', () => {
       namespace: 'Contoso',
     });
 
-    expect(result.filesCreated.length).toBe(8);
+    expect(result.filesCreated.length).toBe(10);
     const exists = await fs.access(path.join(dir, 'package.json')).then(() => true).catch(() => false);
     expect(exists).toBe(true);
   });

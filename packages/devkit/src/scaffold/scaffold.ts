@@ -81,6 +81,8 @@ function generateTemplates(config: ScaffoldConfig): Array<[string, string]> {
     ['src/forms/example-form.ts', generateExampleForm(namespace)],
     ['typings/.gitkeep', ''],
     ['tests/forms/example-form.test.ts', generateExampleTest(namespace)],
+    ['.github/workflows/ci.yml', generateGitHubActionsCI()],
+    ['azure-pipelines.yml', generateAzureDevOpsPipeline()],
   ];
 }
 
@@ -248,5 +250,81 @@ describe('${namespace}.Example', () => {
     expect(typeof mod.onSave).toBe('function');
   });
 });
+`;
+}
+
+function generateGitHubActionsCI(): string {
+  return `name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Generate types from Dataverse
+        run: npx xrmforge generate --from-config
+        env:
+          XRMFORGE_CLIENT_ID: \${{ secrets.XRMFORGE_CLIENT_ID }}
+          XRMFORGE_CLIENT_SECRET: \${{ secrets.XRMFORGE_CLIENT_SECRET }}
+          XRMFORGE_TENANT_ID: \${{ secrets.XRMFORGE_TENANT_ID }}
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npx vitest run
+
+      - name: Build WebResources
+        run: npx xrmforge build
+`;
+}
+
+function generateAzureDevOpsPipeline(): string {
+  return `trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '20.x'
+    displayName: 'Install Node.js'
+
+  - script: npm ci
+    displayName: 'Install dependencies'
+
+  - script: npx xrmforge generate --from-config
+    displayName: 'Generate types from Dataverse'
+    env:
+      XRMFORGE_CLIENT_ID: \$(XRMFORGE_CLIENT_ID)
+      XRMFORGE_CLIENT_SECRET: \$(XRMFORGE_CLIENT_SECRET)
+      XRMFORGE_TENANT_ID: \$(XRMFORGE_TENANT_ID)
+
+  - script: npx tsc --noEmit
+    displayName: 'Type check'
+
+  - script: npx vitest run
+    displayName: 'Test'
+
+  - script: npx xrmforge build
+    displayName: 'Build WebResources'
 `;
 }
