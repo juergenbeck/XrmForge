@@ -129,6 +129,75 @@ describe('no-sync-webapi', () => {
   });
 });
 
+// ─── require-error-handling ─────────────────────────────────────────────────
+
+describe('require-error-handling', () => {
+  const rules = { '@xrmforge/require-error-handling': 'warn' as const };
+
+  it('should warn on async onLoad without try/catch', () => {
+    const messages = lint('export async function onLoad(ctx) { await fetch("/api"); }', rules);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]!.messageId).toBe('requireTryCatch');
+  });
+
+  it('should warn on async onChange without try/catch', () => {
+    const messages = lint('export async function onChange(ctx) { await doSomething(); }', rules);
+    expect(messages).toHaveLength(1);
+  });
+
+  it('should not warn when try/catch is present', () => {
+    const messages = lint('export async function onLoad(ctx) { try { await fetch("/api"); } catch(e) { console.error(e); } }', rules);
+    expect(messages).toHaveLength(0);
+  });
+
+  it('should not warn on non-async onLoad', () => {
+    const messages = lint('export function onLoad(ctx) { doSync(); }', rules);
+    expect(messages).toHaveLength(0);
+  });
+
+  it('should not warn on async functions not starting with "on"', () => {
+    const messages = lint('export async function fetchData() { await fetch("/api"); }', rules);
+    expect(messages).toHaveLength(0);
+  });
+
+  it('should not warn on non-exported async on* functions', () => {
+    const messages = lint('async function onLoad(ctx) { await fetch("/api"); }', rules);
+    expect(messages).toHaveLength(0);
+  });
+});
+
+// ─── require-namespace ─────────────────────────────────────────────────────
+
+describe('require-namespace', () => {
+  const rules = { '@xrmforge/require-namespace': 'warn' as const };
+
+  it('should warn on window.onLoad assignment', () => {
+    const messages = lint('window.onLoad = function() {};', rules);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]!.messageId).toBe('noGlobalAssignment');
+  });
+
+  it('should warn on globalThis assignment', () => {
+    const messages = lint('globalThis.myHandler = () => {};', rules);
+    expect(messages).toHaveLength(1);
+  });
+
+  it('should warn on self assignment', () => {
+    const messages = lint('self.handler = function() {};', rules);
+    expect(messages).toHaveLength(1);
+  });
+
+  it('should not warn on module exports', () => {
+    const messages = lint('export function onLoad() {}', rules);
+    expect(messages).toHaveLength(0);
+  });
+
+  it('should not warn on regular object assignment', () => {
+    const messages = lint('const obj = {}; obj.handler = () => {};', rules);
+    expect(messages).toHaveLength(0);
+  });
+});
+
 // ─── plugin structure ──────────────────────────────────────────────────────
 
 describe('plugin', () => {
@@ -136,6 +205,8 @@ describe('plugin', () => {
     expect(plugin.rules['no-xrm-page']).toBeDefined();
     expect(plugin.rules['no-magic-optionset']).toBeDefined();
     expect(plugin.rules['no-sync-webapi']).toBeDefined();
+    expect(plugin.rules['require-error-handling']).toBeDefined();
+    expect(plugin.rules['require-namespace']).toBeDefined();
   });
 
   it('should export recommended config', () => {
@@ -144,6 +215,6 @@ describe('plugin', () => {
 
   it('should have meta with name and version', () => {
     expect(plugin.meta.name).toBe('@xrmforge/eslint-plugin');
-    expect(plugin.meta.version).toBe('0.1.0');
+    expect(plugin.meta.version).toBe('0.2.0');
   });
 });
