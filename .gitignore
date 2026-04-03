@@ -21,6 +21,10 @@ dist/
 .DS_Store
 Thumbs.db
 
+# XrmForge cache and test output
+.xrmforge/
+test-output/
+
 # Turbo
 .turbo/
 
