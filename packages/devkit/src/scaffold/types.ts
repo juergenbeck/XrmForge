@@ -12,6 +12,8 @@ export interface ScaffoldConfig {
   prefix: string;
   /** Base namespace for form scripts (e.g. "Contoso") */
   namespace: string;
+  /** Allow scaffolding in non-empty directories (skip existing files) */
+  force?: boolean;
 }
 
 /** Result of scaffolding a project */

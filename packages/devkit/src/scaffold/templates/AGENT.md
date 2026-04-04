@@ -86,7 +86,7 @@ if (val && val.length > 0) {
 }
 
 // CORRECT
-import { parseLookup } from '@xrmforge/typegen';
+import { parseLookup } from '@xrmforge/typegen/helpers';
 const customer = parseLookup(form.getAttribute(Fields.CustomerId));
 if (customer) { console.log(customer.id); }
 ```
@@ -98,7 +98,7 @@ if (customer) { console.log(customer.id); }
 "?$select=name,revenue,statuscode"
 
 // CORRECT - typed, refactor-safe
-import { select } from '@xrmforge/typegen';
+import { select } from '@xrmforge/typegen/helpers';
 import { AccountFields } from '../../typings/entities/account';
 `?$select=${select(AccountFields.Name, AccountFields.Revenue, AccountFields.StatusCode)}`
 ```

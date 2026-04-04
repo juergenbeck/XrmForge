@@ -4,7 +4,7 @@
  * Generates a complete D365 form scripting project from templates.
  */
 
-import { mkdir, writeFile, readdir } from 'node:fs/promises';
+import { mkdir, writeFile, readdir, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ScaffoldConfig, ScaffoldResult } from './types.js';
 import { BuildError, BuildErrorCode } from '../errors.js';
@@ -30,12 +30,12 @@ export async function scaffoldProject(config: ScaffoldConfig): Promise<ScaffoldR
   // Check if directory is empty (ignore dotfiles and node_modules)
   const existing = await readdir(targetDir);
   const nonDotFiles = existing.filter((f) => !f.startsWith('.') && f !== 'node_modules');
-  if (nonDotFiles.length > 0) {
+  if (nonDotFiles.length > 0 && !config.force) {
     throw new BuildError(
       BuildErrorCode.CONFIG_INVALID,
       `Target directory is not empty: ${targetDir}\n` +
         `Found: ${nonDotFiles.slice(0, 5).join(', ')}${nonDotFiles.length > 5 ? '...' : ''}\n` +
-        `Use an empty directory or remove existing files first.`,
+        `Use --force to scaffold anyway (existing files will be skipped).`,
       { targetDir, existingFiles: nonDotFiles },
     );
   }
@@ -57,6 +57,18 @@ export async function scaffoldProject(config: ScaffoldConfig): Promise<ScaffoldR
   for (const [relativePath, content] of templates) {
     const absolutePath = join(targetDir, relativePath);
     await mkdir(join(absolutePath, '..'), { recursive: true });
+
+    // In force mode: skip files that already exist
+    if (config.force) {
+      try {
+        await access(absolutePath);
+        warnings.push(`Skipped ${relativePath} (already exists)`);
+        continue;
+      } catch {
+        // File doesn't exist, proceed with write
+      }
+    }
+
     await writeFile(absolutePath, content, 'utf-8');
     filesCreated.push(relativePath);
   }
@@ -224,9 +236,11 @@ Run \`xrmforge generate\` to create:
 4. **EntityNames Enum** for Web API calls:
    \`Xrm.WebApi.retrieveRecord(EntityNames.Account, id)\`
 
-5. **parseLookup()** from @xrmforge/typegen for lookup values
+5. **parseLookup()** from @xrmforge/typegen/helpers for lookup values
+   IMPORTANT: Use \`@xrmforge/typegen/helpers\` (not \`@xrmforge/typegen\`) in browser code.
+   The main entry point pulls in Node.js dependencies that break esbuild bundles.
 
-6. **select()** from @xrmforge/typegen for $select queries
+6. **select()** from @xrmforge/typegen/helpers for $select queries
 
 7. **createFormMock()** from @xrmforge/testing for tests
 

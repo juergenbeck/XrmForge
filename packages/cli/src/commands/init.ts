@@ -21,6 +21,7 @@ interface InitOptions {
   prefix: string;
   namespace?: string;
   skipInstall: boolean;
+  force: boolean;
 }
 
 /**
@@ -35,6 +36,7 @@ export function registerInitCommand(program: Command): void {
     .option('--prefix <prefix>', 'Publisher prefix for D365 WebResources', 'contoso')
     .option('--namespace <ns>', 'Base namespace for form scripts (default: PascalCase of prefix)')
     .option('--skip-install', 'Skip running npm install after scaffolding', false)
+    .option('--force', 'Allow scaffolding in non-empty directories (skip existing files)', false)
 
     .action(async (dir: string | undefined, opts: InitOptions) => {
       try {
@@ -73,6 +75,7 @@ async function runInit(dir: string | undefined, opts: InitOptions): Promise<void
     projectName,
     prefix,
     namespace,
+    force: opts.force,
   });
 
   console.log(`Created ${result.filesCreated.length} files:`);
