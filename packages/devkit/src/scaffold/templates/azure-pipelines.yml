@@ -1,0 +1,32 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '20.x'
+    displayName: 'Install Node.js'
+
+  - script: npm ci
+    displayName: 'Install dependencies'
+
+  - script: npx xrmforge generate --from-config
+    displayName: 'Generate types from Dataverse'
+    env:
+      XRMFORGE_CLIENT_ID: $(XRMFORGE_CLIENT_ID)
+      XRMFORGE_CLIENT_SECRET: $(XRMFORGE_CLIENT_SECRET)
+      XRMFORGE_TENANT_ID: $(XRMFORGE_TENANT_ID)
+
+  - script: npx tsc --noEmit
+    displayName: 'Type check'
+
+  - script: npx vitest run
+    displayName: 'Test'
+
+  - script: npx xrmforge build
+    displayName: 'Build WebResources'

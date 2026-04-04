@@ -33,7 +33,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/copy-templates.mjs",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",

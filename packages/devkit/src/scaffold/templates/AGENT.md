@@ -1,186 +1,98 @@
 # XrmForge - AI Agent Instructions
 
-This file helps AI coding assistants (Claude, ChatGPT, Copilot, Cursor, etc.)
-write optimal Dynamics 365 form scripts using the XrmForge framework.
+This file helps AI coding assistants write optimal Dynamics 365 form scripts.
 
-## What is XrmForge?
+## Packages
 
-XrmForge generates TypeScript declarations from Dynamics 365 Dataverse metadata.
-It turns runtime errors into compile-time errors. Every field name, OptionSet value,
-tab name, and subgrid name becomes a typed constant with IDE autocomplete.
+- `@xrmforge/typegen` - Generates typed declarations from Dataverse metadata
+- `@xrmforge/testing` - Type-safe form mocks: createFormMock(), fireOnChange()
+- `@xrmforge/formhelpers` - typedForm() proxy for direct field access
+- `@xrmforge/devkit` - esbuild IIFE bundles via xrmforge build
+- `@xrmforge/eslint-plugin` - D365-specific ESLint rules
 
-## Available Packages
+## Generated Types (typings/ directory)
 
-```
-@xrmforge/cli          - CLI: generate types, build WebResources, scaffold projects
-@xrmforge/typegen      - Core: type generation engine, Web API helpers, Xrm constants
-@xrmforge/testing      - Test: createFormMock(), fireOnChange(), type-safe mocks
-@xrmforge/formhelpers  - Runtime: typedForm() proxy for direct field access
-@xrmforge/devkit       - Build: esbuild IIFE bundles, project scaffolding
-@xrmforge/eslint-plugin - Lint: D365-specific ESLint rules
-```
-
-## Generated Types (in typings/ directory)
-
-After running `xrmforge generate`, these files exist:
-
+Run `xrmforge generate` to create:
+- `typings/forms/{entity}.d.ts` - Form interface + Fields/Tabs/Sections/Subgrids enums
+- `typings/optionsets/{entity}.d.ts` - OptionSet const enums
 - `typings/entities/{entity}.d.ts` - Entity interface + Fields enum
-- `typings/forms/{entity}.d.ts` - Form interface + Fields enum + Tabs/Sections/Subgrids enums
-- `typings/optionsets/{entity}.d.ts` - OptionSet const enums with labels
 - `typings/entity-names.d.ts` - EntityNames const enum
 
-## RULES: Always Do This
+## Rules: Always
 
-### 1. Use Fields Enum for getAttribute/getControl
+1. **Fields Enum** for getAttribute/getControl (not raw strings):
+   `form.getAttribute(Fields.AccountName)` not `form.getAttribute("name")`
 
+2. **OptionSet Enum** for comparisons (not magic numbers):
+   `status === StatusCode.Active` not `status === 0`
+
+3. **Cast formContext** to generated form interface:
+   `const form = ctx.getFormContext() as AccountMainForm;`
+
+4. **EntityNames Enum** for Web API calls:
+   `Xrm.WebApi.retrieveRecord(EntityNames.Account, id)`
+
+5. **parseLookup()** from @xrmforge/typegen/helpers for lookup values
+   IMPORTANT: Use `@xrmforge/typegen/helpers` (not `@xrmforge/typegen`) in browser code.
+   The main entry point pulls in Node.js dependencies that break esbuild bundles.
+
+6. **select()** from @xrmforge/typegen/helpers for $select queries
+
+7. **createFormMock()** from @xrmforge/testing for tests
+
+8. **Module exports** (not window/global assignments). esbuild globalName handles namespacing.
+
+9. **Tabs/Sections/Subgrids Enums** for UI access
+
+10. **Error handling** in all async event handlers (try/catch)
+
+## Rules: Never
+
+- Never `getAttribute("raw_string")` when Fields enum exists
+- Never magic numbers for OptionSet values
+- Never `Xrm.Page` (deprecated since D365 v9.0)
+- Never synchronous XMLHttpRequest
+- Never `eval()`
+- Never `window.X = ...` (use module exports)
+
+## Before/After Examples
+
+### Field Access
 ```typescript
-// WRONG - raw string, no compile-time check, typos pass silently
-const name = formContext.getAttribute("name");
-
-// CORRECT - Fields enum, compile error on typo, autocomplete
-import { AccountMainFormFieldsEnum as Fields } from '../../typings/forms/account';
-const name = form.getAttribute(Fields.AccountName);
+// BEFORE: formContext.getAttribute("name").getValue()
+// AFTER:
+import { AccountMainFormFieldsEnum as Fields } from '../typings/forms/account';
+const form = ctx.getFormContext() as AccountMainForm;
+form.getAttribute(Fields.AccountName).getValue();  // StringAttribute, typed
 ```
 
-### 2. Use OptionSet Enums for Comparisons (No Magic Numbers)
-
+### OptionSet Comparison
 ```typescript
-// WRONG - magic number, nobody knows what 595300002 means
-if (status.getValue() === 595300002) { ... }
-
-// CORRECT - const enum, self-documenting, zero runtime overhead
-import { StatusCode } from '../../typings/optionsets/account';
+// BEFORE: if (status.getValue() === 595300002) { ... }
+// AFTER:
+import { StatusCode } from '../typings/optionsets/invoice';
 if (status.getValue() === StatusCode.Gebucht) { ... }
 ```
 
-### 3. Cast formContext to the Generated Form Interface
-
+### Testing
 ```typescript
-// WRONG - generic FormContext, no field validation
-const formContext = executionContext.getFormContext();
-formContext.getAttribute("nonexistent_field"); // no error!
-
-// CORRECT - typed form, only real fields compile
-const form = executionContext.getFormContext() as AccountMainForm;
-form.getAttribute("nonexistent_field"); // COMPILE ERROR
-```
-
-### 4. Use EntityNames Enum for Web API Calls
-
-```typescript
-// WRONG
-Xrm.WebApi.retrieveRecord("account", id);
-
-// CORRECT
-import { EntityNames } from '../../typings/entity-names';
-Xrm.WebApi.retrieveRecord(EntityNames.Account, id);
-```
-
-### 5. Use parseLookup for Lookup Values
-
-```typescript
-// WRONG - manual null check, GUID cleanup
-const val = formContext.getAttribute("customerid").getValue();
-if (val && val.length > 0) {
-  const id = val[0].id.replace("{","").replace("}","");
-}
-
-// CORRECT
-import { parseLookup } from '@xrmforge/typegen/helpers';
-const customer = parseLookup(form.getAttribute(Fields.CustomerId));
-if (customer) { console.log(customer.id); }
-```
-
-### 6. Use select() for Web API $select
-
-```typescript
-// WRONG - raw strings in $select
-"?$select=name,revenue,statuscode"
-
-// CORRECT - typed, refactor-safe
-import { select } from '@xrmforge/typegen/helpers';
-import { AccountFields } from '../../typings/entities/account';
-`?$select=${select(AccountFields.Name, AccountFields.Revenue, AccountFields.StatusCode)}`
-```
-
-### 7. Write Tests with @xrmforge/testing
-
-```typescript
-import { describe, it, expect } from 'vitest';
-import { createFormMock, fireOnChange } from '@xrmforge/testing';
-import type { AccountMainForm, AccountMainFormMockValues } from '../../typings/forms/account';
-import { onLoad } from '../src/forms/account-form';
-
-describe('Account onLoad', () => {
-  it('should show revenue for active accounts', () => {
-    const mock = createFormMock<AccountMainForm, AccountMainFormMockValues>({
-      name: 'Contoso Ltd',
-      statuscode: 0,  // Active
-      revenue: 1000000,
-    });
-
-    onLoad(mock.executionContext);
-
-    expect(mock.formContext.getControl('revenue').getVisible()).toBe(true);
-  });
+import { createFormMock } from '@xrmforge/testing';
+const mock = createFormMock<AccountMainForm, AccountMainFormMockValues>({
+  name: 'Test', statuscode: 0
 });
+onLoad(mock.executionContext);
+expect(mock.formContext.getControl('revenue').getVisible()).toBe(true);
 ```
 
-### 8. Export Functions (Not Namespace Objects)
+## File Structure
 
-```typescript
-// WRONG - manual namespace pattern
-window.Contoso = window.Contoso || {};
-window.Contoso.Account = { onLoad: function() { ... } };
-
-// CORRECT - module exports, esbuild creates the namespace via globalName
-export function onLoad(executionContext: Xrm.Events.EventContext): void {
-  // ...
-}
-export function onSave(executionContext: Xrm.Events.EventContext): void {
-  // ...
-}
 ```
-
-The build config in xrmforge.config.json defines the globalName (e.g. "Contoso.Account").
-
-### 9. Use Tabs/Sections/Subgrids Enums
-
-```typescript
-// WRONG
-formContext.ui.tabs.get("SUMMARY_TAB");
-formContext.getControl("MySubgrid");
-
-// CORRECT
-import { AccountMainFormTabs as Tabs } from '../../typings/forms/account';
-import { AccountMainFormSubgrids as Subgrids } from '../../typings/forms/account';
-form.ui.tabs.get(Tabs.SUMMARYTAB);
-form.getControl(Subgrids.MySubgrid);
+src/forms/{entity}-form.ts       - Form scripts (one per entity)
+src/shared/{name}.ts             - Shared utilities
+typings/                         - Generated types (do not edit manually)
+tests/forms/{entity}.test.ts     - Tests
+xrmforge.config.json             - Build config
 ```
-
-### 10. No Xrm.Page (Deprecated Since D365 v9.0)
-
-```typescript
-// WRONG - deprecated since 2017
-Xrm.Page.getAttribute("name");
-Xrm.Page.data.save();
-
-// CORRECT
-const form = executionContext.getFormContext();
-form.getAttribute("name");
-form.data.save();
-```
-
-## RULES: Never Do This
-
-- Never use `getAttribute("raw_string")` when a Fields enum exists
-- Never use magic numbers for OptionSet values
-- Never use `Xrm.Page` (deprecated)
-- Never use synchronous XMLHttpRequest
-- Never use `eval()`
-- Never use `any` type without explicit justification
-- Never skip error handling in async event handlers
-- Never write `window.X = ...` (use module exports + esbuild globalName)
 
 ## Pattern Recognition: Legacy to XrmForge
 
@@ -189,23 +101,41 @@ When you see these patterns in legacy code, apply the XrmForge replacement:
 | Legacy Pattern | XrmForge Replacement |
 |---|---|
 | `getAttribute("name")` | `getAttribute(Fields.Name)` |
+| `getControl("name")` | `getControl(Fields.Name)` |
 | `getValue() === 595300000` | `getValue() === OptionSets.StatusCode.Active` |
 | `Xrm.WebApi.retrieveRecord("account", id)` | `Xrm.WebApi.retrieveRecord(EntityNames.Account, id)` |
-| `"?$select=name,revenue"` | `select(Fields.Name, Fields.Revenue)` from typegen/helpers |
-| `value[0].id.replace("{","")...` | `parseLookup(...)` from typegen/helpers |
+| `"?$select=name,revenue"` | `select(Fields.Name, Fields.Revenue)` (from typegen/helpers) |
+| `value[0].id.replace("{","")...` | `parseLookup(form.getAttribute(Fields.X))` (from typegen/helpers) |
 | `Xrm.Page.getAttribute(...)` | `formContext.getAttribute(...)` |
 | `var formContext` (global) | `const form = ctx.getFormContext()` (parameter) |
+| `function form_OnLoad(ctx)` | `export function onLoad(ctx: Xrm.Events.EventContext)` |
 | `.then(success, error)` | `async/await with try/catch` |
 
-### Creating OptionSet Enums from Magic Numbers
+### Creating OptionSet Enums from Legacy Magic Numbers
 
-When you find `getValue() === 105710002` in legacy code:
-1. Collect ALL numeric comparisons with getValue()
-2. Create a const enum in typings/optionsets/
-3. Replace every magic number with the enum member
+When you find magic numbers like `getValue() === 105710002` in legacy code:
+1. Search the file for ALL numeric comparisons with getValue()
+2. Create a const enum in typings/optionsets/ with descriptive names
+3. Import and use the enum instead of the number
+
+Example:
+```typescript
+// typings/optionsets/invoice.ts
+export const enum InvoiceStatusCode {
+  Neu = 1,
+  Versendet = 105710000,
+  Abgeschlossen = 105710001,
+  Gebucht = 105710002,
+}
+
+// In the form script:
+import { InvoiceStatusCode } from '../../typings/optionsets/invoice';
+if (status.getValue() === InvoiceStatusCode.Gebucht) { ... }
+```
 
 ## Testing with Global Xrm Mock
 
+Use `setupXrmMock()` from @xrmforge/testing to mock the global Xrm namespace:
 ```typescript
 import { createFormMock, setupXrmMock, teardownXrmMock } from '@xrmforge/testing';
 
@@ -222,19 +152,36 @@ setupXrmMock({
 
 ## Build
 
-All build config lives in `xrmforge.config.json`. No esbuild.config.ts needed.
-
 ```bash
-npx xrmforge build          # Build all entries as IIFE bundles
-npx xrmforge build --watch  # Watch mode (~10ms rebuilds)
+npx xrmforge build               # IIFE bundles for D365
+npx xrmforge build --watch        # Watch mode (~10ms rebuilds)
 ```
 
-## File Structure
+## @types/xrm Pitfalls (known issues)
 
-```
-src/forms/{entity}-form.ts     - One file per entity form
-src/shared/{name}.ts           - Shared utilities
-typings/                       - Generated types (do not edit)
-tests/forms/{entity}.test.ts   - Tests per entity
-xrmforge.config.json           - Build + generate config
-```
+When creating manual typings without `xrmforge generate`:
+
+1. **Form Interface:** Do NOT use `interface extends Xrm.FormContext` (getAttribute overload conflicts).
+   Use `Omit` pattern instead:
+   ```typescript
+   interface AccountMainForm extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> {
+     getAttribute(name: Fields.AccountName): Xrm.Attributes.StringAttribute;
+     getAttribute(name: string): Xrm.Attributes.Attribute;
+     // ...
+   }
+   ```
+
+2. **AlertDialogResponse** does NOT exist in @types/xrm. Use `Xrm.Async.PromiseLike<void>`.
+
+3. **ConfirmDialogResponse** does NOT exist. Use `Xrm.Navigation.ConfirmResult`.
+
+4. **setNotification()** requires 2 arguments: (message, uniqueId).
+
+5. **openFile()** requires `fileSize` property in FileDetails.
+
+6. **const enum in .d.ts files** cannot be imported at runtime by test frameworks.
+   For manual typings, use regular `enum` in `.ts` files (not `.d.ts`).
+
+## Full Migration Guide
+
+See: https://www.npmjs.com/package/@xrmforge/typegen (MIGRATION.md)

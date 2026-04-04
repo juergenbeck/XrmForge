@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Generate types from Dataverse
+        run: npx xrmforge generate --from-config
+        env:
+          XRMFORGE_CLIENT_ID: ${{ secrets.XRMFORGE_CLIENT_ID }}
+          XRMFORGE_CLIENT_SECRET: ${{ secrets.XRMFORGE_CLIENT_SECRET }}
+          XRMFORGE_TENANT_ID: ${{ secrets.XRMFORGE_TENANT_ID }}
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npx vitest run
+
+      - name: Build WebResources
+        run: npx xrmforge build

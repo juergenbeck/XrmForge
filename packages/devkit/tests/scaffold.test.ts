@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { scaffoldProject } from '../src/scaffold/scaffold.js';
+import { loadTemplate } from '../src/scaffold/template-loader.js';
 import { BuildError } from '../src/errors.js';
 
 let tmpDirs: string[] = [];
@@ -147,6 +148,11 @@ describe('scaffoldProject', () => {
     expect(agent).toContain('createFormMock');
     expect(agent).toContain('Never');
     expect(agent).toContain('xrmforge build');
+    expect(agent).toContain('Pattern Recognition');
+    expect(agent).toContain('setupXrmMock');
+    expect(agent).toContain('@types/xrm Pitfalls');
+    expect(agent).toContain('parseLookup');
+    expect(agent).toContain('typegen/helpers');
   });
 
   it('should generate GitHub Actions CI workflow', async () => {
@@ -239,5 +245,29 @@ describe('scaffoldProject', () => {
     expect(pkg.devDependencies['@xrmforge/cli']).toBeDefined();
     expect(pkg.devDependencies['@xrmforge/testing']).toBeDefined();
     expect(pkg.devDependencies['@types/xrm']).toBeDefined();
+  });
+});
+
+describe('loadTemplate', () => {
+  it('should load a template without variables', async () => {
+    const content = await loadTemplate('gitignore');
+    expect(content).toContain('node_modules/');
+    expect(content).toContain('dist/');
+  });
+
+  it('should substitute variables in templates', async () => {
+    const content = await loadTemplate('example-form.ts', { namespace: 'TestNS' });
+    expect(content).toContain('TestNS.Example.onLoad');
+    expect(content).not.toContain('{{namespace}}');
+  });
+
+  it('should return template unchanged when no vars provided', async () => {
+    const content = await loadTemplate('AGENT.md');
+    expect(content).toContain('XrmForge');
+    expect(content).not.toContain('{{');
+  });
+
+  it('should throw for non-existent template', async () => {
+    await expect(loadTemplate('does-not-exist.txt')).rejects.toThrow();
   });
 });
