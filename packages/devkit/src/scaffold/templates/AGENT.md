@@ -182,6 +182,44 @@ form.data.save();
 - Never skip error handling in async event handlers
 - Never write `window.X = ...` (use module exports + esbuild globalName)
 
+## Pattern Recognition: Legacy to XrmForge
+
+When you see these patterns in legacy code, apply the XrmForge replacement:
+
+| Legacy Pattern | XrmForge Replacement |
+|---|---|
+| `getAttribute("name")` | `getAttribute(Fields.Name)` |
+| `getValue() === 595300000` | `getValue() === OptionSets.StatusCode.Active` |
+| `Xrm.WebApi.retrieveRecord("account", id)` | `Xrm.WebApi.retrieveRecord(EntityNames.Account, id)` |
+| `"?$select=name,revenue"` | `select(Fields.Name, Fields.Revenue)` from typegen/helpers |
+| `value[0].id.replace("{","")...` | `parseLookup(...)` from typegen/helpers |
+| `Xrm.Page.getAttribute(...)` | `formContext.getAttribute(...)` |
+| `var formContext` (global) | `const form = ctx.getFormContext()` (parameter) |
+| `.then(success, error)` | `async/await with try/catch` |
+
+### Creating OptionSet Enums from Magic Numbers
+
+When you find `getValue() === 105710002` in legacy code:
+1. Collect ALL numeric comparisons with getValue()
+2. Create a const enum in typings/optionsets/
+3. Replace every magic number with the enum member
+
+## Testing with Global Xrm Mock
+
+```typescript
+import { createFormMock, setupXrmMock, teardownXrmMock } from '@xrmforge/testing';
+
+beforeEach(() => setupXrmMock());
+afterEach(() => teardownXrmMock());
+
+// Override specific WebApi methods:
+setupXrmMock({
+  webApiOverrides: {
+    retrieveMultipleRecords: async () => ({ entities: [{ name: 'Test' }] }),
+  },
+});
+```
+
 ## Build
 
 All build config lives in `xrmforge.config.json`. No esbuild.config.ts needed.

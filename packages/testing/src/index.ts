@@ -15,3 +15,5 @@ export { MockUi } from './mock-ui.js';
 export type { FormNotification } from './mock-ui.js';
 export { MockEventContext } from './mock-event-context.js';
 export type { CreateFormMockOptions, FormMock } from './types.js';
+export { setupXrmMock, teardownXrmMock } from './setup-xrm-mock.js';
+export type { SetupXrmMockOptions } from './setup-xrm-mock.js';

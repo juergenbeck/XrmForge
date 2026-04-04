@@ -298,6 +298,62 @@ tests/forms/{entity}.test.ts     - Tests
 xrmforge.config.json             - Build config
 \`\`\`
 
+## Pattern Recognition: Legacy to XrmForge
+
+When you see these patterns in legacy code, apply the XrmForge replacement:
+
+| Legacy Pattern | XrmForge Replacement |
+|---|---|
+| \`getAttribute("name")\` | \`getAttribute(Fields.Name)\` |
+| \`getControl("name")\` | \`getControl(Fields.Name)\` |
+| \`getValue() === 595300000\` | \`getValue() === OptionSets.StatusCode.Active\` |
+| \`Xrm.WebApi.retrieveRecord("account", id)\` | \`Xrm.WebApi.retrieveRecord(EntityNames.Account, id)\` |
+| \`"?$select=name,revenue"\` | \`select(Fields.Name, Fields.Revenue)\` (from typegen/helpers) |
+| \`value[0].id.replace("{","")...\` | \`parseLookup(form.getAttribute(Fields.X))\` (from typegen/helpers) |
+| \`Xrm.Page.getAttribute(...)\` | \`formContext.getAttribute(...)\` |
+| \`var formContext\` (global) | \`const form = ctx.getFormContext()\` (parameter) |
+| \`function form_OnLoad(ctx)\` | \`export function onLoad(ctx: Xrm.Events.EventContext)\` |
+| \`.then(success, error)\` | \`async/await with try/catch\` |
+
+### Creating OptionSet Enums from Legacy Magic Numbers
+
+When you find magic numbers like \`getValue() === 105710002\` in legacy code:
+1. Search the file for ALL numeric comparisons with getValue()
+2. Create a const enum in typings/optionsets/ with descriptive names
+3. Import and use the enum instead of the number
+
+Example:
+\`\`\`typescript
+// typings/optionsets/invoice.ts
+export const enum InvoiceStatusCode {
+  Neu = 1,
+  Versendet = 105710000,
+  Abgeschlossen = 105710001,
+  Gebucht = 105710002,
+}
+
+// In the form script:
+import { InvoiceStatusCode } from '../../typings/optionsets/invoice';
+if (status.getValue() === InvoiceStatusCode.Gebucht) { ... }
+\`\`\`
+
+## Testing with Global Xrm Mock
+
+Use \`setupXrmMock()\` from @xrmforge/testing to mock the global Xrm namespace:
+\`\`\`typescript
+import { createFormMock, setupXrmMock, teardownXrmMock } from '@xrmforge/testing';
+
+beforeEach(() => setupXrmMock());
+afterEach(() => teardownXrmMock());
+
+// Override specific WebApi methods:
+setupXrmMock({
+  webApiOverrides: {
+    retrieveMultipleRecords: async () => ({ entities: [{ name: 'Test' }] }),
+  },
+});
+\`\`\`
+
 ## Build
 
 \`\`\`bash
