@@ -305,6 +305,31 @@ npx xrmforge build               # IIFE bundles for D365
 npx xrmforge build --watch        # Watch mode (~10ms rebuilds)
 \`\`\`
 
+## @types/xrm Pitfalls (known issues)
+
+When creating manual typings without \`xrmforge generate\`:
+
+1. **Form Interface:** Do NOT use \`interface extends Xrm.FormContext\` (getAttribute overload conflicts).
+   Use \`Omit\` pattern instead:
+   \`\`\`typescript
+   interface AccountMainForm extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> {
+     getAttribute(name: Fields.AccountName): Xrm.Attributes.StringAttribute;
+     getAttribute(name: string): Xrm.Attributes.Attribute;
+     // ...
+   }
+   \`\`\`
+
+2. **AlertDialogResponse** does NOT exist in @types/xrm. Use \`Xrm.Async.PromiseLike<void>\`.
+
+3. **ConfirmDialogResponse** does NOT exist. Use \`Xrm.Navigation.ConfirmResult\`.
+
+4. **setNotification()** requires 2 arguments: (message, uniqueId).
+
+5. **openFile()** requires \`fileSize\` property in FileDetails.
+
+6. **const enum in .d.ts files** cannot be imported at runtime by test frameworks.
+   For manual typings, use regular \`enum\` in \`.ts\` files (not \`.d.ts\`).
+
 ## Full Migration Guide
 
 See: https://www.npmjs.com/package/@xrmforge/typegen (MIGRATION.md)
