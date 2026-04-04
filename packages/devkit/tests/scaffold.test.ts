@@ -39,9 +39,10 @@ describe('scaffoldProject', () => {
     expect(result.filesCreated).toContain('src/forms/example-form.ts');
     expect(result.filesCreated).toContain('typings/.gitkeep');
     expect(result.filesCreated).toContain('tests/forms/example-form.test.ts');
+    expect(result.filesCreated).toContain('AGENT.md');
     expect(result.filesCreated).toContain('.github/workflows/ci.yml');
     expect(result.filesCreated).toContain('azure-pipelines.yml');
-    expect(result.filesCreated).toHaveLength(10);
+    expect(result.filesCreated).toHaveLength(11);
   });
 
   it('should use project name in package.json', async () => {
@@ -130,6 +131,24 @@ describe('scaffoldProject', () => {
     expect(tsconfig.compilerOptions.strict).toBe(true);
   });
 
+  it('should generate AGENT.md with XrmForge rules', async () => {
+    const dir = await createTmpDir();
+
+    await scaffoldProject({
+      targetDir: dir,
+      projectName: 'test',
+      prefix: 'contoso',
+      namespace: 'Contoso',
+    });
+
+    const agent = await fs.readFile(path.join(dir, 'AGENT.md'), 'utf-8');
+    expect(agent).toContain('Fields Enum');
+    expect(agent).toContain('OptionSet Enum');
+    expect(agent).toContain('createFormMock');
+    expect(agent).toContain('Never');
+    expect(agent).toContain('xrmforge build');
+  });
+
   it('should generate GitHub Actions CI workflow', async () => {
     const dir = await createTmpDir();
 
@@ -201,7 +220,7 @@ describe('scaffoldProject', () => {
       namespace: 'Contoso',
     });
 
-    expect(result.filesCreated.length).toBe(10);
+    expect(result.filesCreated.length).toBe(11);
     const exists = await fs.access(path.join(dir, 'package.json')).then(() => true).catch(() => false);
     expect(exists).toBe(true);
   });

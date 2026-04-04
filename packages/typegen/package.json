@@ -32,7 +32,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "MIGRATION.md"
   ],
   "sideEffects": false,
   "scripts": {
