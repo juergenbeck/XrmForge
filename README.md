@@ -963,7 +963,7 @@ Install: `npm install -D @xrmforge/testing`
 | `@xrmforge/testing` | Type-safe form mock builder: `createFormMock()`, `fireOnChange()`, MockAttribute, MockControl, MockUi | v0.1.1 |
 | `@xrmforge/cli` | Command-line interface: `generate` (with `--cache`), `build` (with `--watch`) | v0.3.2 |
 | `@xrmforge/webapi` | Type-safe Web API client: `retrieve<T>()`, `retrieveMultiple<T>()`, `create()`, `update()`, `remove()`, QueryBuilder | v0.1.0 |
-| `@xrmforge/formhelpers` | TypedForm proxy: direct property access to form fields (`form.name.setValue()`) | v0.1.0 |
+| `@xrmforge/helpers` | Browser-safe runtime: `select()`, `parseLookup()`, `typedForm()`, Xrm constants, Action/Function executors | v0.1.0 |
 | `@xrmforge/devkit` | Build orchestration: esbuild IIFE bundles for D365 WebResources, `xrmforge build`, watch mode | v0.1.0 |
 | `@xrmforge/pipeline` | CI/CD templates for Azure DevOps and GitHub Actions | Planned |
 | `@xrmforge/eslint-plugin` | D365-specific ESLint rules (e.g. no raw `getAttribute` strings, no magic numbers for OptionSets) | Planned |
@@ -1059,7 +1059,7 @@ If esbuild cannot resolve an import:
 
 - **`@xrmforge/testing`** (v0.1.1) -- Type-safe form mock builder with compile-time field validation.
 - **`@xrmforge/webapi`** (v0.1.0) -- Type-safe Web API client: `retrieve<T>()`, `retrieveMultiple<T>()`, `create()`, `update()`, `remove()`, QueryBuilder with pagination.
-- **`@xrmforge/formhelpers`** (v0.1.0) -- TypedForm proxy for direct property access to form fields.
+- **`@xrmforge/helpers`** (v0.1.0) -- Browser-safe runtime: select(), parseLookup(), typedForm(), Xrm constants, Action/Function executors.
 - **`@xrmforge/devkit`** (v0.1.0) -- Build orchestration: `xrmforge build` with IIFE bundles, watch mode, declarative config.
 - **Custom API live generation** -- `--actions` flag queries Custom API metadata from Dataverse and generates typed executors. `--actions-filter` for prefix filtering.
 - **Solution-based discovery** -- `--solutions Sales,Service` discovers entities from Dataverse solutions automatically.

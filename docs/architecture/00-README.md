@@ -18,7 +18,7 @@
 10. [ESLint Plugin](10-eslint-plugin.md)
 11. [AGENT.md System](11-agent-md.md)
 12. [@types/xrm Pitfalls](12-xrm-pitfalls.md)
-13. [typegen/helpers Subpath](13-helpers.md)
+13. [@xrmforge/helpers Package](13-helpers.md)
 14. [Showcases](14-showcases.md)
 15. [CI/CD](15-ci-cd.md)
 16. [Technical Debt](16-technical-debt.md)

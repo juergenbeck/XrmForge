@@ -5,8 +5,8 @@ This file helps AI coding assistants write optimal Dynamics 365 form scripts.
 ## Packages
 
 - `@xrmforge/typegen` - Generates typed declarations from Dataverse metadata
+- `@xrmforge/helpers` - Browser-safe runtime: select(), parseLookup(), typedForm(), Xrm constants, Action executors
 - `@xrmforge/testing` - Type-safe form mocks: createFormMock(), fireOnChange()
-- `@xrmforge/formhelpers` - typedForm() proxy for direct field access
 - `@xrmforge/devkit` - esbuild IIFE bundles via xrmforge build
 - `@xrmforge/eslint-plugin` - D365-specific ESLint rules
 
@@ -32,11 +32,9 @@ Run `xrmforge generate` to create:
 4. **EntityNames Enum** for Web API calls:
    `Xrm.WebApi.retrieveRecord(EntityNames.Account, id)`
 
-5. **parseLookup()** from @xrmforge/typegen/helpers for lookup values
-   IMPORTANT: Use `@xrmforge/typegen/helpers` (not `@xrmforge/typegen`) in browser code.
-   The main entry point pulls in Node.js dependencies that break esbuild bundles.
+5. **parseLookup()** from @xrmforge/helpers for lookup values
 
-6. **select()** from @xrmforge/typegen/helpers for $select queries
+6. **select()** from @xrmforge/helpers for $select queries
 
 7. **createFormMock()** from @xrmforge/testing for tests
 
@@ -104,8 +102,8 @@ When you see these patterns in legacy code, apply the XrmForge replacement:
 | `getControl("name")` | `getControl(Fields.Name)` |
 | `getValue() === 595300000` | `getValue() === OptionSets.StatusCode.Active` |
 | `Xrm.WebApi.retrieveRecord("account", id)` | `Xrm.WebApi.retrieveRecord(EntityNames.Account, id)` |
-| `"?$select=name,revenue"` | `select(Fields.Name, Fields.Revenue)` (from typegen/helpers) |
-| `value[0].id.replace("{","")...` | `parseLookup(form.getAttribute(Fields.X))` (from typegen/helpers) |
+| `"?$select=name,revenue"` | `select(Fields.Name, Fields.Revenue)` (from @xrmforge/helpers) |
+| `value[0].id.replace("{","")...` | `parseLookup(form.getAttribute(Fields.X))` (from @xrmforge/helpers) |
 | `Xrm.Page.getAttribute(...)` | `formContext.getAttribute(...)` |
 | `var formContext` (global) | `const form = ctx.getFormContext()` (parameter) |
 | `function form_OnLoad(ctx)` | `export function onLoad(ctx: Xrm.Events.EventContext)` |

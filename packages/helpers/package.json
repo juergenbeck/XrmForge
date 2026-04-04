@@ -1,30 +1,24 @@
 {
-  "name": "@xrmforge/formhelpers",
+  "name": "@xrmforge/helpers",
   "version": "0.1.0",
-  "description": "TypedForm proxy for Dynamics 365 - direct property access to form fields",
+  "description": "Browser-safe runtime helpers for Dynamics 365 form scripts: select(), parseLookup(), typedForm(), Xrm constants, Action/Function executors",
   "keywords": [
     "dynamics-365",
     "typescript",
     "xrm",
-    "form-scripts",
-    "proxy",
-    "typed-form",
-    "dataverse"
+    "dataverse",
+    "web-resources",
+    "helpers"
   ],
   "license": "MIT",
   "author": "XrmForge Contributors",
-  "homepage": "https://github.com/juergenbeck/XrmForge/tree/main/packages/formhelpers",
+  "homepage": "https://github.com/juergenbeck/XrmForge/tree/main/packages/helpers",
   "repository": {
     "type": "git",
     "url": "https://github.com/juergenbeck/XrmForge.git",
-    "directory": "packages/formhelpers"
-  },
-  "bugs": {
-    "url": "https://github.com/juergenbeck/XrmForge/issues"
+    "directory": "packages/helpers"
   },
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -32,6 +26,8 @@
       "default": "./dist/index.js"
     }
   },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist"
   ],
@@ -45,15 +41,15 @@
     "lint": "eslint src/",
     "clean": "rm -rf dist"
   },
+  "peerDependencies": {
+    "@types/xrm": ">=9.0.0"
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^3.2.4",
     "tsup": "^8.3.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
-  },
-  "peerDependencies": {
-    "@types/xrm": ">=9.0.0"
   },
   "engines": {
     "node": ">=20.0.0"

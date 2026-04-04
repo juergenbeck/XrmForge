@@ -962,7 +962,7 @@ Installation: `npm install -D @xrmforge/testing`
 | `@xrmforge/testing` | Typsicherer Formular-Mock-Builder: `createFormMock()`, `fireOnChange()`, MockAttribute, MockControl, MockUi | v0.1.1 |
 | `@xrmforge/cli` | Kommandozeile: `generate` (mit `--cache`), `build` (mit `--watch`) | v0.3.2 |
 | `@xrmforge/webapi` | Typsicherer Web-API-Client: `retrieve<T>()`, `retrieveMultiple<T>()`, `create()`, `update()`, `remove()`, QueryBuilder | v0.1.0 |
-| `@xrmforge/formhelpers` | TypedForm-Proxy: Direkter Property-Zugriff auf Formularfelder (`form.name.setValue()`) | v0.1.0 |
+| `@xrmforge/helpers` | Browser-safe Runtime: `select()`, `parseLookup()`, `typedForm()`, Xrm-Konstanten, Action/Function Executors | v0.1.0 |
 | `@xrmforge/devkit` | Build-Orchestrierung: esbuild IIFE-Bundles fuer D365 WebResources, `xrmforge build`, Watch-Modus | v0.1.0 |
 | `@xrmforge/pipeline` | CI/CD-Vorlagen fuer Azure DevOps und GitHub Actions | Geplant |
 | `@xrmforge/eslint-plugin` | D365-spezifische ESLint-Regeln (z.B. keine rohen `getAttribute`-Strings, keine magischen Zahlen fuer OptionSets) | Geplant |
@@ -1058,7 +1058,7 @@ Wenn esbuild einen Import nicht auflösen kann:
 
 - **`@xrmforge/testing`** (v0.1.1) -- Typsicherer Formular-Mock-Builder mit Compile-Time-Feldvalidierung.
 - **`@xrmforge/webapi`** (v0.1.0) -- Typsicherer Web-API-Client: `retrieve<T>()`, `retrieveMultiple<T>()`, `create()`, `update()`, `remove()`, QueryBuilder mit Pagination.
-- **`@xrmforge/formhelpers`** (v0.1.0) -- TypedForm-Proxy fuer direkten Property-Zugriff auf Formularfelder.
+- **`@xrmforge/helpers`** (v0.1.0) -- Browser-safe Runtime: select(), parseLookup(), typedForm(), Xrm-Konstanten, Action/Function Executors.
 - **`@xrmforge/devkit`** (v0.1.0) -- Build-Orchestrierung: `xrmforge build` mit IIFE-Bundles, Watch-Modus, deklarativer Config.
 - **Custom-API-Live-Generierung** -- `--actions` generiert typisierte Executors. `--actions-filter` fuer Prefix-Filterung.
 - **Loesungsbasierte Erkennung** -- `--solutions Sales,Service` erkennt Entities aus Dataverse-Loesungen automatisch.

@@ -152,7 +152,7 @@ describe('scaffoldProject', () => {
     expect(agent).toContain('setupXrmMock');
     expect(agent).toContain('@types/xrm Pitfalls');
     expect(agent).toContain('parseLookup');
-    expect(agent).toContain('typegen/helpers');
+    expect(agent).toContain('@xrmforge/helpers');
   });
 
   it('should generate GitHub Actions CI workflow', async () => {

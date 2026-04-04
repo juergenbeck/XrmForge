@@ -7,12 +7,12 @@
 | @xrmforge/typegen | 0.6.0 | 444 | Kern: Typgenerierungs-Engine, Metadaten-Client, HTTP-Client, Hilfsfunktionen |
 | @xrmforge/cli | 0.4.2 | 10 | CLI: generate-, build-, init-Befehle |
 | @xrmforge/testing | 0.2.0 | 76 | Test-Hilfsmittel: createFormMock, fireOnChange, setupXrmMock |
-| @xrmforge/formhelpers | 0.1.0 | 17 | Laufzeit: typedForm()-Proxy (894 Bytes) |
+| @xrmforge/helpers | 0.1.0 | 59 | Browsersichere Laufzeit: select(), parseLookup(), typedForm(), Xrm-Konstanten, Action-Executors |
 | @xrmforge/webapi | 0.1.0 | 45 | Typsicherer Xrm.WebApi-Client mit QueryBuilder |
 | @xrmforge/devkit | 0.4.0 | 42 | Build-Orchestrierung, Scaffolding, AGENT.md-Generierung |
 | @xrmforge/eslint-plugin | 0.2.0 | 32 | 5 D365-spezifische ESLint-Regeln |
 
-**Gesamt:** 666 Tests über 7 Packages.
+**Gesamt:** 708 Tests über 7 Packages.
 
 ## 2.2 Abhängigkeitsgraph
 
@@ -30,7 +30,7 @@
   '-- esbuild (IIFE-Bundling)
 
 @xrmforge/testing     (keine Laufzeit-Abhängigkeiten)
-@xrmforge/formhelpers (keine Laufzeit-Abhängigkeiten)
+@xrmforge/helpers     (keine Laufzeit-Abhängigkeiten)
 @xrmforge/webapi      (keine Laufzeit-Abhängigkeiten)
 @xrmforge/eslint-plugin (ESLint Peer-Abhängigkeit)
 ```
@@ -47,8 +47,8 @@ Das Kern-Package. Enthält:
 - **ChangeDetector** - Inkrementelle Generierung über RetrieveMetadataChanges
 - **MetadataCache** - Dateisystem-basiertes Caching mit Versionsstempeln
 - **Generators** - Entitäts-Interfaces, Formular-Interfaces, OptionSet-Enums, Fields-Enums, EntityNames, Navigations-Properties, Action/Function-Executors
-- **Helpers** - select(), parseLookup(), parseFormattedValue() (browsersicher über /helpers-Subpath)
-- **Xrm-Konstanten** - DisplayState, FormNotificationLevel, RequiredLevel, SubmitMode, SaveMode, ClientType, ClientState
+- **Helpers** - select(), parseLookup(), parseFormattedValue() (verschoben nach @xrmforge/helpers)
+- **Xrm-Konstanten** - DisplayState, FormNotificationLevel, RequiredLevel, SubmitMode, SaveMode, ClientType, ClientState (verschoben nach @xrmforge/helpers)
 - **Authentifizierung** - createCredential()-Factory für 4 Authentifizierungsmethoden
 - **Logging** - Scope-basierte Logger mit austauschbaren Senken (Console, JSON, Silent)
 - **Fehler** - Strukturierte Fehlerhierarchie mit ErrorCode-Enum (AUTH_1xxx, API_2xxx, META_3xxx, GEN_4xxx, CONFIG_5xxx)
@@ -71,13 +71,13 @@ FormContext-Mocking für Unit-Tests:
 - `fireOnChange(fieldName)` - Löst registrierte onChange-Handler aus
 - `setupXrmMock(options)` / `teardownXrmMock()` - Globaler Xrm-Mock mit WebApi/Navigation-Stubs
 
-### @xrmforge/formhelpers
+### @xrmforge/helpers
 
-Eine Proxy-basierte Alternative zu Fields-Enums:
-- `typedForm<TForm>(formContext)` - Gibt einen Proxy zurück, bei dem `form.name` an `getAttribute('name')` delegiert
-- **GET-Trap:** Property-Zugriff delegiert an getAttribute(); `$context` gibt den rohen FormContext zurück; `$control(name)` gibt getControl() zurück
-- **SET-Trap:** Wirft TypeError und erzwingt die Verwendung von `.setValue()`
-- **HAS-Trap:** Prüft, ob ein Attribut auf dem Formular existiert
+Bündelt allen browsersicheren Laufzeitcode. Keine Node.js-Abhängigkeiten. Enthält:
+- **Web-API-Helpers** - select(), parseLookup(), parseFormattedValue()
+- **Xrm-Konstanten** - DisplayState, SubmitMode, RequiredLevel, SaveMode, ClientType, ClientState, FormNotificationLevel, OperationType
+- **Action/Function-Executors** - createBoundAction(), executeRequest(), withProgress()
+- **typedForm()-Proxy** - Proxy-basierter FormContext-Wrapper, bei dem `form.name` an `getAttribute('name')` delegiert
 
 ### @xrmforge/webapi
 

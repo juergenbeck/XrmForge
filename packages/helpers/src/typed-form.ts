@@ -1,5 +1,5 @@
 /**
- * @xrmforge/formhelpers - TypedForm Proxy
+ * @xrmforge/helpers - TypedForm Proxy
  *
  * Creates a proxy around Xrm.FormContext that allows direct property access
  * to form fields. Instead of formContext.getAttribute("name").setValue("X"),
@@ -7,7 +7,7 @@
  *
  * @example
  * ```typescript
- * import { typedForm } from '@xrmforge/formhelpers';
+ * import { typedForm } from '@xrmforge/helpers';
  *
  * type LeadForm = XrmForge.Forms.Lead.LeadMarkantLeadForm;
  *

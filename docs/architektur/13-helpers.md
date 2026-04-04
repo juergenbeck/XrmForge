@@ -1,21 +1,16 @@
-# 13. typegen/helpers Subpath
+# 13. @xrmforge/helpers Package
 
 ## 13.1 Problem
 
-Der Import vom Haupt-Einstiegspunkt von `@xrmforge/typegen` zieht Node.js-Abhängigkeiten (`fs`, `path`, `@azure/identity`) mit. Das bricht esbuild-Browser-Bundles:
-
-```typescript
-// FALSCH - zieht Node.js-Abhängigkeiten, bricht esbuild
-import { select, parseLookup } from '@xrmforge/typegen';
-```
+Der bisherige Ansatz nutzte einen `/helpers`-Subpath-Export auf `@xrmforge/typegen`. Das war verwirrend, weil typegen ein Node.js-Codegenerierungstool ist, während die Helpers browsersichere Laufzeitfunktionen sind. Der Subpath `@xrmforge/typegen/helpers` war nicht intuitiv und KI-Coding-Assistenten haben ihn durchgängig nicht gefunden.
 
 ## 13.2 Lösung
 
-Der `/helpers`-Subpath exportiert ausschliesslich browsersicheren Code ohne Node.js-Abhängigkeiten:
+Ein eigenständiges `@xrmforge/helpers`-Package bündelt allen browsersicheren Laufzeitcode. Keine Node.js-Abhängigkeiten. Klarer, auffindbarer Import-Pfad:
 
 ```typescript
-// RICHTIG - browsersicher, keine Node.js-Abhängigkeiten
-import { select, parseLookup } from '@xrmforge/typegen/helpers';
+// Import vom dedizierten helpers-Package
+import { select, parseLookup, typedForm } from '@xrmforge/helpers';
 ```
 
 ## 13.3 Exports
@@ -30,6 +25,26 @@ import { select, parseLookup } from '@xrmforge/typegen/helpers';
 **Xrm-Konstanten (8 const enums):**
 - DisplayState, FormNotificationLevel, RequiredLevel, SubmitMode, SaveMode, ClientType, ClientState, OperationType
 
-## 13.4 Adoptionslücke
+**typedForm()-Proxy:**
+- `typedForm<TForm>(formContext)` - Gibt einen Proxy zurück, bei dem `form.name` an `getAttribute('name')` delegiert
+- GET-Trap: Property-Zugriff delegiert an getAttribute(); `$context` gibt den rohen FormContext zurück; `$control(name)` gibt getControl() zurück
+- SET-Trap: Wirft TypeError und erzwingt die Verwendung von `.setValue()`
+- HAS-Trap: Prüft, ob ein Attribut auf dem Formular existiert
 
-Obwohl in der AGENT.md Pattern-Erkennungstabelle dokumentiert, verwendet kein KI-Coding-Assistent konsistent die `/helpers`-Imports. Dies ist die grösste verbleibende Lücke in XrmForges KI-gesteuerter Codegenerierung.
+**Action/Function-Laufzeit:**
+- `createBoundAction(entityName, actionName)` - Erstellt einen gebundenen Action-Executor
+- `executeRequest(request)` - Führt einen Organization Request über Xrm.WebApi.online.execute aus
+- `withProgress(message, fn)` - Umhüllt eine asynchrone Operation mit Xrm.Utility.showProgressIndicator
+
+## 13.4 Migration
+
+Der alte Import-Pfad `@xrmforge/typegen/helpers` wurde entfernt. Alle Imports aktualisieren:
+
+```typescript
+// Alt (entfernt)
+import { select } from '@xrmforge/typegen/helpers';
+import { typedForm } from '@xrmforge/formhelpers';
+
+// Neu
+import { select, typedForm } from '@xrmforge/helpers';
+```

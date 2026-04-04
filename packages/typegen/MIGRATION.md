@@ -86,8 +86,8 @@ export function onLoad(executionContext: Xrm.Events.EventContext): void {
 var value = formContext.getAttribute("primarycontactid").getValue();
 var id = value[0].id.replace("{","").replace("}","");
 
-// After: use parseLookup from @xrmforge/typegen
-import { parseLookup } from '@xrmforge/typegen/helpers';
+// After: use parseLookup from @xrmforge/helpers
+import { parseLookup } from '@xrmforge/helpers';
 const contact = parseLookup(form.getAttribute(Fields.PrimaryContactId));
 if (contact) {
   console.log(contact.id);  // already clean GUID
@@ -102,7 +102,7 @@ Xrm.WebApi.retrieveMultipleRecords("account",
   "?$select=name,revenue&$filter=statecode eq 0");
 
 // After: use Fields enum for $select
-import { select } from '@xrmforge/typegen/helpers';
+import { select } from '@xrmforge/helpers';
 import { AccountFields } from '../../typings/entities/account';
 Xrm.WebApi.retrieveMultipleRecords("account",
   `?$select=${select(AccountFields.Name, AccountFields.Revenue)}&$filter=statecode eq 0`);

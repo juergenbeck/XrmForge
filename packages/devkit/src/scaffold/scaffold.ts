@@ -119,7 +119,7 @@ function generatePackageJson(projectName: string): string {
       '@types/xrm': '^9.0.90',
       '@xrmforge/cli': '^0.3.0',
       '@xrmforge/testing': '^0.1.0',
-      '@xrmforge/formhelpers': '^0.1.0',
+      '@xrmforge/helpers': '^0.1.0',
       typescript: '^5.7.0',
       vitest: '^3.0.0',
     },

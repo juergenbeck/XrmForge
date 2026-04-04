@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { typedForm } from '../src/typed-form.js';
 import type { TypedForm } from '../src/typed-form.js';
 
-// ─── Test Form Types (simulate typegen output) ──────────────────────────────
+// Test Form Types (simulate typegen output)
 
 type TestFields = 'name' | 'revenue' | 'parentaccountid';
 
@@ -21,7 +21,7 @@ interface TestForm extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> 
   getControl(): Xrm.Controls.Control[];
 }
 
-// ─── Mock FormContext ────────────────────────────────────────────────────────
+// Mock FormContext
 
 function createMockFormContext() {
   const attributes: Record<string, { getValue: () => unknown; setValue: (v: unknown) => void; _value: unknown; getName: () => string }> = {
@@ -57,7 +57,7 @@ function createMockFormContext() {
   } as unknown as Xrm.FormContext;
 }
 
-// ─── Tests ───────────────────────────────────────────────────────────────────
+// Tests
 
 describe('typedForm', () => {
   it('should access field value via property', () => {
@@ -118,7 +118,6 @@ describe('typedForm', () => {
     const fc = createMockFormContext();
     const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
 
-    // getAttribute returns null, fallback to FormContext property returns undefined
     expect((form as any).nonexistent_field).toBeFalsy();
   });
 });
@@ -195,7 +194,6 @@ describe('typedForm symbol handling', () => {
     const fc = createMockFormContext();
     const form = typedForm<TestForm, TestFields, TestAttrMap>(fc) as any;
 
-    // Symbol keys delegate to formContext, which likely returns undefined
     expect(() => form[Symbol.toPrimitive]).not.toThrow();
   });
 });

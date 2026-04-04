@@ -1,21 +1,16 @@
-# typegen/helpers Subpath
+# @xrmforge/helpers Package
 
 ### 13.1 Problem
 
-Importing from the main `@xrmforge/typegen` entry point pulls in Node.js dependencies (`fs`, `path`, `@azure/identity`). This breaks esbuild browser bundles:
-
-```typescript
-// WRONG - pulls in Node.js deps, breaks esbuild
-import { select, parseLookup } from '@xrmforge/typegen';
-```
+The previous approach used a `/helpers` subpath export on `@xrmforge/typegen`. This was confusing because typegen is a Node.js code generation tool, while helpers are browser-safe runtime utilities. The subpath `@xrmforge/typegen/helpers` was non-obvious and AI coding assistants consistently failed to discover it.
 
 ### 13.2 Solution
 
-The `/helpers` subpath exports only browser-safe code with zero Node.js dependencies:
+A standalone `@xrmforge/helpers` package consolidates all browser-safe runtime code. Zero Node.js dependencies. Clean, discoverable import path:
 
 ```typescript
-// CORRECT - browser-safe, no Node.js deps
-import { select, parseLookup } from '@xrmforge/typegen/helpers';
+// Import from the dedicated helpers package
+import { select, parseLookup, typedForm } from '@xrmforge/helpers';
 ```
 
 ### 13.3 Exports
@@ -30,6 +25,26 @@ import { select, parseLookup } from '@xrmforge/typegen/helpers';
 **Xrm Constants (8 const enums):**
 - DisplayState, FormNotificationLevel, RequiredLevel, SubmitMode, SaveMode, ClientType, ClientState, OperationType
 
-### 13.4 Adoption Gap
+**typedForm() Proxy:**
+- `typedForm<TForm>(formContext)` - Returns a proxy where `form.name` delegates to `getAttribute('name')`
+- GET trap: Property access delegates to getAttribute(); `$context` returns raw FormContext; `$control(name)` returns getControl()
+- SET trap: Throws TypeError forcing `.setValue()` usage
+- HAS trap: Checks if attribute exists on the form
 
-Despite being documented in the AGENT.md Pattern Recognition table, no AI coding assistant consistently uses the `/helpers` imports. This is the biggest remaining gap in XrmForge's AI-driven code generation.
+**Action/Function Runtime:**
+- `createBoundAction(entityName, actionName)` - Creates a bound action executor
+- `executeRequest(request)` - Executes an Organization Request via Xrm.WebApi.online.execute
+- `withProgress(message, fn)` - Wraps an async operation with Xrm.Utility.showProgressIndicator
+
+### 13.4 Migration
+
+The old import path `@xrmforge/typegen/helpers` has been removed. Update all imports:
+
+```typescript
+// Old (removed)
+import { select } from '@xrmforge/typegen/helpers';
+import { typedForm } from '@xrmforge/formhelpers';
+
+// New
+import { select, typedForm } from '@xrmforge/helpers';
+```

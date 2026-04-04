@@ -7,12 +7,12 @@
 | @xrmforge/typegen | 0.6.0 | 444 | Core: type generation engine, metadata client, HTTP client, helpers |
 | @xrmforge/cli | 0.4.2 | 10 | CLI: generate, build, init commands |
 | @xrmforge/testing | 0.2.0 | 76 | Test utilities: createFormMock, fireOnChange, setupXrmMock |
-| @xrmforge/formhelpers | 0.1.0 | 17 | Runtime: typedForm() proxy (894 bytes) |
+| @xrmforge/helpers | 0.1.0 | 59 | Browser-safe runtime: select(), parseLookup(), typedForm(), Xrm constants, Action executors |
 | @xrmforge/webapi | 0.1.0 | 45 | Type-safe Xrm.WebApi client with QueryBuilder |
 | @xrmforge/devkit | 0.4.0 | 42 | Build orchestration, scaffolding, AGENT.md generation |
 | @xrmforge/eslint-plugin | 0.2.0 | 32 | 5 D365-specific ESLint rules |
 
-**Total:** 666 tests across 7 packages.
+**Total:** 708 tests across 7 packages.
 
 ## Dependency Graph
 
@@ -30,7 +30,7 @@
   '-- esbuild (IIFE bundling)
 
 @xrmforge/testing     (no runtime deps)
-@xrmforge/formhelpers (no runtime deps)
+@xrmforge/helpers     (no runtime deps)
 @xrmforge/webapi      (no runtime deps)
 @xrmforge/eslint-plugin (ESLint peer dep)
 ```
@@ -47,8 +47,8 @@ The core package. Contains:
 - **ChangeDetector** - Incremental generation via RetrieveMetadataChanges
 - **MetadataCache** - Filesystem-based caching with version stamps
 - **Generators** - Entity interfaces, form interfaces, OptionSet enums, Fields enums, EntityNames, Navigation Properties, Action/Function executors
-- **Helpers** - select(), parseLookup(), parseFormattedValue() (browser-safe via /helpers subpath)
-- **Xrm Constants** - DisplayState, FormNotificationLevel, RequiredLevel, SubmitMode, SaveMode, ClientType, ClientState
+- **Helpers** - select(), parseLookup(), parseFormattedValue() (moved to @xrmforge/helpers)
+- **Xrm Constants** - DisplayState, FormNotificationLevel, RequiredLevel, SubmitMode, SaveMode, ClientType, ClientState (moved to @xrmforge/helpers)
 - **Authentication** - createCredential() factory for 4 auth methods
 - **Logging** - Scoped loggers with pluggable sinks (Console, JSON, Silent)
 - **Errors** - Structured error hierarchy with ErrorCode enum (AUTH_1xxx, API_2xxx, META_3xxx, GEN_4xxx, CONFIG_5xxx)
@@ -71,13 +71,13 @@ FormContext mocking for unit tests:
 - `fireOnChange(fieldName)` - Triggers registered onChange handlers
 - `setupXrmMock(options)` / `teardownXrmMock()` - Global Xrm mock with WebApi/Navigation stubs
 
-### @xrmforge/formhelpers
+### @xrmforge/helpers
 
-A Proxy-based alternative to Fields enums:
-- `typedForm<TForm>(formContext)` - Returns a proxy where `form.name` calls `getAttribute('name')`
-- **GET trap:** Property access delegates to getAttribute(); `$context` returns raw FormContext; `$control(name)` returns getControl()
-- **SET trap:** Throws TypeError forcing `.setValue()` usage
-- **HAS trap:** Checks if attribute exists on the form
+Consolidates all browser-safe runtime code. Zero Node.js dependencies. Contains:
+- **Web API helpers** - select(), parseLookup(), parseFormattedValue()
+- **Xrm constants** - DisplayState, SubmitMode, RequiredLevel, SaveMode, ClientType, ClientState, FormNotificationLevel, OperationType
+- **Action/Function executors** - createBoundAction(), executeRequest(), withProgress()
+- **typedForm() proxy** - Proxy-based FormContext wrapper where `form.name` delegates to `getAttribute('name')`
 
 ### @xrmforge/webapi
 
