@@ -49,9 +49,8 @@ XrmForge generates type-safe TypeScript declarations from your Dynamics 365 envi
 
 ```typescript
 const formContext = executionContext.getFormContext();
-const name = formContext.getAttribute("name");       // Xrm.Attributes.Attribute (generic)
-name.setValue(123);                                   // No compile error, runtime crash!
-formContext.getAttribute("naem");                     // Typo passes silently
+formContext.getAttribute("telephon1").setValue("test");  // Typo! Returns null, .setValue() crashes with TypeError
+formContext.getAttribute("revenue").getValue();           // Field not on Quick Create form, crashes at runtime
 
 // 12 lines of boilerplate for one Custom Action call
 const request = {
@@ -310,6 +309,11 @@ npx xrmforge generate [options]
 | `--secondary-language <code>` | Secondary label language LCID (for dual-language JSDoc) | -- |
 | `--no-forms` | Skip form interface generation | Forms enabled |
 | `--no-optionsets` | Skip OptionSet enum generation | OptionSets enabled |
+| `--actions` | Generate typed Custom API Action/Function executors | Off |
+| `--actions-filter <prefix>` | Filter Custom APIs by unique name prefix (e.g. `markant_`) | -- |
+| `--cache` | Enable metadata caching for incremental generation (10x faster) | Off |
+| `--no-cache` | Force full metadata refresh (ignore cache) | -- |
+| `--cache-dir <dir>` | Directory for metadata cache files | `.xrmforge/cache` |
 | `-v, --verbose` | Enable verbose/debug logging | Off |
 
 Either `--entities` or `--solutions` must be specified (or both). When using `--solutions`, XrmForge discovers all entities in those solutions. Multiple solutions are merged, duplicates removed.
@@ -318,13 +322,7 @@ Either `--entities` or `--solutions` must be specified (or both). When using `--
 
 Three methods are supported, all powered by `@azure/identity` (MSAL). A fourth method (`token`) allows passing a pre-acquired Bearer token.
 
-**How to find your Tenant ID:** Open your D365 environment, press F12, go to Console, and run:
-
-```javascript
-fetch("/api/data/v9.2/WhoAmI",{credentials:"include"}).then(r=>{console.log("Tenant ID:",JSON.parse(atob(r.headers.get("Authorization").split(".")[1])).tid)})
-```
-
-Alternatively, open `https://login.microsoftonline.com/YOUR_EMAIL_DOMAIN/.well-known/openid-configuration` in a browser (use your email domain like `contoso.com`, not the CRM URL). The tenant ID is in the `issuer` field.
+**How to find your Tenant ID:** Open `https://login.microsoftonline.com/YOUR_EMAIL_DOMAIN/.well-known/openid-configuration` in a browser (use your email domain like `contoso.com`, not the CRM URL). The tenant ID is in the `issuer` field: `https://sts.windows.net/{TENANT_ID}/`.
 
 **Client ID:** For Interactive and Device Code, use Microsoft's well-known sample App ID: `51f81489-12ee-4a9e-aaae-a2591f45987d`. No own App Registration needed. For Client Credentials (CI/CD), you need your own App Registration (see [Azure App Registration](#azure-app-registration)).
 
@@ -403,7 +401,7 @@ If you do not have an App Registration yet, follow these steps in the Azure Port
 3. Fill in:
    - **Name:** `XrmForge Type Generator` (or any name you prefer)
    - **Supported account types:** Single tenant (your organization only)
-   - **Redirect URI:** Select "Web" and enter `http://localhost` (needed for interactive auth)
+   - **Redirect URI:** Select "Mobile and desktop applications" and add `http://localhost` (needed for interactive auth)
 4. Click **Register**.
 5. On the app overview page, copy:
    - **Application (client) ID** -- this is your `--client-id`
@@ -533,7 +531,7 @@ export function onLoad(executionContext: Xrm.Events.EventContext): void {
 The `select()` helper and entity-level `Fields` enum let you write type-safe Web API queries:
 
 ```typescript
-import { select, parseLookup, parseFormattedValue } from '@xrmforge/typegen';
+import { select, parseLookup, parseFormattedValue } from '@xrmforge/helpers';
 import AccountFields = XrmForge.Entities.AccountFields;
 import AccountNav = XrmForge.Entities.AccountNavigationProperties;
 
@@ -593,7 +591,7 @@ For bound actions (actions tied to a specific entity):
 
 ```typescript
 import { WinQuote } from '../generated/actions/quote';
-import { withProgress } from '@xrmforge/typegen';
+import { withProgress } from '@xrmforge/helpers';
 
 async function winQuote(quoteId: string): Promise<void> {
   // withProgress shows a spinner, handles errors with a dialog
@@ -763,7 +761,7 @@ If you prefer manual deployment: in your D365 solution, go to Web Resources, upl
 
 ### Source Maps
 
-Build with source maps enabled (this is the default in `build.mjs`). For development, use inline source maps (`--dev` flag) so you only upload one file.
+Build with source maps enabled (this is the default). Source maps make debugging in browser DevTools straightforward.
 
 ### Browser DevTools
 
@@ -787,6 +785,7 @@ This gives you near-instant feedback: save a file, refresh the form, see your ch
 - Use the **Console** tab to see `console.log` output from your form scripts.
 - Use the **Network** tab to inspect Web API calls made by `Xrm.WebApi`.
 - The `Xrm` object is available in the console. You can test calls interactively: `Xrm.Page.getAttribute("name").getValue()`.
+  (Note: Xrm.Page is deprecated since D365 v9.0 but still works in the browser console for debugging.)
 
 ---
 
@@ -797,7 +796,7 @@ This gives you near-instant feedback: save a file, refresh the form, see your ch
 Parse lookup fields from Web API responses into `Xrm.LookupValue` objects:
 
 ```typescript
-import { parseLookup } from '@xrmforge/typegen';
+import { parseLookup } from '@xrmforge/helpers';
 import AccountNav = XrmForge.Entities.AccountNavigationProperties;
 import Fields = XrmForge.Forms.Account.AccountAccountFormFieldsEnum;
 
@@ -820,7 +819,7 @@ if (contact) {
 Use the `FormNotificationLevel` constant instead of raw strings:
 
 ```typescript
-import { FormNotificationLevel } from '@xrmforge/typegen';
+import { FormNotificationLevel } from '@xrmforge/helpers';
 
 formContext.ui.setFormNotification(
   "Record saved successfully.",
@@ -837,7 +836,7 @@ setTimeout(() => {
 ### Tab Display State
 
 ```typescript
-import { DisplayState } from '@xrmforge/typegen';
+import { DisplayState } from '@xrmforge/helpers';
 
 const summaryTab = formContext.ui.tabs.get("SUMMARY_TAB");
 if (summaryTab.getDisplayState() === DisplayState.Collapsed) {
@@ -850,7 +849,7 @@ if (summaryTab.getDisplayState() === DisplayState.Collapsed) {
 Wrap async operations with a progress spinner and automatic error dialog:
 
 ```typescript
-import { withProgress } from '@xrmforge/typegen';
+import { withProgress } from '@xrmforge/helpers';
 import { WinQuote } from '../generated/actions/quote';
 
 await withProgress("Processing quote...", () =>
@@ -862,7 +861,7 @@ await withProgress("Processing quote...", () =>
 ### Required Level
 
 ```typescript
-import { RequiredLevel } from '@xrmforge/typegen';
+import { RequiredLevel } from '@xrmforge/helpers';
 
 // Make email required when "Preferred Contact Method" is Email
 formContext
@@ -873,7 +872,7 @@ formContext
 ### Submit Mode
 
 ```typescript
-import { SubmitMode } from '@xrmforge/typegen';
+import { SubmitMode } from '@xrmforge/helpers';
 
 // Always submit this field, even if unchanged
 formContext
@@ -884,7 +883,7 @@ formContext
 ### Save Mode
 
 ```typescript
-import { SaveMode } from '@xrmforge/typegen';
+import { SaveMode } from '@xrmforge/helpers';
 
 export function onSave(executionContext: Xrm.Events.SaveEventContext): void {
   const saveMode = executionContext.getEventArgs().getSaveMode();
@@ -900,7 +899,7 @@ export function onSave(executionContext: Xrm.Events.SaveEventContext): void {
 Use `.request()` to build request objects, then execute them in a single batch:
 
 ```typescript
-import { executeMultiple } from '@xrmforge/typegen';
+import { executeMultiple } from '@xrmforge/helpers';
 import { ApproveRecord } from '../generated/actions/global';
 import { NotifyOwner } from '../generated/actions/global';
 
@@ -959,14 +958,14 @@ Install: `npm install -D @xrmforge/testing`
 
 | Package | Description | Status |
 |---------|-------------|--------|
-| `@xrmforge/typegen` | Core engine: metadata reading, type generation, Web API helpers, Xrm constants, action runtime, MockValues types, incremental generation with metadata cache | v0.4.0 |
-| `@xrmforge/testing` | Type-safe form mock builder: `createFormMock()`, `fireOnChange()`, MockAttribute, MockControl, MockUi | v0.1.1 |
-| `@xrmforge/cli` | Command-line interface: `generate` (with `--cache`), `build` (with `--watch`) | v0.3.2 |
+| `@xrmforge/typegen` | Core engine: metadata reading, type generation, Web API helpers, Xrm constants, action runtime, MockValues types, incremental generation with metadata cache | v0.6.0 |
+| `@xrmforge/testing` | Type-safe form mock builder: `createFormMock()`, `fireOnChange()`, MockAttribute, MockControl, MockUi | v0.2.0 |
+| `@xrmforge/cli` | Command-line interface: `generate` (with `--cache`), `build` (with `--watch`) | v0.4.2 |
 | `@xrmforge/webapi` | Type-safe Web API client: `retrieve<T>()`, `retrieveMultiple<T>()`, `create()`, `update()`, `remove()`, QueryBuilder | v0.1.0 |
 | `@xrmforge/helpers` | Browser-safe runtime: `select()`, `parseLookup()`, `typedForm()`, Xrm constants, Action/Function executors | v0.1.0 |
-| `@xrmforge/devkit` | Build orchestration: esbuild IIFE bundles for D365 WebResources, `xrmforge build`, watch mode | v0.1.0 |
+| `@xrmforge/devkit` | Build orchestration: esbuild IIFE bundles for D365 WebResources, `xrmforge build`, watch mode | v0.4.0 |
 | `@xrmforge/pipeline` | CI/CD templates for Azure DevOps and GitHub Actions | Planned |
-| `@xrmforge/eslint-plugin` | D365-specific ESLint rules (e.g. no raw `getAttribute` strings, no magic numbers for OptionSets) | Planned |
+| `@xrmforge/eslint-plugin` | D365-specific ESLint rules: no-xrm-page, no-magic-optionset, no-sync-webapi, require-error-handling, require-namespace | v0.2.0 |
 
 ---
 
@@ -979,7 +978,7 @@ git clone https://github.com/juergenbeck/XrmForge.git
 cd XrmForge
 pnpm install
 pnpm build
-pnpm test       # 616 tests across 6 packages
+pnpm test       # 699 tests across 7 packages
 pnpm typecheck  # TypeScript strict mode
 pnpm lint       # ESLint v9
 ```
@@ -1043,7 +1042,7 @@ VS Code runs its own TypeScript server. Try:
 
 If esbuild cannot resolve an import:
 
-- For `@xrmforge/typegen` runtime helpers (like `createUnboundAction`), make sure `@xrmforge/typegen` is in your `dependencies` (not just `devDependencies`), because the generated action `.ts` files import from it at runtime.
+- For generated Custom API action files (`*.ts` in `generated/actions/`), make sure `@xrmforge/helpers` is in your `dependencies` (not just `devDependencies`), because the generated action files import `createBoundAction` etc. from it at runtime.
 - For generated `.d.ts` files (declaration-only), no runtime import is needed. They are resolved by TypeScript during type-checking but do not exist at runtime.
 
 **Generation succeeds but files are empty or incomplete**
@@ -1057,10 +1056,11 @@ If esbuild cannot resolve an import:
 
 ### Shipped
 
-- **`@xrmforge/testing`** (v0.1.1) -- Type-safe form mock builder with compile-time field validation.
+- **`@xrmforge/testing`** (v0.2.0) -- Type-safe form mock builder with compile-time field validation.
 - **`@xrmforge/webapi`** (v0.1.0) -- Type-safe Web API client: `retrieve<T>()`, `retrieveMultiple<T>()`, `create()`, `update()`, `remove()`, QueryBuilder with pagination.
 - **`@xrmforge/helpers`** (v0.1.0) -- Browser-safe runtime: select(), parseLookup(), typedForm(), Xrm constants, Action/Function executors.
-- **`@xrmforge/devkit`** (v0.1.0) -- Build orchestration: `xrmforge build` with IIFE bundles, watch mode, declarative config.
+- **`@xrmforge/devkit`** (v0.4.0) -- Build orchestration: `xrmforge build` with IIFE bundles, watch mode, declarative config.
+- **`@xrmforge/eslint-plugin`** (v0.2.0) -- D365-specific ESLint rules: no-xrm-page, no-magic-optionset, no-sync-webapi, require-error-handling, require-namespace.
 - **Custom API live generation** -- `--actions` flag queries Custom API metadata from Dataverse and generates typed executors. `--actions-filter` for prefix filtering.
 - **Solution-based discovery** -- `--solutions Sales,Service` discovers entities from Dataverse solutions automatically.
 - **Incremental generation** -- `--cache` flag enables metadata caching with delta detection via `RetrieveMetadataChanges`. 10x faster on subsequent runs.
@@ -1069,7 +1069,6 @@ If esbuild cannot resolve an import:
 
 - **`xrmforge init`** -- Project scaffolding: tsconfig templates, build configuration, example projects.
 - **`@xrmforge/pipeline`** -- Ready-to-use CI/CD pipeline templates for Azure DevOps (YAML) and GitHub Actions.
-- **`@xrmforge/eslint-plugin`** -- ESLint rules specific to D365 development.
 - **webpack support** -- Tier 2 bundler for teams with existing webpack investment.
 
 ---

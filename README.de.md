@@ -25,7 +25,7 @@ XrmForge liest die Dataverse-Metadaten deiner Umgebung und generiert TypeScript-
   - [Ein Formularskript schreiben](#ein-formularskript-schreiben)
   - [Web-API-Abfragen mit Fields-Enum](#web-api-abfragen-mit-fields-enum)
   - [Custom-Action-Executors](#custom-action-executors)
-- [8. Fuer D365 bauen](#8-fuer-d365-bauen)
+- [8. Für D365 bauen](#8-für-d365-bauen)
   - [Warum IIFE?](#warum-iife)
   - [build.mjs](#buildmjs)
   - [package.json-Skripte](#packagejson-skripte)
@@ -49,9 +49,8 @@ XrmForge generiert typsichere TypeScript-Deklarationen aus deiner Dynamics-365-U
 
 ```typescript
 const formContext = executionContext.getFormContext();
-const name = formContext.getAttribute("name");       // Xrm.Attributes.Attribute (generisch)
-name.setValue(123);                                   // Kein Kompilierfehler, Absturz zur Laufzeit!
-formContext.getAttribute("naem");                     // Tippfehler wird stillschweigend akzeptiert
+const name = formContext.getAttribute("naem");       // Tippfehler, gibt null zurück
+name.setValue("Contoso");                             // Kein Kompilierfehler, Absturz zur Laufzeit!
 
 // 12 Zeilen Boilerplate für einen einzigen Custom-Action-Aufruf
 const request = {
@@ -111,9 +110,9 @@ Jedes Feld, jedes Formular, jede Custom API wird zu einem Vertrag zur Kompilierz
 - **Web-API-Hilfsfunktionen** -- `select()`, `parseLookup()`, `parseFormattedValue()`, `withProgress()` und mehr.
 - **Xrm-Konstanten** -- `DisplayState`, `FormNotificationLevel`, `RequiredLevel`, `SubmitMode`, `SaveMode`, `ClientType`, `OperationType` und andere als `const enum`. Keine rohen Strings mehr.
 - **Zweisprachige Labels** -- JSDoc-Kommentare zeigen beide Sprachen: `/** Account Name | Firmenname */`. Autovervollständigung in VS Code zeigt beide.
-- **Formular-Tests** -- `@xrmforge/testing`-Paket: Typsicherer Mock-Builder fuer D365-Formulare. `createFormMock<AccountForm>({ name: 'Contoso' })` erzeugt ein zur Kompilierzeit validiertes Mock-Objekt mit `getAttribute()`, `getControl()`, `ui.setFormNotification()` und Event-Context-Unterstuetzung. Kein `as any` mehr.
-- **Inkrementelle Generierung** -- `--cache` Flag aktiviert Metadata-Caching. Nur Entities mit geaenderten Metadaten werden neu geladen, per `RetrieveMetadataChanges` Delta-Erkennung. Erster Lauf: Full Refresh. Folge-Laeufe: 10x schneller.
-- **Build-Orchestrierung** -- `xrmforge build` erzeugt IIFE-Bundles aus deklarativer Config. Keine esbuild-Config-Dateien noetig. `xrmforge build --watch` fuer inkrementelle Rebuilds (~10ms). Basiert auf `@xrmforge/devkit`.
+- **Formular-Tests** -- `@xrmforge/testing`-Paket: Typsicherer Mock-Builder für D365-Formulare. `createFormMock<AccountForm>({ name: 'Contoso' })` erzeugt ein zur Kompilierzeit validiertes Mock-Objekt mit `getAttribute()`, `getControl()`, `ui.setFormNotification()` und Event-Context-Unterstützung. Kein `as any` mehr.
+- **Inkrementelle Generierung** -- `--cache` Flag aktiviert Metadata-Caching. Nur Entities mit geänderten Metadaten werden neu geladen, per `RetrieveMetadataChanges` Delta-Erkennung. Erster Lauf: Full Refresh. Folge-Läufe: 10x schneller.
+- **Build-Orchestrierung** -- `xrmforge build` erzeugt IIFE-Bundles aus deklarativer Config. Keine esbuild-Config-Dateien nötig. `xrmforge build --watch` für inkrementelle Rebuilds (~10ms). Basiert auf `@xrmforge/devkit`.
 
 ---
 
@@ -308,6 +307,11 @@ npx xrmforge generate [options]
 | `--output <dir>` | Ausgabeverzeichnis für generierte Dateien | `./typings` |
 | `--label-language <code>` | Primäre Label-Sprache (LCID) | `1033` (Englisch) |
 | `--secondary-language <code>` | Sekundäre Label-Sprache (LCID) für zweisprachige JSDoc-Kommentare | -- |
+| `--actions` | Custom-API-Executors generieren (Action/Function) | Aus |
+| `--actions-filter <prefix>` | Nur Actions mit diesem Prefix generieren (z.B. `contoso_`) | Alle Actions |
+| `--cache` | Metadata-Caching aktivieren (inkrementelle Generierung per Delta-Erkennung) | Aus |
+| `--no-cache` | Metadata-Cache explizit deaktivieren (Full Refresh erzwingen) | -- |
+| `--cache-dir <dir>` | Verzeichnis für den Metadata-Cache | `.xrmforge-cache` |
 | `--no-forms` | Formular-Interface-Generierung überspringen | Formulare aktiv |
 | `--no-optionsets` | OptionSet-Enum-Generierung überspringen | OptionSets aktiv |
 | `-v, --verbose` | Ausführliches/Debug-Logging aktivieren | Aus |
@@ -318,13 +322,7 @@ Entweder `--entities` oder `--solutions` muss angegeben werden (oder beides). Be
 
 Drei Methoden werden unterstützt, alle basierend auf `@azure/identity` (MSAL). Eine vierte Methode (`token`) erlaubt die Übergabe eines vorab abgerufenen Bearer-Tokens.
 
-**Tenant ID finden:** D365-Umgebung öffnen, F12, Console, eingeben:
-
-```javascript
-fetch("/api/data/v9.2/WhoAmI",{credentials:"include"}).then(r=>{console.log("Tenant ID:",JSON.parse(atob(r.headers.get("Authorization").split(".")[1])).tid)})
-```
-
-Alternativ: `https://login.microsoftonline.com/DEINE_EMAIL_DOMAIN/.well-known/openid-configuration` im Browser öffnen (E-Mail-Domäne wie `contoso.com` verwenden, nicht die CRM-URL). Die Tenant ID steht im `issuer`-Feld.
+**Tenant ID finden:** `https://login.microsoftonline.com/DEINE_EMAIL_DOMAIN/.well-known/openid-configuration` im Browser öffnen (E-Mail-Domäne wie `contoso.com` verwenden, nicht die CRM-URL). Die Tenant ID steht im `issuer`-Feld.
 
 **Client ID:** Für Interactive und Device Code die bekannte Microsoft Sample App ID verwenden: `51f81489-12ee-4a9e-aaae-a2591f45987d`. Keine eigene App-Registrierung nötig. Für Client Credentials (CI/CD) wird eine eigene App-Registrierung benötigt (siehe [Azure App-Registrierung](#azure-app-registrierung)).
 
@@ -403,7 +401,7 @@ Falls noch keine App-Registrierung vorhanden ist, diese Schritte im Azure-Portal
 3. Ausfüllen:
    - **Name:** `XrmForge Type Generator` (oder ein beliebiger Name)
    - **Unterstützte Kontotypen:** Einzelner Mandant (nur eigene Organisation)
-   - **Redirect-URI:** "Web" auswählen und `http://localhost` eingeben (erforderlich für interaktive Authentifizierung)
+   - **Redirect-URI:** "Mobile and desktop applications" auswählen und `http://localhost` eingeben (erforderlich für interaktive Authentifizierung)
 4. Auf **Registrieren** klicken.
 5. Auf der App-Übersichtsseite kopieren:
    - **Anwendungs-(Client-)ID** -- das ist dein `--client-id`
@@ -533,7 +531,7 @@ export function onLoad(executionContext: Xrm.Events.EventContext): void {
 Der `select()`-Helfer und das entity-weite `Fields`-Enum ermöglichen typsichere Web-API-Abfragen:
 
 ```typescript
-import { select, parseLookup, parseFormattedValue } from '@xrmforge/typegen';
+import { select, parseLookup, parseFormattedValue } from '@xrmforge/helpers';
 import AccountFields = XrmForge.Entities.AccountFields;
 import AccountNav = XrmForge.Entities.AccountNavigationProperties;
 
@@ -593,7 +591,7 @@ Für gebundene Aktionen (Aktionen, die an eine bestimmte Entity gebunden sind):
 
 ```typescript
 import { WinQuote } from '../generated/actions/quote';
-import { withProgress } from '@xrmforge/typegen';
+import { withProgress } from '@xrmforge/helpers';
 
 async function winQuote(quoteId: string): Promise<void> {
   // withProgress zeigt einen Spinner und behandelt Fehler mit einem Dialog
@@ -605,15 +603,15 @@ async function winQuote(quoteId: string): Promise<void> {
 
 ---
 
-## 8. Fuer D365 bauen
+## 8. Für D365 bauen
 
 ### Warum IIFE?
 
-Dynamics 365 laedt Web Resources ueber `<script>`-Tags. Funktionen muessen global zugaenglich sein, damit das Formular-Event-Handler-System sie per Name aufrufen kann (z.B. `Contoso.AccountForm.onLoad`). Das IIFE-Format (Immediately Invoked Function Expression) kapselt den Modulcode und stellt ihn unter einem globalen Namespace bereit.
+Dynamics 365 lädt Web Resources über `<script>`-Tags. Funktionen müssen global zugänglich sein, damit das Formular-Event-Handler-System sie per Name aufrufen kann (z.B. `Contoso.AccountForm.onLoad`). Das IIFE-Format (Immediately Invoked Function Expression) kapselt den Modulcode und stellt ihn unter einem globalen Namespace bereit.
 
 ### Option A: `xrmforge build` (empfohlen)
 
-Eine `build`-Sektion in `xrmforge.config.json` hinzufuegen:
+Eine `build`-Sektion in `xrmforge.config.json` hinzufügen:
 
 ```json
 {
@@ -648,15 +646,15 @@ Dann bauen:
 ```bash
 xrmforge build            # Alle Entries bauen (parallel, IIFE-Bundles)
 xrmforge build --watch    # Watch-Modus (~10ms inkrementelle Rebuilds)
-xrmforge build --minify   # Ueberschreibung: Ausgabe minimieren
-xrmforge build --no-sourcemap  # Ueberschreibung: Source Maps deaktivieren
+xrmforge build --minify   # Überschreibung: Ausgabe minimieren
+xrmforge build --no-sourcemap  # Überschreibung: Source Maps deaktivieren
 ```
 
-Keine `build.mjs`, keine `esbuild.config.ts`, keine direkte esbuild-Abhaengigkeit noetig. Das `@xrmforge/devkit`-Paket uebernimmt alles.
+Keine `build.mjs`, keine `esbuild.config.ts`, keine direkte esbuild-Abhängigkeit nötig. Das `@xrmforge/devkit`-Paket übernimmt alles.
 
 ### Option B: Manuelles build.mjs
 
-Wer volle Kontrolle ueber esbuild behalten moechte, kann `build.mjs` im Projektstamm erstellen:
+Wer volle Kontrolle über esbuild behalten möchte, kann `build.mjs` im Projektstamm erstellen:
 
 ```javascript
 import * as esbuild from "esbuild";
@@ -701,12 +699,12 @@ for (const wr of webResources) {
 Wenn mehrere Formularskripte dieselben Hilfsfunktionen verwenden (z.B. Benachrichtigungshelfer, DSGVO-Logik, Validierung), diese in eine gemeinsame Bibliothek auslagern:
 
 1. `src/shared/notifications.ts` mit dem gemeinsamen Code erstellen.
-2. Als Entry in `xrmforge.config.json` mit eigenem `namespace` (z.B. `Contoso.Shared`) hinzufuegen.
-3. In Formularskripten auf gemeinsame Funktionen ueber den globalen Namespace zugreifen: `Contoso.Shared.showNotification(...)`.
+2. Als Entry in `xrmforge.config.json` mit eigenem `namespace` (z.B. `Contoso.Shared`) hinzufügen.
+3. In Formularskripten auf gemeinsame Funktionen über den globalen Namespace zugreifen: `Contoso.Shared.showNotification(...)`.
 4. In D365 die gemeinsame `.js`-Datei als Web Resource hochladen.
-5. Bei jedem Formular, das sie verwendet, die gemeinsame Web Resource als **Abhaengigkeit** hinzufuegen (Formulareigenschaften, dann Ereignishandler, dann Abhaengigkeiten). Dadurch stellt D365 sicher, dass die gemeinsame Bibliothek vor dem Formularskript geladen wird.
+5. Bei jedem Formular, das sie verwendet, die gemeinsame Web Resource als **Abhängigkeit** hinzufügen (Formulareigenschaften, dann Ereignishandler, dann Abhängigkeiten). Dadurch stellt D365 sicher, dass die gemeinsame Bibliothek vor dem Formularskript geladen wird.
 
-Dieses Muster vermeidet die Duplizierung von Code ueber mehrere Bundles.
+Dieses Muster vermeidet die Duplizierung von Code über mehrere Bundles.
 
 ---
 
@@ -728,10 +726,10 @@ Das Deploy-Script nutzt `@azure/identity` (MSAL) für die Authentifizierung. Bei
 **Deploy-Befehle:**
 
 ```bash
-npm run deploy          # Build + geaenderte WebResources deployen
-npm run deploy:dry      # Build + anzeigen was deployed wuerde (keine Aenderungen)
+npm run deploy          # Build + geänderte WebResources deployen
+npm run deploy:dry      # Build + anzeigen was deployed würde (keine Änderungen)
 npm run deploy:force    # Build + ALLE WebResources neu deployen (Hashes ignorieren)
-npm run deploy:maps     # Build + mit Source Maps deployen (fuer Debugging)
+npm run deploy:maps     # Build + mit Source Maps deployen (für Debugging)
 ```
 
 Das Deploy-Script arbeitet **inkrementell**: Es verfolgt SHA-256-Hashes der deployten Dateien und lädt nur WebResources hoch die sich tatsächlich geändert haben. Ein vollständiges Deployment von 7 WebResources dauert etwa 3 Sekunden.
@@ -763,7 +761,7 @@ Wenn manuelles Deployment bevorzugt wird: in der D365-Lösung zu Web Resources g
 
 ### Source Maps
 
-Mit aktivierten Source Maps bauen (Standard in `build.mjs`). Für die Entwicklung eingebettete Source Maps verwenden (`--dev`-Flag), damit nur eine Datei hochgeladen werden muss.
+Mit aktivierten Source Maps bauen (Standard in `build.mjs`). Für die Entwicklung können eingebettete Source Maps verwendet werden (esbuild-Option `sourcemap: 'inline'`), damit nur eine Datei hochgeladen werden muss.
 
 ### Browser-DevTools
 
@@ -786,7 +784,7 @@ Das ermöglicht nahezu sofortiges Feedback: Datei speichern, Formular aktualisie
 
 - Den **Konsole**-Tab verwenden, um `console.log`-Ausgaben aus den Formularskripten zu sehen.
 - Den **Netzwerk**-Tab verwenden, um Web-API-Aufrufe von `Xrm.WebApi` zu untersuchen.
-- Das `Xrm`-Objekt ist in der Konsole verfügbar. Aufrufe können interaktiv getestet werden: `Xrm.Page.getAttribute("name").getValue()`.
+- Das `Xrm`-Objekt ist in der Konsole verfügbar. Aufrufe können interaktiv getestet werden: `Xrm.Page.getAttribute("name").getValue()`. Hinweis: `Xrm.Page` ist deprecated und nur in der Konsole zum Debuggen geeignet. In Produktionscode immer `executionContext.getFormContext()` verwenden.
 
 ---
 
@@ -797,7 +795,7 @@ Das ermöglicht nahezu sofortiges Feedback: Datei speichern, Formular aktualisie
 Lookup-Felder aus Web-API-Antworten in `Xrm.LookupValue`-Objekte parsen:
 
 ```typescript
-import { parseLookup } from '@xrmforge/typegen';
+import { parseLookup } from '@xrmforge/helpers';
 import AccountNav = XrmForge.Entities.AccountNavigationProperties;
 import Fields = XrmForge.Forms.Account.AccountAccountFormFieldsEnum;
 
@@ -820,7 +818,7 @@ if (contact) {
 Die Konstante `FormNotificationLevel` statt roher Strings verwenden:
 
 ```typescript
-import { FormNotificationLevel } from '@xrmforge/typegen';
+import { FormNotificationLevel } from '@xrmforge/helpers';
 
 formContext.ui.setFormNotification(
   "Record saved successfully.",
@@ -837,7 +835,7 @@ setTimeout(() => {
 ### Tab-Anzeigestatus
 
 ```typescript
-import { DisplayState } from '@xrmforge/typegen';
+import { DisplayState } from '@xrmforge/helpers';
 
 const summaryTab = formContext.ui.tabs.get("SUMMARY_TAB");
 if (summaryTab.getDisplayState() === DisplayState.Collapsed) {
@@ -850,7 +848,7 @@ if (summaryTab.getDisplayState() === DisplayState.Collapsed) {
 Asynchrone Operationen mit einem Fortschrittsspinner und automatischem Fehlerdialog umschliessen:
 
 ```typescript
-import { withProgress } from '@xrmforge/typegen';
+import { withProgress } from '@xrmforge/helpers';
 import { WinQuote } from '../generated/actions/quote';
 
 await withProgress("Angebot wird verarbeitet...", () =>
@@ -862,7 +860,7 @@ await withProgress("Angebot wird verarbeitet...", () =>
 ### Pflichtfeldstatus
 
 ```typescript
-import { RequiredLevel } from '@xrmforge/typegen';
+import { RequiredLevel } from '@xrmforge/helpers';
 
 // E-Mail als Pflichtfeld setzen, wenn "Bevorzugte Kontaktmethode" E-Mail ist
 formContext
@@ -873,7 +871,7 @@ formContext
 ### Übergabemodus
 
 ```typescript
-import { SubmitMode } from '@xrmforge/typegen';
+import { SubmitMode } from '@xrmforge/helpers';
 
 // Dieses Feld immer übertragen, auch wenn es unverändert ist
 formContext
@@ -884,7 +882,7 @@ formContext
 ### Speichermodus
 
 ```typescript
-import { SaveMode } from '@xrmforge/typegen';
+import { SaveMode } from '@xrmforge/helpers';
 
 export function onSave(executionContext: Xrm.Events.SaveEventContext): void {
   const saveMode = executionContext.getEventArgs().getSaveMode();
@@ -900,7 +898,7 @@ export function onSave(executionContext: Xrm.Events.SaveEventContext): void {
 `.request()` verwenden, um Anforderungsobjekte zu erstellen und in einem einzigen Batch auszuführen:
 
 ```typescript
-import { executeMultiple } from '@xrmforge/typegen';
+import { executeMultiple } from '@xrmforge/helpers';
 import { ApproveRecord } from '../generated/actions/global';
 import { NotifyOwner } from '../generated/actions/global';
 
@@ -958,14 +956,14 @@ Installation: `npm install -D @xrmforge/testing`
 
 | Paket | Beschreibung | Status |
 |---------|-------------|--------|
-| `@xrmforge/typegen` | Kern-Engine: Metadaten, Typgenerierung, Web-API-Helfer, Xrm-Konstanten, Action-Runtime, MockValues-Typen, inkrementelle Generierung mit Metadata-Cache | v0.4.0 |
-| `@xrmforge/testing` | Typsicherer Formular-Mock-Builder: `createFormMock()`, `fireOnChange()`, MockAttribute, MockControl, MockUi | v0.1.1 |
-| `@xrmforge/cli` | Kommandozeile: `generate` (mit `--cache`), `build` (mit `--watch`) | v0.3.2 |
+| `@xrmforge/typegen` | Kern-Engine: Metadaten, Typgenerierung, Web-API-Helfer, Xrm-Konstanten, Action-Runtime, MockValues-Typen, inkrementelle Generierung mit Metadata-Cache | v0.6.0 |
+| `@xrmforge/testing` | Typsicherer Formular-Mock-Builder: `createFormMock()`, `fireOnChange()`, MockAttribute, MockControl, MockUi | v0.2.0 |
+| `@xrmforge/cli` | Kommandozeile: `generate` (mit `--cache`), `build` (mit `--watch`) | v0.4.2 |
 | `@xrmforge/webapi` | Typsicherer Web-API-Client: `retrieve<T>()`, `retrieveMultiple<T>()`, `create()`, `update()`, `remove()`, QueryBuilder | v0.1.0 |
 | `@xrmforge/helpers` | Browser-safe Runtime: `select()`, `parseLookup()`, `typedForm()`, Xrm-Konstanten, Action/Function Executors | v0.1.0 |
-| `@xrmforge/devkit` | Build-Orchestrierung: esbuild IIFE-Bundles fuer D365 WebResources, `xrmforge build`, Watch-Modus | v0.1.0 |
-| `@xrmforge/pipeline` | CI/CD-Vorlagen fuer Azure DevOps und GitHub Actions | Geplant |
-| `@xrmforge/eslint-plugin` | D365-spezifische ESLint-Regeln (z.B. keine rohen `getAttribute`-Strings, keine magischen Zahlen fuer OptionSets) | Geplant |
+| `@xrmforge/devkit` | Build-Orchestrierung: esbuild IIFE-Bundles für D365 WebResources, `xrmforge build`, Watch-Modus | v0.4.0 |
+| `@xrmforge/pipeline` | CI/CD-Vorlagen für Azure DevOps und GitHub Actions | Geplant |
+| `@xrmforge/eslint-plugin` | D365-spezifische ESLint-Regeln: keine rohen `getAttribute`-Strings, keine magischen Zahlen für OptionSets, kein `Xrm.Page` | v0.2.0 |
 
 ---
 
@@ -978,7 +976,7 @@ git clone https://github.com/juergenbeck/XrmForge.git
 cd XrmForge
 pnpm install
 pnpm build
-pnpm test       # 616 Tests über 6 Pakete
+pnpm test       # 699 Tests über 7 Pakete
 pnpm typecheck  # TypeScript Strict Mode
 pnpm lint       # ESLint v9
 ```
@@ -1042,7 +1040,7 @@ VS Code führt einen eigenen TypeScript-Server aus. Folgendes versuchen:
 
 Wenn esbuild einen Import nicht auflösen kann:
 
-- Für `@xrmforge/typegen`-Laufzeithelfer (wie `createUnboundAction`) sicherstellen, dass `@xrmforge/typegen` in `dependencies` steht (nicht nur in `devDependencies`), da die generierten Action-`.ts`-Dateien zur Laufzeit daraus importieren.
+- Für `@xrmforge/helpers`-Laufzeithelfer (wie `createUnboundAction`) sicherstellen, dass `@xrmforge/helpers` in `dependencies` steht (nicht nur in `devDependencies`), da die generierten Action-`.ts`-Dateien zur Laufzeit daraus importieren.
 - Für generierte `.d.ts`-Dateien (nur Deklarationen) ist kein Laufzeit-Import nötig. Sie werden von TypeScript während der Typprüfung aufgelöst, existieren aber nicht zur Laufzeit.
 
 **Generierung erfolgreich, aber Dateien sind leer oder unvollständig**
@@ -1060,16 +1058,16 @@ Wenn esbuild einen Import nicht auflösen kann:
 - **`@xrmforge/webapi`** (v0.1.0) -- Typsicherer Web-API-Client: `retrieve<T>()`, `retrieveMultiple<T>()`, `create()`, `update()`, `remove()`, QueryBuilder mit Pagination.
 - **`@xrmforge/helpers`** (v0.1.0) -- Browser-safe Runtime: select(), parseLookup(), typedForm(), Xrm-Konstanten, Action/Function Executors.
 - **`@xrmforge/devkit`** (v0.1.0) -- Build-Orchestrierung: `xrmforge build` mit IIFE-Bundles, Watch-Modus, deklarativer Config.
-- **Custom-API-Live-Generierung** -- `--actions` generiert typisierte Executors. `--actions-filter` fuer Prefix-Filterung.
-- **Loesungsbasierte Erkennung** -- `--solutions Sales,Service` erkennt Entities aus Dataverse-Loesungen automatisch.
-- **Inkrementelle Generierung** -- `--cache` aktiviert Metadata-Caching mit Delta-Erkennung per `RetrieveMetadataChanges`. 10x schneller bei Folge-Laeufen.
+- **`@xrmforge/eslint-plugin`** (v0.2.0) -- D365-spezifische ESLint-Regeln: keine rohen `getAttribute`-Strings, keine magischen Zahlen für OptionSets, kein `Xrm.Page`.
+- **Custom-API-Live-Generierung** -- `--actions` generiert typisierte Executors. `--actions-filter` für Prefix-Filterung.
+- **Lösungsbasierte Erkennung** -- `--solutions Sales,Service` erkennt Entities aus Dataverse-Lösungen automatisch.
+- **Inkrementelle Generierung** -- `--cache` aktiviert Metadata-Caching mit Delta-Erkennung per `RetrieveMetadataChanges`. 10x schneller bei Folge-Läufen.
 
 ### Geplant
 
 - **`xrmforge init`** -- Projekt-Scaffolding: tsconfig-Vorlagen, Build-Konfiguration, Beispielprojekte.
-- **`@xrmforge/pipeline`** -- CI/CD-Pipeline-Vorlagen fuer Azure DevOps (YAML) und GitHub Actions.
-- **`@xrmforge/eslint-plugin`** -- ESLint-Regeln speziell fuer D365-Entwicklung.
-- **webpack-Unterstuetzung** -- Tier-2-Bundler fuer Teams mit bestehendem webpack-Setup.
+- **`@xrmforge/pipeline`** -- CI/CD-Pipeline-Vorlagen für Azure DevOps (YAML) und GitHub Actions.
+- **webpack-Unterstützung** -- Tier-2-Bundler für Teams mit bestehendem webpack-Setup.
 
 ---
 
