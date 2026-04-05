@@ -139,11 +139,11 @@ async function runBuild(opts: BuildOptions): Promise<void> {
   console.log('');
 
   if (result.errors.length > 0) {
-    console.log('Errors:');
+    console.error('Errors:');
     for (const err of result.errors) {
       console.error(`  ${err}`);
     }
-    console.log('');
+    console.error('');
     process.exitCode = 1;
     return;
   }

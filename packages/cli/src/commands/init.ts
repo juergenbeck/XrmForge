@@ -84,9 +84,9 @@ async function runInit(dir: string | undefined, opts: InitOptions): Promise<void
   }
 
   if (result.warnings.length > 0) {
-    console.log('\nWarnings:');
+    console.warn('\nWarnings:');
     for (const w of result.warnings) {
-      console.log(`  ${w}`);
+      console.warn(`  ${w}`);
     }
   }
 

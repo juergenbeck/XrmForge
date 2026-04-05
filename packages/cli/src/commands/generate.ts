@@ -229,10 +229,10 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
 
   // Show warnings
   if (result.totalWarnings > 0) {
-    console.log('\nWarnings:');
+    console.warn('\nWarnings:');
     for (const entity of result.entities) {
       for (const warning of entity.warnings) {
-        console.log(`  [${entity.entityLogicalName}] ${warning}`);
+        console.warn(`  [${entity.entityLogicalName}] ${warning}`);
       }
     }
   }
@@ -240,7 +240,7 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
   // Show failures
   const failures = result.entities.filter((e) => e.files.length === 0 && e.warnings.length > 0);
   if (failures.length > 0) {
-    console.log(`\n${failures.length} entity/entities failed. See warnings above.`);
+    console.error(`\n${failures.length} entity/entities failed. See warnings above.`);
     process.exitCode = 1;
     return;
   }
