@@ -2,6 +2,17 @@
 
 How to convert legacy Dynamics 365 JavaScript to type-safe TypeScript with XrmForge.
 
+## Breaking Changes in v0.7.0
+
+- The `@xrmforge/typegen/helpers` subpath export has been removed.
+- All browser-safe runtime code (`select`, `parseLookup`, `parseFormattedValue`,
+  `withProgress`, Xrm constants, Action/Function executors, `typedForm`) is now
+  in the new package `@xrmforge/helpers`.
+- Update imports: `import { select } from '@xrmforge/typegen/helpers'` becomes
+  `import { select } from '@xrmforge/helpers'`.
+- `@xrmforge/formhelpers` has been removed. `typedForm()` is now in
+  `@xrmforge/helpers`.
+
 ## Step 1: Initialize Project
 
 ```bash
