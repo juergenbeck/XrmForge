@@ -8,7 +8,7 @@
  *
  * @example
  * ```typescript
- * import { select } from '@xrmforge/typegen';
+ * import { select } from '@xrmforge/helpers';
  *
  * Xrm.WebApi.retrieveRecord(ref.entityType, ref.id, select(
  *   AccountFields.Name,

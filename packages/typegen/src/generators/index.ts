@@ -46,45 +46,6 @@ export type { EntityFieldsGeneratorOptions } from './entity-fields-generator.js'
 export { generateEntityNamesEnum } from './entity-names-generator.js';
 export type { EntityNamesGeneratorOptions } from './entity-names-generator.js';
 
-// Web API Helpers
-export { select, selectExpand, parseLookup, parseLookups, parseFormattedValue } from './webapi-helpers.js';
-
-// Xrm API Constants (eliminates raw strings for common D365 values)
-export {
-  DisplayState,
-  // FormType: use XrmEnum.FormType from @types/xrm
-  FormNotificationLevel,
-  RequiredLevel,
-  SubmitMode,
-  SaveMode,
-  ClientType,
-  ClientState,
-  OperationType,
-  StructuralProperty,
-  BindingType,
-} from './xrm-constants.js';
-
-// Action/Function Runtime Helpers
-export {
-  executeRequest,
-  executeMultiple,
-  createBoundAction,
-  createUnboundAction,
-  createBoundFunction,
-  createUnboundFunction,
-  withProgress,
-} from './action-runtime.js';
-export type {
-  ParameterMeta,
-  ParameterMetaMap,
-  BoundActionExecutor,
-  BoundActionWithParamsExecutor,
-  UnboundActionExecutor,
-  UnboundActionWithParamsExecutor,
-  UnboundFunctionExecutor,
-  BoundFunctionExecutor,
-} from './action-runtime.js';
-
 // Action/Function Generator
 export {
   generateActionDeclarations,

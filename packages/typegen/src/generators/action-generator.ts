@@ -3,7 +3,7 @@
  *
  * Generates TypeScript files for type-safe Custom API execution:
  * - .d.ts: Parameter/Response interfaces and executor types
- * - .ts: Runtime modules that import factory functions from @xrmforge/typegen
+ * - .ts: Runtime modules that import factory functions from @xrmforge/helpers
  *
  * Input: CustomApiTypeInfo[] (from fixture JSON or live Dataverse query)
  * Output: Grouped by entity (bound) or "global" (unbound)
@@ -17,7 +17,7 @@
  * }
  *
  * // global.ts
- * import { createUnboundAction } from '@xrmforge/typegen';
+ * import { createUnboundAction } from '@xrmforge/helpers';
  * export const NormalizePhone = createUnboundAction<...>('markant_NormalizePhone', { ... });
  * ```
  */

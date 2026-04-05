@@ -136,51 +136,6 @@ export type {
   EntityFieldsGeneratorOptions,
 } from './generators/index.js';
 
-// ─── Web API Helpers ─────────────────────────────────────────────────────────
-export {
-  select,
-  selectExpand,
-  parseLookup,
-  parseLookups,
-  parseFormattedValue,
-} from './generators/index.js';
-
-// ─── Xrm API Constants ──────────────────────────────────────────────────────
-export {
-  DisplayState,
-  FormNotificationLevel,
-  RequiredLevel,
-  SubmitMode,
-  SaveMode,
-  ClientType,
-  ClientState,
-  OperationType,
-  StructuralProperty,
-  BindingType,
-} from './generators/index.js';
-
-// ─── Action/Function Runtime ─────────────────────────────────────────────────
-export {
-  executeRequest,
-  executeMultiple,
-  createBoundAction,
-  createUnboundAction,
-  createBoundFunction,
-  createUnboundFunction,
-  withProgress,
-} from './generators/index.js';
-
-export type {
-  ParameterMeta,
-  ParameterMetaMap,
-  BoundActionExecutor,
-  BoundActionWithParamsExecutor,
-  UnboundActionExecutor,
-  UnboundActionWithParamsExecutor,
-  UnboundFunctionExecutor,
-  BoundFunctionExecutor,
-} from './generators/index.js';
-
 // ─── Action/Function Generator ───────────────────────────────────────────────
 export {
   generateActionDeclarations,
