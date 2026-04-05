@@ -144,4 +144,30 @@ describe('generateEntityOptionSets', () => {
 
     expect(results).toHaveLength(0);
   });
+
+  it('should skip attributes where both OptionSet and GlobalOptionSet are null', () => {
+    const attrs = [
+      { SchemaName: 'NullField', OptionSet: null, GlobalOptionSet: null },
+    ];
+
+    const results = generateEntityOptionSets(attrs, 'account');
+
+    expect(results).toHaveLength(0);
+  });
+
+  it('should generate enum for OptionSet with exactly one option', () => {
+    const singleOption = createOptionSet({
+      Options: [
+        { Value: 100, Label: { LocalizedLabels: [{ Label: 'Only Option', LanguageCode: 1033 }], UserLocalizedLabel: null }, Description: { LocalizedLabels: [], UserLocalizedLabel: null }, Color: null },
+      ],
+    });
+    const attrs = [
+      { SchemaName: 'SingleField', OptionSet: singleOption, GlobalOptionSet: null },
+    ];
+
+    const results = generateEntityOptionSets(attrs, 'account');
+
+    expect(results).toHaveLength(1);
+    expect(results[0].content).toContain('OnlyOption = 100,');
+  });
 });

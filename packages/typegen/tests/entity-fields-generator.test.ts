@@ -137,6 +137,17 @@ describe('generateEntityNavigationProperties', () => {
 // ─── generateEntityFieldsEnum (bestehende Funktionalität) ───────────────────
 
 describe('generateEntityFieldsEnum', () => {
+  it('should generate export const enum syntax (not declare namespace)', () => {
+    const info = createEntityInfo([
+      createAttr({ LogicalName: 'name', AttributeType: 'String', DisplayName: { LocalizedLabels: [{ Label: 'Name', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+    ]);
+
+    const result = generateEntityFieldsEnum(info);
+
+    expect(result).toContain('export const enum AccountFields {');
+    expect(result).not.toContain('declare namespace');
+  });
+
   it('should generate fields enum with _value format for lookups', () => {
     const info = createEntityInfo([
       createAttr({ LogicalName: 'name', AttributeType: 'String', DisplayName: { LocalizedLabels: [{ Label: 'Name', LanguageCode: 1033 }], UserLocalizedLabel: null } }),

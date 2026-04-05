@@ -197,4 +197,16 @@ describe('generateEntityInterface', () => {
     expect(result).toContain('export interface Account {');
     expect(result).not.toContain('declare namespace');
   });
+
+  it('should generate an empty interface for entity with no attributes', () => {
+    const info = createEntityInfo([]);
+
+    const result = generateEntityInterface(info);
+
+    expect(result).toContain('export interface Account {');
+    expect(result).toContain('}');
+    // The interface should have no field declarations (no "| null;" lines)
+    const fieldLines = result.split('\n').filter((l) => l.includes('| null;'));
+    expect(fieldLines).toHaveLength(0);
+  });
 });

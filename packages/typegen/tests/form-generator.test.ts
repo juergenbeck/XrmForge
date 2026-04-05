@@ -192,6 +192,18 @@ describe('generateFormInterface', () => {
     expect(result).not.toContain('unknown_field');
   });
 
+  it('should generate = never for form with 0 recognized controls (BPF)', () => {
+    // A form with controls whose datafieldnames are not in the attribute map
+    const form = createForm('BPF', []);
+    const attrMap = new Map<string, AttributeMetadata>();
+
+    const result = generateFormInterface(form, 'account', attrMap);
+
+    expect(result).toContain('type AccountBPFFormFields = never;');
+    expect(result).toContain('type AccountBPFFormAttributeMap = Record<string, never>;');
+    expect(result).toContain('type AccountBPFFormControlMap = Record<string, never>;');
+  });
+
   it('should use Omit<FormContext> for the interface', () => {
     const form = createForm('Account', ['name']);
     const attrMap = new Map<string, AttributeMetadata>([
