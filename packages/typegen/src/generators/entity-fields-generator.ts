@@ -36,8 +36,6 @@ import {
 export interface EntityFieldsGeneratorOptions {
   /** Label configuration for dual-language JSDoc comments */
   labelConfig?: LabelConfig;
-  /** Namespace for generated enums (default: "XrmForge.Entities") */
-  namespace?: string;
 }
 
 /** Convert a label to a PascalCase enum member name */
@@ -65,7 +63,6 @@ export function generateEntityFieldsEnum(
   options: EntityFieldsGeneratorOptions = {},
 ): string {
   const labelConfig = options.labelConfig || DEFAULT_LABEL_CONFIG;
-  const namespace = options.namespace || 'XrmForge.Entities';
   const entityName = toPascalCase(info.entity.LogicalName);
   const enumName = `${entityName}Fields`;
 
@@ -75,10 +72,8 @@ export function generateEntityFieldsEnum(
     .sort((a, b) => a.LogicalName.localeCompare(b.LogicalName));
 
   const lines: string[] = [];
-  lines.push(`declare namespace ${namespace} {`);
-  lines.push('');
-  lines.push(`  /** All fields of ${entityName} (for Web API $select queries) */`);
-  lines.push(`  const enum ${enumName} {`);
+  lines.push(`/** All fields of ${entityName} (for Web API $select queries) */`);
+  lines.push(`export const enum ${enumName} {`);
 
   const usedNames = new Set<string>();
 
@@ -105,12 +100,11 @@ export function generateEntityFieldsEnum(
     // Dual-language JSDoc
     const dualLabel = formatDualLabel(attr.DisplayName, labelConfig);
     if (dualLabel) {
-      lines.push(`    /** ${dualLabel} */`);
+      lines.push(`  /** ${dualLabel} */`);
     }
-    lines.push(`    ${memberName} = '${propertyName}',`);
+    lines.push(`  ${memberName} = '${propertyName}',`);
   }
 
-  lines.push('  }');
   lines.push('}');
   lines.push('');
 
@@ -145,7 +139,6 @@ export function generateEntityNavigationProperties(
   options: EntityFieldsGeneratorOptions = {},
 ): string {
   const labelConfig = options.labelConfig || DEFAULT_LABEL_CONFIG;
-  const namespace = options.namespace || 'XrmForge.Entities';
   const entityName = toPascalCase(info.entity.LogicalName);
   const enumName = `${entityName}NavigationProperties`;
 
@@ -158,10 +151,8 @@ export function generateEntityNavigationProperties(
   if (lookupAttrs.length === 0) return '';
 
   const lines: string[] = [];
-  lines.push(`declare namespace ${namespace} {`);
-  lines.push('');
-  lines.push(`  /** Navigation properties of ${entityName} (for parseLookup and $expand) */`);
-  lines.push(`  const enum ${enumName} {`);
+  lines.push(`/** Navigation properties of ${entityName} (for parseLookup and $expand) */`);
+  lines.push(`export const enum ${enumName} {`);
 
   const usedNames = new Set<string>();
 
@@ -185,13 +176,12 @@ export function generateEntityNavigationProperties(
     // Dual-language JSDoc
     const dualLabel = formatDualLabel(attr.DisplayName, labelConfig);
     if (dualLabel) {
-      lines.push(`    /** ${dualLabel} */`);
+      lines.push(`  /** ${dualLabel} */`);
     }
     // Value = LogicalName (NOT _value format)
-    lines.push(`    ${memberName} = '${attr.LogicalName}',`);
+    lines.push(`  ${memberName} = '${attr.LogicalName}',`);
   }
 
-  lines.push('  }');
   lines.push('}');
   lines.push('');
 

@@ -175,25 +175,28 @@ describe('deleteOrphanedFiles', () => {
     await fs.mkdir(path.join(tmpDir, 'entities'), { recursive: true });
     await fs.mkdir(path.join(tmpDir, 'optionsets'), { recursive: true });
     await fs.mkdir(path.join(tmpDir, 'forms'), { recursive: true });
+    await fs.mkdir(path.join(tmpDir, 'fields'), { recursive: true });
   });
 
   afterEach(async () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('should delete entity, optionset, and form files for deleted entities', async () => {
+  it('should delete entity, optionset, form, and fields files for deleted entities', async () => {
     // Create files for an entity
-    await fs.writeFile(path.join(tmpDir, 'entities', 'obsolete.d.ts'), 'content', 'utf-8');
-    await fs.writeFile(path.join(tmpDir, 'optionsets', 'obsolete.d.ts'), 'content', 'utf-8');
-    await fs.writeFile(path.join(tmpDir, 'forms', 'obsolete.d.ts'), 'content', 'utf-8');
+    await fs.writeFile(path.join(tmpDir, 'entities', 'obsolete.ts'), 'content', 'utf-8');
+    await fs.writeFile(path.join(tmpDir, 'optionsets', 'obsolete.ts'), 'content', 'utf-8');
+    await fs.writeFile(path.join(tmpDir, 'forms', 'obsolete.ts'), 'content', 'utf-8');
+    await fs.writeFile(path.join(tmpDir, 'fields', 'obsolete.ts'), 'content', 'utf-8');
 
     const deleted = await deleteOrphanedFiles(tmpDir, ['obsolete']);
-    expect(deleted).toBe(3);
+    expect(deleted).toBe(4);
 
     // Verify files are gone
-    await expect(fs.access(path.join(tmpDir, 'entities', 'obsolete.d.ts'))).rejects.toThrow();
-    await expect(fs.access(path.join(tmpDir, 'optionsets', 'obsolete.d.ts'))).rejects.toThrow();
-    await expect(fs.access(path.join(tmpDir, 'forms', 'obsolete.d.ts'))).rejects.toThrow();
+    await expect(fs.access(path.join(tmpDir, 'entities', 'obsolete.ts'))).rejects.toThrow();
+    await expect(fs.access(path.join(tmpDir, 'optionsets', 'obsolete.ts'))).rejects.toThrow();
+    await expect(fs.access(path.join(tmpDir, 'forms', 'obsolete.ts'))).rejects.toThrow();
+    await expect(fs.access(path.join(tmpDir, 'fields', 'obsolete.ts'))).rejects.toThrow();
   });
 
   it('should not fail when files do not exist', async () => {
@@ -202,12 +205,12 @@ describe('deleteOrphanedFiles', () => {
   });
 
   it('should not touch files of other entities', async () => {
-    await fs.writeFile(path.join(tmpDir, 'entities', 'account.d.ts'), 'keep', 'utf-8');
-    await fs.writeFile(path.join(tmpDir, 'entities', 'obsolete.d.ts'), 'delete', 'utf-8');
+    await fs.writeFile(path.join(tmpDir, 'entities', 'account.ts'), 'keep', 'utf-8');
+    await fs.writeFile(path.join(tmpDir, 'entities', 'obsolete.ts'), 'delete', 'utf-8');
 
     await deleteOrphanedFiles(tmpDir, ['obsolete']);
 
-    const accountContent = await fs.readFile(path.join(tmpDir, 'entities', 'account.d.ts'), 'utf-8');
+    const accountContent = await fs.readFile(path.join(tmpDir, 'entities', 'account.ts'), 'utf-8');
     expect(accountContent).toBe('keep');
   });
 });

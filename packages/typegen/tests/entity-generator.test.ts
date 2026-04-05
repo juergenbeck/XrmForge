@@ -57,8 +57,7 @@ describe('generateEntityInterface', () => {
 
     const result = generateEntityInterface(info);
 
-    expect(result).toContain('declare namespace XrmForge.Entities {');
-    expect(result).toContain('interface Account {');
+    expect(result).toContain('export interface Account {');
     expect(result).toContain('accountid: string | null;');
     expect(result).toContain('name: string | null;');
   });
@@ -190,11 +189,12 @@ describe('generateEntityInterface', () => {
     expect(fieldLines[2]).toContain('zzz_field');
   });
 
-  it('should support custom namespace', () => {
+  it('should generate export interface without namespace', () => {
     const info = createEntityInfo([]);
 
-    const result = generateEntityInterface(info, { namespace: 'MyApp.Entities' });
+    const result = generateEntityInterface(info);
 
-    expect(result).toContain('declare namespace MyApp.Entities {');
+    expect(result).toContain('export interface Account {');
+    expect(result).not.toContain('declare namespace');
   });
 });

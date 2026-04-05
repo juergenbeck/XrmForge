@@ -200,7 +200,7 @@ npx xrmforge generate \
   --secondary-language 1031
 ```
 
-This opens a browser window for authentication, reads entity metadata, and writes `.d.ts` files into `./generated/`. The `--secondary-language 1031` adds German labels as JSDoc comments (optional).
+This opens a browser window for authentication, reads entity metadata, and writes `.ts` files into `./generated/`. The `--secondary-language 1031` adds German labels as JSDoc comments (optional).
 
 **Step 4: Set up TypeScript.**
 
@@ -219,7 +219,6 @@ Create `tsconfig.json`:
   },
   "include": [
     "src/**/*.ts",
-    "generated/**/*.d.ts",
     "generated/**/*.ts"
   ]
 }
@@ -230,8 +229,8 @@ Create `tsconfig.json`:
 Create `src/forms/account-form.ts`:
 
 ```typescript
-type AccountForm = XrmForge.Forms.Account.AccountAccountForm;
-import Fields = XrmForge.Forms.Account.AccountAccountFormFieldsEnum;
+import type { AccountAccountForm as AccountForm } from '../../generated/forms/account.js';
+import { AccountAccountFormFieldsEnum as Fields } from '../../generated/forms/account.js';
 
 export function onLoad(executionContext: Xrm.Events.EventContext): void {
   const formContext = executionContext.getFormContext() as AccountForm;
@@ -273,8 +272,9 @@ my-d365-project/
     entities/           # Entity data interfaces (for Web API responses)
     forms/              # Typed FormContext per entity/form
     optionsets/         # OptionSet const enums
-    actions/            # Custom API executors (.d.ts + .ts)
-    index.d.ts          # Barrel file with /// references
+    fields/             # Entity Fields enums for $select queries
+    actions/            # Custom API executors (.ts)
+    index.ts            # Barrel file with export * from re-exports
   dist/                 # Build output (IIFE .js files for D365 upload)
   tsconfig.json         # TypeScript configuration
   build.mjs             # esbuild build script
@@ -304,7 +304,7 @@ npx xrmforge generate [options]
 | `--token <token>` | Pre-acquired Bearer token (for `token` auth). Prefer `XRMFORGE_TOKEN` env var | -- |
 | `--entities <list>` | Comma-separated entity logical names (e.g. `account,contact,opportunity`) | -- |
 | `--solutions <list>` | Comma-separated solution unique names (discovers all entities in those solutions) | -- |
-| `--output <dir>` | Output directory for generated files | `./typings` |
+| `--output <dir>` | Output directory for generated files | `./generated` |
 | `--label-language <code>` | Primary label language LCID | `1033` (English) |
 | `--secondary-language <code>` | Secondary label language LCID (for dual-language JSDoc) | -- |
 | `--no-forms` | Skip form interface generation | Forms enabled |
@@ -465,7 +465,6 @@ A working `tsconfig.json` for D365 projects:
   },
   "include": [
     "src/**/*.ts",
-    "generated/**/*.d.ts",
     "generated/**/*.ts"
   ]
 }
@@ -475,7 +474,7 @@ Key points:
 
 - `"types": ["xrm"]` loads the global `Xrm` namespace from `@types/xrm`.
 - `"strict": true` enables all strict checks. This is where XrmForge shines.
-- The `include` array must cover both your source code and the generated declarations.
+- The `include` array must cover both your source code and the generated types.
 
 ### Writing a Form Script
 
@@ -484,14 +483,14 @@ A complete, realistic form script:
 ```typescript
 // src/forms/account-form.ts
 
-// Type alias for the form interface (generated per form)
-type AccountForm = XrmForge.Forms.Account.AccountAccountForm;
+// Import the form interface (generated per form)
+import type { AccountAccountForm as AccountForm } from '../../generated/forms/account.js';
 
 // Fields enum: autocomplete shows all fields on this form, with dual-language labels
-import Fields = XrmForge.Forms.Account.AccountAccountFormFieldsEnum;
+import { AccountAccountFormFieldsEnum as Fields } from '../../generated/forms/account.js';
 
 // OptionSet enum (generated from picklist metadata)
-import IndustryCode = XrmForge.OptionSets.IndustryCode;
+import { IndustryCode } from '../../generated/optionsets/account.js';
 
 /**
  * onLoad handler for the Account main form.
@@ -532,8 +531,8 @@ The `select()` helper and entity-level `Fields` enum let you write type-safe Web
 
 ```typescript
 import { select, parseLookup, parseFormattedValue } from '@xrmforge/helpers';
-import AccountFields = XrmForge.Entities.AccountFields;
-import AccountNav = XrmForge.Entities.AccountNavigationProperties;
+import { AccountFields } from '../../generated/fields/account.js';
+import { AccountNavigationProperties as AccountNav } from '../../generated/entities/account.js';
 
 async function loadAccountData(accountId: string): Promise<void> {
   // select() builds the OData $select query string
@@ -565,11 +564,12 @@ async function loadAccountData(accountId: string): Promise<void> {
 XrmForge generates type-safe executors for Custom APIs defined in your Dataverse environment:
 
 ```typescript
-// Import the generated executor (both .d.ts and .ts are generated)
+// Import the generated executor
 import { NormalizePhone } from '../generated/actions/global';
+import type { ContactContactForm } from '../generated/forms/contact.js';
 
 async function normalizePhoneNumber(
-  formContext: XrmForge.Forms.Contact.ContactContactForm,
+  formContext: ContactContactForm,
 ): Promise<void> {
   const phone = formContext.getAttribute("telephone1").getValue();
   if (!phone) return;
@@ -797,8 +797,8 @@ Parse lookup fields from Web API responses into `Xrm.LookupValue` objects:
 
 ```typescript
 import { parseLookup } from '@xrmforge/helpers';
-import AccountNav = XrmForge.Entities.AccountNavigationProperties;
-import Fields = XrmForge.Forms.Account.AccountAccountFormFieldsEnum;
+import { AccountNavigationProperties as AccountNav } from '../../generated/entities/account.js';
+import { AccountAccountFormFieldsEnum as Fields } from '../../generated/forms/account.js';
 
 // Retrieve an account via Web API
 const result = await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=_primarycontactid_value");
@@ -920,8 +920,7 @@ const responses = await executeMultiple(requests);
 import { describe, it, expect } from 'vitest';
 import { createFormMock } from '@xrmforge/testing';
 
-type AccountForm = XrmForge.Forms.Account.AccountMainForm;
-type MockValues = XrmForge.Forms.Account.AccountMainFormMockValues;
+import type { AccountMainForm as AccountForm, AccountMainFormMockValues as MockValues } from '../../generated/forms/account.js';
 
 describe('Account onLoad', () => {
   it('should lock MPK field when value is set', () => {
@@ -1016,7 +1015,6 @@ Check that your `tsconfig.json` `include` array covers the generated files:
 ```json
 "include": [
   "src/**/*.ts",
-  "generated/**/*.d.ts",
   "generated/**/*.ts"
 ]
 ```
@@ -1043,7 +1041,7 @@ VS Code runs its own TypeScript server. Try:
 If esbuild cannot resolve an import:
 
 - For generated Custom API action files (`*.ts` in `generated/actions/`), make sure `@xrmforge/helpers` is in your `dependencies` (not just `devDependencies`), because the generated action files import `createBoundAction` etc. from it at runtime.
-- For generated `.d.ts` files (declaration-only), no runtime import is needed. They are resolved by TypeScript during type-checking but do not exist at runtime.
+- Since v0.8.0, all generated files are `.ts` modules. Type-only imports (`import type { ... }`) are erased at runtime and do not affect the bundle.
 
 **Generation succeeds but files are empty or incomplete**
 

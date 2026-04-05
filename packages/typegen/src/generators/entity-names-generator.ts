@@ -19,8 +19,7 @@
 import { toPascalCase } from './type-mapping.js';
 
 export interface EntityNamesGeneratorOptions {
-  /** Namespace (default: "XrmForge") */
-  namespace?: string;
+  // Options reserved for future use
 }
 
 /**
@@ -32,22 +31,19 @@ export interface EntityNamesGeneratorOptions {
  */
 export function generateEntityNamesEnum(
   entityNames: string[],
-  options: EntityNamesGeneratorOptions = {},
+  _options: EntityNamesGeneratorOptions = {},
 ): string {
-  const namespace = options.namespace ?? 'XrmForge';
   const sorted = [...entityNames].sort();
 
   const lines: string[] = [];
-  lines.push(`declare namespace ${namespace} {`);
-  lines.push('  /** Entity logical names for Xrm.WebApi calls (compile-time only, zero runtime) */');
-  lines.push('  const enum EntityNames {');
+  lines.push('/** Entity logical names for Xrm.WebApi calls (compile-time only, zero runtime) */');
+  lines.push('export const enum EntityNames {');
 
   for (const name of sorted) {
     const pascal = toPascalCase(name);
-    lines.push(`    ${pascal} = '${name}',`);
+    lines.push(`  ${pascal} = '${name}',`);
   }
 
-  lines.push('  }');
   lines.push('}');
   lines.push('');
 

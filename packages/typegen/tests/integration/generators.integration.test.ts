@@ -16,8 +16,8 @@ describe('entity-generator with real Account metadata', () => {
   const output = generateEntityInterface(entityInfo, { labelConfig: DUAL_LABEL });
 
   it('should generate valid TypeScript declaration', () => {
-    expect(output).toContain('declare namespace XrmForge.Entities {');
-    expect(output).toContain('interface Account {');
+    expect(output).toContain('export interface Account {');
+    expect(output).not.toContain('declare namespace');
     expect(output).toMatch(/}\s*$/); // Properly closed
   });
 
@@ -77,7 +77,8 @@ describe('optionset-generator with real Account picklists', () => {
 
   it('should generate valid TypeScript syntax', () => {
     for (const os of optionSets) {
-      expect(os.content).toContain('declare namespace XrmForge.OptionSets {');
+      expect(os.content).toContain('export const enum');
+      expect(os.content).not.toContain('declare namespace');
       expect(os.content).toMatch(/}\s*$/);
     }
   });

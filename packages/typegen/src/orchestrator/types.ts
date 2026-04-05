@@ -79,7 +79,7 @@ export interface GeneratedFile {
   content: string;
 
   /** Type of generated content */
-  type: 'entity' | 'optionset' | 'form' | 'action';
+  type: 'entity' | 'optionset' | 'form' | 'action' | 'fields';
 }
 
 /** Statistics about cache usage during generation */

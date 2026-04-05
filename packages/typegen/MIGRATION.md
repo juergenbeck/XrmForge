@@ -2,6 +2,32 @@
 
 How to convert legacy Dynamics 365 JavaScript to type-safe TypeScript with XrmForge.
 
+## Breaking Changes in v0.8.0 (ES Module Output)
+
+### What changed
+- Generated files are now `.ts` modules with `export` statements instead of `.d.ts` files with `declare namespace`
+- Default output directory changed from `./typings` to `./generated`
+- Entity Fields enums are now generated in a separate `fields/` directory
+- Action declarations and runtime code are now in a single `.ts` file per group
+- The barrel index uses `export * from` instead of `/// <reference path />`
+
+### Migration steps
+1. Update your `xrmforge generate` command: replace `--output ./typings` with `--output ./generated` (or omit for the new default)
+2. Replace namespace access with imports:
+   ```typescript
+   // Before (v0.7.x):
+   type AccountForm = XrmForge.Forms.Account.AccountMainForm;
+
+   // After (v0.8.0):
+   import type { AccountMainForm } from './generated/forms/account.js';
+   ```
+3. Update your tsconfig.json: replace `"typings/**/*.d.ts"` in `include` with `"generated/**/*.ts"`
+4. Entity Fields enums are now available:
+   ```typescript
+   import { AccountFields } from './generated/fields/account.js';
+   const result = await Xrm.WebApi.retrieveRecord('account', id, `?$select=${AccountFields.Name},${AccountFields.Telephone1}`);
+   ```
+
 ## Breaking Changes in v0.7.0
 
 - The `@xrmforge/typegen/helpers` subpath export has been removed.
@@ -30,14 +56,15 @@ npx xrmforge generate \
   --tenant-id YOUR-TENANT-ID \
   --client-id YOUR-CLIENT-ID \
   --entities account,contact,opportunity \
-  --output ./typings
+  --output ./generated
 ```
 
 This generates:
-- `typings/entities/*.d.ts` - Entity interfaces with typed attributes
-- `typings/forms/*.d.ts` - Form interfaces with Fields enum, Tabs enum, Subgrid enum
-- `typings/optionsets/*.d.ts` - OptionSet const enums with labels
-- `typings/entity-names.d.ts` - EntityNames const enum
+- `generated/entities/*.ts` - Entity interfaces with typed attributes
+- `generated/forms/*.ts` - Form interfaces with Fields enum, Tabs enum, Subgrid enum
+- `generated/optionsets/*.ts` - OptionSet const enums with labels
+- `generated/fields/*.ts` - Entity Fields enums for type-safe $select queries
+- `generated/entity-names.ts` - EntityNames const enum
 
 ## Step 3: Convert Form Scripts
 
@@ -62,17 +89,19 @@ LM.Account = {
 
 ```typescript
 // account-form.ts - typed, safe, autocomplete everywhere
-import { AccountMainFormFieldsEnum as Fields } from '../../typings/forms/account';
+import { AccountMainFormFieldsEnum as Fields } from '../../generated/forms/account.js';
+import type { AccountMainForm } from '../../generated/forms/account.js';
+import { StatusCode } from '../../generated/optionsets/account.js';
 
 export function onLoad(executionContext: Xrm.Events.EventContext): void {
-  const form = executionContext.getFormContext() as XrmForge.Forms.Account.AccountMainForm;
+  const form = executionContext.getFormContext() as AccountMainForm;
 
   // Fields enum: compile error on typos, autocomplete in IDE
   const name = form.getAttribute(Fields.AccountName);  // StringAttribute, not generic
   const status = form.getAttribute(Fields.StatusCode);  // OptionSetAttribute
 
   // OptionSet enum: no magic numbers
-  if (status.getValue() === XrmForge.OptionSets.Account.StatusCode.Active) {
+  if (status.getValue() === StatusCode.Active) {
     form.getControl(Fields.Revenue).setVisible(true);
   }
 }
@@ -114,7 +143,7 @@ Xrm.WebApi.retrieveMultipleRecords("account",
 
 // After: use Fields enum for $select
 import { select } from '@xrmforge/helpers';
-import { AccountFields } from '../../typings/entities/account';
+import { AccountFields } from '../../generated/fields/account.js';
 Xrm.WebApi.retrieveMultipleRecords("account",
   `?$select=${select(AccountFields.Name, AccountFields.Revenue)}&$filter=statecode eq 0`);
 ```
@@ -126,7 +155,7 @@ Xrm.WebApi.retrieveMultipleRecords("account",
 
 // After: @xrmforge/testing
 import { createFormMock, fireOnChange } from '@xrmforge/testing';
-import type { AccountMainForm, AccountMainFormMockValues } from '../../typings/forms/account';
+import type { AccountMainForm, AccountMainFormMockValues } from '../../generated/forms/account.js';
 
 const mock = createFormMock<AccountMainForm, AccountMainFormMockValues>({
   name: 'Contoso Ltd',
@@ -152,7 +181,7 @@ Search your code for patterns like:
 - `setValue("statuscode", 1)`
 - Raw OptionSet values in if/switch statements
 
-Replace with generated const enums from `typings/optionsets/`.
+Replace with generated const enums from `generated/optionsets/`.
 
 ## Checklist
 

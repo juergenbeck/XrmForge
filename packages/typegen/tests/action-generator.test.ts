@@ -74,35 +74,32 @@ const unboundFunction: CustomApiTypeInfo = {
 describe('generateActionDeclarations', () => {
   it('should generate declaration for unbound action without params', () => {
     const output = generateActionDeclarations([unboundActionNoParams], false);
-    expect(output).toContain('declare namespace XrmForge.Actions');
+    expect(output).not.toContain('declare namespace');
     expect(output).toContain('SimpleAction');
-    expect(output).toContain('UnboundActionExecutor');
     expect(output).not.toContain('Params');
   });
 
   it('should generate params and result interfaces', () => {
     const output = generateActionDeclarations([unboundActionWithParams], false);
-    expect(output).toContain('interface NormalizePhoneParams');
+    expect(output).toContain('export interface NormalizePhoneParams');
     expect(output).toContain('Input: string');
     expect(output).toContain('AllowSuspicious?: boolean');
-    expect(output).toContain('interface NormalizePhoneResult');
+    expect(output).toContain('export interface NormalizePhoneResult');
     expect(output).toContain('Normalized: string');
     expect(output).toContain('Status: number');
     expect(output).toContain('Message: string');
-    expect(output).toContain('UnboundActionWithParamsExecutor<NormalizePhoneParams, NormalizePhoneResult>');
   });
 
-  it('should generate bound action in entity namespace', () => {
+  it('should generate bound action declarations', () => {
     const output = generateActionDeclarations([boundAction], false, 'quote');
-    expect(output).toContain('declare namespace XrmForge.Actions.Quote');
-    expect(output).toContain('Winquote'); // toPascalCase("winquote") = "Winquote"
-    expect(output).toContain('BoundActionExecutor');
+    expect(output).not.toContain('declare namespace');
+    expect(output).toContain('markant_winquote'); // uniquename appears in JSDoc
   });
 
-  it('should generate function in functions namespace', () => {
+  it('should generate function declarations without namespace', () => {
     const output = generateActionDeclarations([unboundFunction], true);
-    expect(output).toContain('declare namespace XrmForge.Functions');
-    expect(output).toContain('interface WhoAmIResult');
+    expect(output).not.toContain('declare namespace');
+    expect(output).toContain('export interface WhoAmIResult');
     expect(output).toContain('UserId: string');
     expect(output).toContain('BusinessUnitId: string');
   });
@@ -132,7 +129,7 @@ describe('generateActionDeclarations', () => {
 describe('generateActionModule', () => {
   it('should generate import statement', () => {
     const output = generateActionModule([unboundActionNoParams], false);
-    expect(output).toContain("import { createUnboundAction } from '@xrmforge/typegen'");
+    expect(output).toContain("import { createUnboundAction } from '@xrmforge/helpers'");
   });
 
   it('should generate executor for unbound action without params', () => {
@@ -149,13 +146,13 @@ describe('generateActionModule', () => {
 
   it('should generate bound action executor', () => {
     const output = generateActionModule([boundAction], false);
-    expect(output).toContain("import { createBoundAction } from '@xrmforge/typegen'");
+    expect(output).toContain("import { createBoundAction } from '@xrmforge/helpers'");
     expect(output).toContain("export const Winquote = createBoundAction('markant_winquote', 'quote')");
   });
 
   it('should generate unbound function executor', () => {
     const output = generateActionModule([unboundFunction], true);
-    expect(output).toContain("import { createUnboundFunction } from '@xrmforge/typegen'");
+    expect(output).toContain("import { createUnboundFunction } from '@xrmforge/helpers'");
     expect(output).toContain("export const WhoAmI = createUnboundFunction('WhoAmI')");
   });
 
@@ -168,7 +165,7 @@ describe('generateActionModule', () => {
 
   it('should include JSDoc with description', () => {
     const output = generateActionModule([unboundActionWithParams], false);
-    expect(output).toContain('/** Normalisiert Telefonnummern */');
+    expect(output).toContain('/** Normalisiert Telefonnummern (markant_NormalizePhone) */');
   });
 });
 

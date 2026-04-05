@@ -3,8 +3,8 @@
  *
  * Coordinates the full type generation pipeline:
  * 1. Fetch metadata for requested entities (via MetadataClient)
- * 2. Generate entity interfaces, OptionSet enums, form interfaces
- * 3. Write .d.ts files to disk
+ * 2. Generate entity interfaces, OptionSet enums, form interfaces, fields enums
+ * 3. Write .ts files to disk
  *
  * This is the main entry point that ties all components together.
  */
@@ -21,6 +21,7 @@ import { generateEntityInterface } from '../generators/entity-generator.js';
 import { generateEntityOptionSets } from '../generators/optionset-generator.js';
 import { generateEntityForms } from '../generators/form-generator.js';
 import { generateActionDeclarations, generateActionModule, groupCustomApis } from '../generators/action-generator.js';
+import { generateEntityFieldsEnum, generateEntityNavigationProperties } from '../generators/entity-fields-generator.js';
 import { generateEntityNamesEnum } from '../generators/entity-names-generator.js';
 import { addGeneratedHeader, writeAllFiles, generateBarrelIndex, deleteOrphanedFiles } from './file-writer.js';
 import type {
@@ -39,7 +40,7 @@ import type {
  * const orchestrator = new TypeGenerationOrchestrator(credential, {
  *   environmentUrl: 'https://myorg.crm4.dynamics.com',
  *   entities: ['account', 'contact'],
- *   outputDir: './typings',
+ *   outputDir: './generated',
  *   labelConfig: { primaryLanguage: 1033, secondaryLanguage: 1031 },
  * });
  * const result = await orchestrator.generate();
@@ -212,11 +213,9 @@ export class TypeGenerationOrchestrator {
 
     // 3d. Generate EntityNames enum (all entities in one file)
     if (this.config.entities.length > 0) {
-      const entityNamesContent = generateEntityNamesEnum(this.config.entities, {
-        namespace: this.config.namespacePrefix,
-      });
+      const entityNamesContent = generateEntityNamesEnum(this.config.entities);
       allFiles.push({
-        relativePath: 'entity-names.d.ts',
+        relativePath: 'entity-names.ts',
         content: addGeneratedHeader(entityNamesContent),
         type: 'entity',
       });
@@ -226,7 +225,7 @@ export class TypeGenerationOrchestrator {
     if (allFiles.length > 0) {
       const indexContent = generateBarrelIndex(allFiles);
       const indexFile: GeneratedFile = {
-        relativePath: 'index.d.ts',
+        relativePath: 'index.ts',
         content: indexContent,
         type: 'entity',
       };
@@ -430,10 +429,9 @@ export class TypeGenerationOrchestrator {
     if (this.config.generateEntities) {
       const entityContent = generateEntityInterface(entityInfo, {
         labelConfig: this.config.labelConfig,
-        namespace: `${this.config.namespacePrefix}.Entities`,
       });
       files.push({
-        relativePath: `entities/${entityName}.d.ts`,
+        relativePath: `entities/${entityName}.ts`,
         content: addGeneratedHeader(entityContent),
         type: 'entity',
       });
@@ -446,14 +444,13 @@ export class TypeGenerationOrchestrator {
       if (picklistAttrs.length > 0) {
         const optionSets = generateEntityOptionSets(picklistAttrs, entityName, {
           labelConfig: this.config.labelConfig,
-          namespace: `${this.config.namespacePrefix}.OptionSets`,
         });
 
         if (optionSets.length > 0) {
           // Combine all OptionSets for one entity into a single file
           const combinedContent = optionSets.map((os) => os.content).join('\n');
           files.push({
-            relativePath: `optionsets/${entityName}.d.ts`,
+            relativePath: `optionsets/${entityName}.ts`,
             content: addGeneratedHeader(combinedContent),
             type: 'optionset',
           });
@@ -472,7 +469,6 @@ export class TypeGenerationOrchestrator {
           entityInfo.attributes,
           {
             labelConfig: this.config.labelConfig,
-            namespacePrefix: `${this.config.namespacePrefix}.Forms`,
           },
         );
 
@@ -480,7 +476,7 @@ export class TypeGenerationOrchestrator {
           // Combine all forms for one entity into a single file
           const combinedContent = formResults.map((f) => f.content).join('\n');
           files.push({
-            relativePath: `forms/${entityName}.d.ts`,
+            relativePath: `forms/${entityName}.ts`,
             content: addGeneratedHeader(combinedContent),
             type: 'form',
           });
@@ -488,6 +484,27 @@ export class TypeGenerationOrchestrator {
       } else {
         warnings.push(`No forms found for ${entityName}`);
       }
+    }
+
+    // Generate entity fields enum and navigation properties (R4-03)
+    if (this.config.generateEntities) {
+      const fieldsEnumContent = generateEntityFieldsEnum(entityInfo, {
+        labelConfig: this.config.labelConfig,
+      });
+      const navPropsContent = generateEntityNavigationProperties(entityInfo, {
+        labelConfig: this.config.labelConfig,
+      });
+
+      // Combine both outputs into a single file (navProps may be empty if no lookups)
+      const combinedFieldsContent = navPropsContent
+        ? `${fieldsEnumContent}\n${navPropsContent}`
+        : fieldsEnumContent;
+
+      files.push({
+        relativePath: `fields/${entityName}.ts`,
+        content: addGeneratedHeader(combinedFieldsContent),
+        type: 'fields',
+      });
     }
 
     return { entityLogicalName: entityName, files, warnings };
@@ -519,14 +536,10 @@ export class TypeGenerationOrchestrator {
         const declarations = generateActionDeclarations(apis, false, entityName, { importPath });
         const module = generateActionModule(apis, false, { importPath });
 
-        files.push({
-          relativePath: `actions/${key}.d.ts`,
-          content: addGeneratedHeader(declarations),
-          type: 'action',
-        });
+        // Combine declarations and module into a single .ts file
         files.push({
           relativePath: `actions/${key}.ts`,
-          content: addGeneratedHeader(module),
+          content: addGeneratedHeader(`${declarations}\n${module}`),
           type: 'action',
         });
       }
@@ -536,14 +549,10 @@ export class TypeGenerationOrchestrator {
         const declarations = generateActionDeclarations(apis, true, entityName, { importPath });
         const module = generateActionModule(apis, true, { importPath });
 
-        files.push({
-          relativePath: `functions/${key}.d.ts`,
-          content: addGeneratedHeader(declarations),
-          type: 'action',
-        });
+        // Combine declarations and module into a single .ts file
         files.push({
           relativePath: `functions/${key}.ts`,
-          content: addGeneratedHeader(module),
+          content: addGeneratedHeader(`${declarations}\n${module}`),
           type: 'action',
         });
       }

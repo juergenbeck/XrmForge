@@ -31,8 +31,6 @@ import { toPascalCase } from './type-mapping.js';
 export interface OptionSetGeneratorOptions {
   /** Label configuration for dual-language JSDoc comments */
   labelConfig?: LabelConfig;
-  /** Namespace for generated types (default: "XrmForge.OptionSets") */
-  namespace?: string;
 }
 
 /**
@@ -51,7 +49,6 @@ export function generateOptionSetEnum(
   options: OptionSetGeneratorOptions = {},
 ): string {
   const labelConfig = options.labelConfig || DEFAULT_LABEL_CONFIG;
-  const namespace = options.namespace || 'XrmForge.OptionSets';
 
   // Determine enum name
   const enumName = optionSet.IsGlobal
@@ -76,17 +73,13 @@ export function generateOptionSetEnum(
 
   const lines: string[] = [];
 
-  // Namespace
-  lines.push(`declare namespace ${namespace} {`);
-  lines.push('');
-
   // Enum JSDoc
   const enumLabel = formatDualLabel(optionSet.DisplayName, labelConfig);
   if (enumLabel) {
-    lines.push(`  /** ${enumLabel} (${optionSet.Name}) */`);
+    lines.push(`/** ${enumLabel} (${optionSet.Name}) */`);
   }
 
-  lines.push(`  const enum ${enumName} {`);
+  lines.push(`export const enum ${enumName} {`);
 
   // Members
   for (let i = 0; i < disambiguated.length; i++) {
@@ -97,13 +90,12 @@ export function generateOptionSetEnum(
     // JSDoc with original label (always show, even if member name was derived from it)
     const memberLabel = formatDualLabel(rawMember.option.Label, labelConfig);
     if (memberLabel) {
-      lines.push(`    /** ${memberLabel} */`);
+      lines.push(`  /** ${memberLabel} */`);
     }
 
-    lines.push(`    ${member.name} = ${member.value},`);
+    lines.push(`  ${member.name} = ${member.value},`);
   }
 
-  lines.push('  }');
   lines.push('}');
   lines.push('');
 

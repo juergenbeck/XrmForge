@@ -27,8 +27,7 @@ describe('generateOptionSetEnum', () => {
   it('should generate a const enum with PascalCase members', () => {
     const result = generateOptionSetEnum(createOptionSet(), 'account', 'AccountCategoryCode');
 
-    expect(result).toContain('declare namespace XrmForge.OptionSets {');
-    expect(result).toContain('const enum AccountCategoryCode {');
+    expect(result).toContain('export const enum AccountCategoryCode {');
     expect(result).toContain('PreferredCustomer = 1,');
     expect(result).toContain('Standard = 2,');
   });
@@ -102,12 +101,11 @@ describe('generateOptionSetEnum', () => {
     expect(result).toContain('const enum Statecode {');
   });
 
-  it('should support custom namespace', () => {
-    const result = generateOptionSetEnum(createOptionSet(), 'account', 'AccountCategoryCode', {
-      namespace: 'MyApp.Enums',
-    });
+  it('should generate export const enum without namespace', () => {
+    const result = generateOptionSetEnum(createOptionSet(), 'account', 'AccountCategoryCode');
 
-    expect(result).toContain('declare namespace MyApp.Enums {');
+    expect(result).toContain('export const enum AccountCategoryCode {');
+    expect(result).not.toContain('declare namespace');
   });
 });
 

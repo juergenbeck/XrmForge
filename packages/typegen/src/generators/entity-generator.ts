@@ -31,8 +31,6 @@ import { formatDualLabel, type LabelConfig, DEFAULT_LABEL_CONFIG } from './label
 export interface EntityGeneratorOptions {
   /** Label configuration for dual-language JSDoc comments */
   labelConfig?: LabelConfig;
-  /** Namespace for generated types (default: "XrmForge.Entities") */
-  namespace?: string;
 }
 
 /**
@@ -44,21 +42,23 @@ export interface EntityGeneratorOptions {
  */
 export function generateEntityInterface(info: EntityTypeInfo, options: EntityGeneratorOptions = {}): string {
   const labelConfig = options.labelConfig || DEFAULT_LABEL_CONFIG;
-  const namespace = options.namespace || 'XrmForge.Entities';
   const entityName = toPascalCase(info.entity.LogicalName);
   const entityLabel = formatDualLabel(info.entity.DisplayName, labelConfig);
 
   const lines: string[] = [];
 
-  // Header
-  lines.push(`declare namespace ${namespace} {`);
-  lines.push('');
+  // Check if ActivityParty import is needed (entity has PartyList fields)
+  const partyListAttrs = info.attributes.filter((a) => isPartyListType(a.AttributeType));
+  if (partyListAttrs.length > 0) {
+    lines.push("import type { ActivityParty } from './_activity-party.js';");
+    lines.push('');
+  }
 
   // Entity JSDoc
   if (entityLabel) {
-    lines.push(`  /** ${entityLabel} */`);
+    lines.push(`/** ${entityLabel} */`);
   }
-  lines.push(`  interface ${entityName} {`);
+  lines.push(`export interface ${entityName} {`);
 
   // Filter and sort attributes
   const includedAttrs = info.attributes
@@ -97,16 +97,15 @@ export function generateEntityInterface(info: EntityTypeInfo, options: EntityGen
     }
 
     if (jsdocParts.length > 0) {
-      lines.push(`    /** ${jsdocParts.join(' - ')} */`);
+      lines.push(`  /** ${jsdocParts.join(' - ')} */`);
     }
 
-    lines.push(`    ${propertyName}: ${tsType} | null;`);
+    lines.push(`  ${propertyName}: ${tsType} | null;`);
   }
 
   // PartyList: single navigation property for the entity's ActivityParty collection.
   // Multiple PartyList fields (to, from, cc, bcc, requiredattendees) share ONE
   // navigation property per entity (e.g. email_activity_parties).
-  const partyListAttrs = info.attributes.filter((a) => isPartyListType(a.AttributeType));
   if (partyListAttrs.length > 0) {
     // Find the activity party relationship (there's typically one per activity entity)
     const relationship = info.oneToManyRelationships.find(
@@ -117,11 +116,10 @@ export function generateEntityInterface(info: EntityTypeInfo, options: EntityGen
       : `${info.entity.LogicalName}_activity_parties`;
 
     lines.push('');
-    lines.push(`    /** ActivityParty collection (${partyListAttrs.length} PartyList-Felder: ${partyListAttrs.map((a) => a.LogicalName).join(', ')}) */`);
-    lines.push(`    ${navPropName}: ActivityParty[] | null;`);
+    lines.push(`  /** ActivityParty collection (${partyListAttrs.length} PartyList-Felder: ${partyListAttrs.map((a) => a.LogicalName).join(', ')}) */`);
+    lines.push(`  ${navPropName}: ActivityParty[] | null;`);
   }
 
-  lines.push('  }');
   lines.push('}');
   lines.push('');
 

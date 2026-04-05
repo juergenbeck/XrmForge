@@ -183,9 +183,9 @@ describe('TypeGenerationOrchestrator', () => {
     const result = await orchestrator.generate();
 
     const paths = result.entities[0].files.map((f) => f.relativePath);
-    expect(paths).toContain('entities/contact.d.ts');
-    expect(paths).toContain('optionsets/contact.d.ts');
-    expect(paths).toContain('forms/contact.d.ts');
+    expect(paths).toContain('entities/contact.ts');
+    expect(paths).toContain('optionsets/contact.ts');
+    expect(paths).toContain('forms/contact.ts');
   });
 
   it('should handle errors gracefully', async () => {

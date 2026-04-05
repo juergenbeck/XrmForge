@@ -19,25 +19,25 @@ describe('addGeneratedHeader', () => {
 // ─── generateBarrelIndex ─────────────────────────────────────────────────────
 
 describe('generateBarrelIndex', () => {
-  it('should generate triple-slash references for all files', () => {
+  it('should generate export-star re-exports for all files', () => {
     const files: GeneratedFile[] = [
-      { relativePath: 'entities/account.d.ts', absolutePath: '', content: '', type: 'entity' },
-      { relativePath: 'optionsets/account.d.ts', absolutePath: '', content: '', type: 'optionset' },
-      { relativePath: 'forms/account.d.ts', absolutePath: '', content: '', type: 'form' },
+      { relativePath: 'entities/account.ts', absolutePath: '', content: '', type: 'entity' },
+      { relativePath: 'optionsets/account.ts', absolutePath: '', content: '', type: 'optionset' },
+      { relativePath: 'forms/account.ts', absolutePath: '', content: '', type: 'form' },
     ];
 
     const result = generateBarrelIndex(files);
 
-    expect(result).toContain('/// <reference path="entities/account.d.ts" />');
-    expect(result).toContain('/// <reference path="optionsets/account.d.ts" />');
-    expect(result).toContain('/// <reference path="forms/account.d.ts" />');
+    expect(result).toContain("export * from './entities/account.js';");
+    expect(result).toContain("export * from './optionsets/account.js';");
+    expect(result).toContain("export * from './forms/account.js';");
   });
 
   it('should group by type with headers', () => {
     const files: GeneratedFile[] = [
-      { relativePath: 'entities/account.d.ts', absolutePath: '', content: '', type: 'entity' },
-      { relativePath: 'entities/contact.d.ts', absolutePath: '', content: '', type: 'entity' },
-      { relativePath: 'optionsets/account.d.ts', absolutePath: '', content: '', type: 'optionset' },
+      { relativePath: 'entities/account.ts', absolutePath: '', content: '', type: 'entity' },
+      { relativePath: 'entities/contact.ts', absolutePath: '', content: '', type: 'entity' },
+      { relativePath: 'optionsets/account.ts', absolutePath: '', content: '', type: 'optionset' },
     ];
 
     const result = generateBarrelIndex(files);
@@ -48,7 +48,7 @@ describe('generateBarrelIndex', () => {
 
   it('should skip sections with no files', () => {
     const files: GeneratedFile[] = [
-      { relativePath: 'entities/account.d.ts', absolutePath: '', content: '', type: 'entity' },
+      { relativePath: 'entities/account.ts', absolutePath: '', content: '', type: 'entity' },
     ];
 
     const result = generateBarrelIndex(files);
@@ -60,7 +60,7 @@ describe('generateBarrelIndex', () => {
 
   it('should include generated header', () => {
     const files: GeneratedFile[] = [
-      { relativePath: 'entities/account.d.ts', absolutePath: '', content: '', type: 'entity' },
+      { relativePath: 'entities/account.ts', absolutePath: '', content: '', type: 'entity' },
     ];
 
     const result = generateBarrelIndex(files);

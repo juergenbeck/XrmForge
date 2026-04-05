@@ -72,8 +72,6 @@ function specialControlToXrmType(controlType: SpecialControlType): string | null
 export interface FormGeneratorOptions {
   /** Label configuration for dual-language JSDoc comments */
   labelConfig?: LabelConfig;
-  /** Namespace prefix for generated types (default: "XrmForge.Forms") */
-  namespacePrefix?: string;
   /** Form types to include (default: [2] = Main only) */
   formTypes?: number[];
 }
@@ -134,9 +132,7 @@ export function generateFormInterface(
   baseNameOverride?: string,
 ): string {
   const labelConfig = options.labelConfig || DEFAULT_LABEL_CONFIG;
-  const namespacePrefix = options.namespacePrefix || 'XrmForge.Forms';
   const entityPascal = toPascalCase(entityLogicalName);
-  const namespace = `${namespacePrefix}.${entityPascal}`;
   const baseName = baseNameOverride || buildFormBaseName(entityPascal, toSafeFormName(form.name));
   const interfaceName = `${baseName}Form`;
   const fieldsTypeName = `${baseName}FormFields`;
@@ -197,47 +193,43 @@ export function generateFormInterface(
 
   const lines: string[] = [];
 
-  // Namespace
-  lines.push(`declare namespace ${namespace} {`);
-  lines.push('');
-
   // 1. Union Type: restricts which field names are valid
-  lines.push(`  /** Valid field names for the "${form.name}" form */`);
-  lines.push(`  type ${fieldsTypeName} =`);
+  lines.push(`/** Valid field names for the "${form.name}" form */`);
+  lines.push(`export type ${fieldsTypeName} =`);
   for (let i = 0; i < fields.length; i++) {
     const separator = i === fields.length - 1 ? ';' : '';
-    lines.push(`    | "${fields[i]!.logicalName}"${separator}`);
+    lines.push(`  | "${fields[i]!.logicalName}"${separator}`);
   }
   lines.push('');
 
   // 2. Attribute Map: maps field name to Xrm.Attributes.* type
-  lines.push(`  /** Attribute type map for "${form.name}" */`);
-  lines.push(`  type ${attrMapName} = {`);
+  lines.push(`/** Attribute type map for "${form.name}" */`);
+  lines.push(`export type ${attrMapName} = {`);
   for (const field of fields) {
-    lines.push(`    ${field.logicalName}: ${field.formAttributeType};`);
+    lines.push(`  ${field.logicalName}: ${field.formAttributeType};`);
   }
-  lines.push('  };');
+  lines.push('};');
   lines.push('');
 
   // 3. Control Map: maps field name to Xrm.Controls.* type
-  lines.push(`  /** Control type map for "${form.name}" */`);
-  lines.push(`  type ${ctrlMapName} = {`);
+  lines.push(`/** Control type map for "${form.name}" */`);
+  lines.push(`export type ${ctrlMapName} = {`);
   for (const field of fields) {
-    lines.push(`    ${field.logicalName}: ${field.formControlType};`);
+    lines.push(`  ${field.logicalName}: ${field.formControlType};`);
   }
-  lines.push('  };');
+  lines.push('};');
   lines.push('');
 
   // 4. Fields const enum: autocomplete with dual-language labels
-  lines.push(`  /** Field constants for "${form.name}" (compile-time only, zero runtime) */`);
-  lines.push(`  const enum ${fieldsTypeName}Enum {`);
+  lines.push(`/** Field constants for "${form.name}" (compile-time only, zero runtime) */`);
+  lines.push(`export const enum ${fieldsTypeName}Enum {`);
   for (const field of fields) {
     if (field.label) {
-      lines.push(`    /** ${field.label} */`);
+      lines.push(`  /** ${field.label} */`);
     }
-    lines.push(`    ${field.enumMemberName} = '${field.logicalName}',`);
+    lines.push(`  ${field.enumMemberName} = '${field.logicalName}',`);
   }
-  lines.push('  }');
+  lines.push('}');
   lines.push('');
 
   // 4b. Tabs const enum
@@ -260,16 +252,16 @@ export function generateFormInterface(
       tabMemberNames.push(memberName);
     }
 
-    lines.push(`  /** Tab constants for "${form.name}" (compile-time only, zero runtime) */`);
-    lines.push(`  const enum ${tabsEnumName} {`);
+    lines.push(`/** Tab constants for "${form.name}" (compile-time only, zero runtime) */`);
+    lines.push(`export const enum ${tabsEnumName} {`);
     for (let i = 0; i < namedTabs.length; i++) {
       const tab = namedTabs[i]!;
       if (tab.label) {
-        lines.push(`    /** ${tab.label} */`);
+        lines.push(`  /** ${tab.label} */`);
       }
-      lines.push(`    ${tabMemberNames[i]} = '${tab.name}',`);
+      lines.push(`  ${tabMemberNames[i]} = '${tab.name}',`);
     }
-    lines.push('  }');
+    lines.push('}');
     lines.push('');
 
     // 4c. Section const enums (one per tab, using disambiguated tab member names)
@@ -280,14 +272,14 @@ export function generateFormInterface(
 
       const tabMemberName = tabMemberNames[i]!;
       const sectionsEnumName = `${baseName}Form${tabMemberName}Sections`;
-      lines.push(`  /** Section constants for tab "${tab.name}" (compile-time only, zero runtime) */`);
-      lines.push(`  const enum ${sectionsEnumName} {`);
+      lines.push(`/** Section constants for tab "${tab.name}" (compile-time only, zero runtime) */`);
+      lines.push(`export const enum ${sectionsEnumName} {`);
 
       // Disambiguate section member names within a tab
       const usedSectionMembers = new Set<string>();
       for (const section of namedSections) {
         if (section.label) {
-          lines.push(`    /** ${section.label} */`);
+          lines.push(`  /** ${section.label} */`);
         }
         let sectionMember = toSafeFormName(section.name) || toPascalCase(section.name);
         const originalSectionMember = sectionMember;
@@ -297,9 +289,9 @@ export function generateFormInterface(
           sCounter++;
         }
         usedSectionMembers.add(sectionMember);
-        lines.push(`    ${sectionMember} = '${section.name}',`);
+        lines.push(`  ${sectionMember} = '${section.name}',`);
       }
-      lines.push('  }');
+      lines.push('}');
       lines.push('');
     }
   }
@@ -311,8 +303,8 @@ export function generateFormInterface(
 
   if (subgrids.length > 0) {
     const subgridsEnumName = `${baseName}FormSubgrids`;
-    lines.push(`  /** Subgrid constants for "${form.name}" (compile-time only, zero runtime) */`);
-    lines.push(`  const enum ${subgridsEnumName} {`);
+    lines.push(`/** Subgrid constants for "${form.name}" (compile-time only, zero runtime) */`);
+    lines.push(`export const enum ${subgridsEnumName} {`);
     const usedMembers = new Set<string>();
     for (const sg of subgrids) {
       let member = toSafeFormName(sg.id) || toPascalCase(sg.id);
@@ -324,17 +316,17 @@ export function generateFormInterface(
       }
       usedMembers.add(member);
       const label = sg.targetEntityType ? `Subgrid: ${sg.targetEntityType}` : `Subgrid`;
-      lines.push(`    /** ${label} */`);
-      lines.push(`    ${member} = '${sg.id}',`);
+      lines.push(`  /** ${label} */`);
+      lines.push(`  ${member} = '${sg.id}',`);
     }
-    lines.push('  }');
+    lines.push('}');
     lines.push('');
   }
 
   if (quickViews.length > 0) {
     const qvEnumName = `${baseName}FormQuickViews`;
-    lines.push(`  /** Quick View constants for "${form.name}" (compile-time only, zero runtime) */`);
-    lines.push(`  const enum ${qvEnumName} {`);
+    lines.push(`/** Quick View constants for "${form.name}" (compile-time only, zero runtime) */`);
+    lines.push(`export const enum ${qvEnumName} {`);
     const usedMembers = new Set<string>();
     for (const qv of quickViews) {
       let member = toSafeFormName(qv.id) || toPascalCase(qv.id);
@@ -345,78 +337,76 @@ export function generateFormInterface(
         counter++;
       }
       usedMembers.add(member);
-      lines.push(`    /** Quick View */`);
-      lines.push(`    ${member} = '${qv.id}',`);
+      lines.push(`  /** Quick View */`);
+      lines.push(`  ${member} = '${qv.id}',`);
     }
-    lines.push('  }');
+    lines.push('}');
     lines.push('');
   }
 
   // 5. Form Interface: generic getAttribute/getControl with compile-time validation
-  lines.push(`  /** ${form.name} */`);
-  lines.push(`  interface ${interfaceName} extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> {`);
-  lines.push(`    /** Typisierter Feldzugriff: nur Felder die auf diesem Formular existieren */`);
-  lines.push(`    getAttribute<K extends ${fieldsTypeName}>(name: K): ${attrMapName}[K];`);
-  lines.push('    getAttribute(index: number): Xrm.Attributes.Attribute;');
-  lines.push('    getAttribute(): Xrm.Attributes.Attribute[];');
+  lines.push(`/** ${form.name} */`);
+  lines.push(`export interface ${interfaceName} extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> {`);
+  lines.push(`  /** Typisierter Feldzugriff: nur Felder die auf diesem Formular existieren */`);
+  lines.push(`  getAttribute<K extends ${fieldsTypeName}>(name: K): ${attrMapName}[K];`);
+  lines.push('  getAttribute(index: number): Xrm.Attributes.Attribute;');
+  lines.push('  getAttribute(): Xrm.Attributes.Attribute[];');
   lines.push('');
-  lines.push(`    /** Typisierter Control-Zugriff: nur Controls die auf diesem Formular existieren */`);
-  lines.push(`    getControl<K extends ${fieldsTypeName}>(name: K): ${ctrlMapName}[K];`);
+  lines.push(`  /** Typisierter Control-Zugriff: nur Controls die auf diesem Formular existieren */`);
+  lines.push(`  getControl<K extends ${fieldsTypeName}>(name: K): ${ctrlMapName}[K];`);
 
   // Typed getControl overloads for special controls (subgrids, quick views, etc.)
   for (const sc of specialControls) {
     const xrmType = specialControlToXrmType(sc.controlType);
     if (xrmType) {
-      lines.push(`    getControl(name: "${sc.id}"): ${xrmType};`);
+      lines.push(`  getControl(name: "${sc.id}"): ${xrmType};`);
     }
   }
 
-  lines.push('    getControl(index: number): Xrm.Controls.Control;');
-  lines.push('    getControl(): Xrm.Controls.Control[];');
+  lines.push('  getControl(index: number): Xrm.Controls.Control;');
+  lines.push('  getControl(): Xrm.Controls.Control[];');
 
   // 6. Typed ui.tabs for compile-time tab name validation
   if (form.tabs.length > 0) {
     lines.push('');
-    lines.push('    /** Typisierter Tab-Zugriff */');
-    lines.push('    ui: {');
-    lines.push('      tabs: {');
+    lines.push('  /** Typisierter Tab-Zugriff */');
+    lines.push('  ui: {');
+    lines.push('    tabs: {');
     for (const tab of form.tabs) {
       if (tab.name) {
         const sectionNames = tab.sections.filter((s) => s.name).map((s) => s.name);
         if (sectionNames.length > 0) {
           // Tab with typed sections
-          lines.push(`        get(name: "${tab.name}"): Xrm.Controls.Tab & {`);
-          lines.push('          sections: {');
+          lines.push(`      get(name: "${tab.name}"): Xrm.Controls.Tab & {`);
+          lines.push('        sections: {');
           for (const sectionName of sectionNames) {
-            lines.push(`            get(name: "${sectionName}"): Xrm.Controls.Section;`);
+            lines.push(`          get(name: "${sectionName}"): Xrm.Controls.Section;`);
           }
-          lines.push('            get(name: string): Xrm.Controls.Section;');
-          lines.push('          };');
+          lines.push('          get(name: string): Xrm.Controls.Section;');
           lines.push('        };');
+          lines.push('      };');
         } else {
-          lines.push(`        get(name: "${tab.name}"): Xrm.Controls.Tab;`);
+          lines.push(`      get(name: "${tab.name}"): Xrm.Controls.Tab;`);
         }
       }
     }
-    lines.push('        get(name: string): Xrm.Controls.Tab;');
-    lines.push('      };');
-    lines.push('    } & Xrm.Ui;');
+    lines.push('      get(name: string): Xrm.Controls.Tab;');
+    lines.push('    };');
+    lines.push('  } & Xrm.Ui;');
   }
 
-  lines.push('  }');
+  lines.push('}');
 
   // 7. MockValues type for @xrmforge/testing
   const mockValuesName = `${interfaceName}MockValues`;
   lines.push('');
-  lines.push(`  /** Mock value types for "${form.name}" form (used with @xrmforge/testing) */`);
-  lines.push(`  type ${mockValuesName} = {`);
+  lines.push(`/** Mock value types for "${form.name}" form (used with @xrmforge/testing) */`);
+  lines.push(`export type ${mockValuesName} = {`);
   for (const field of fields) {
     const mockType = getFormMockValueType(field.attributeType);
-    lines.push(`    ${field.logicalName}?: ${mockType};`);
+    lines.push(`  ${field.logicalName}?: ${mockType};`);
   }
-  lines.push('  };');
-
-  lines.push('}');
+  lines.push('};');
   lines.push('');
 
   return lines.join('\n');
