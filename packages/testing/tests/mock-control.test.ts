@@ -61,13 +61,105 @@ describe('MockControl', () => {
     expect(ctrl.getParent()).toBeDefined();
   });
 
-  it('addPreSearch should not throw', () => {
-    const ctrl = new MockControl('lookupfield');
-    expect(() => ctrl.addPreSearch(() => {})).not.toThrow();
+  // --- Lookup-specific: setEntityTypes / getEntityTypes ---
+
+  it('getEntityTypes should default to empty array', () => {
+    const ctrl = new MockControl('primarycontactid');
+    expect(ctrl.getEntityTypes()).toEqual([]);
   });
 
-  it('addCustomFilter should not throw', () => {
-    const ctrl = new MockControl('lookupfield');
-    expect(() => ctrl.addCustomFilter('<fetch/>', 'account')).not.toThrow();
+  it('setEntityTypes should store and return entity types', () => {
+    const ctrl = new MockControl('primarycontactid');
+    ctrl.setEntityTypes(['account', 'contact']);
+    expect(ctrl.getEntityTypes()).toEqual(['account', 'contact']);
+  });
+
+  it('setEntityTypes should overwrite previous entity types', () => {
+    const ctrl = new MockControl('primarycontactid');
+    ctrl.setEntityTypes(['account']);
+    ctrl.setEntityTypes(['contact', 'lead']);
+    expect(ctrl.getEntityTypes()).toEqual(['contact', 'lead']);
+  });
+
+  // --- Lookup-specific: addPreSearch ---
+
+  it('addPreSearch should store the handler', () => {
+    const ctrl = new MockControl('primarycontactid');
+    const handler = (): void => {};
+    ctrl.addPreSearch(handler);
+    expect(ctrl.getPreSearchHandlers()).toHaveLength(1);
+    expect(ctrl.getPreSearchHandlers()[0]).toBe(handler);
+  });
+
+  it('addPreSearch should accumulate multiple handlers', () => {
+    const ctrl = new MockControl('primarycontactid');
+    ctrl.addPreSearch(() => {});
+    ctrl.addPreSearch(() => {});
+    ctrl.addPreSearch(() => {});
+    expect(ctrl.getPreSearchHandlers()).toHaveLength(3);
+  });
+
+  // --- Lookup-specific: addCustomFilter ---
+
+  it('addCustomFilter should store filter with entity name', () => {
+    const ctrl = new MockControl('primarycontactid');
+    ctrl.addCustomFilter('<filter type="and"><condition/></filter>', 'account');
+    const filters = ctrl.getCustomFilters();
+    expect(filters).toHaveLength(1);
+    expect(filters[0].filter).toBe(
+      '<filter type="and"><condition/></filter>',
+    );
+    expect(filters[0].entityLogicalName).toBe('account');
+  });
+
+  it('addCustomFilter should store filter without entity name', () => {
+    const ctrl = new MockControl('primarycontactid');
+    ctrl.addCustomFilter('<filter/>');
+    const filters = ctrl.getCustomFilters();
+    expect(filters).toHaveLength(1);
+    expect(filters[0].filter).toBe('<filter/>');
+    expect(filters[0].entityLogicalName).toBeUndefined();
+  });
+
+  it('addCustomFilter should accumulate multiple filters', () => {
+    const ctrl = new MockControl('primarycontactid');
+    ctrl.addCustomFilter('<filter>1</filter>', 'account');
+    ctrl.addCustomFilter('<filter>2</filter>', 'contact');
+    expect(ctrl.getCustomFilters()).toHaveLength(2);
+  });
+
+  // --- DateTime-specific: setShowTime / getShowTime ---
+
+  it('getShowTime should default to false', () => {
+    const ctrl = new MockControl('createdon');
+    expect(ctrl.getShowTime()).toBe(false);
+  });
+
+  it('setShowTime should store the value', () => {
+    const ctrl = new MockControl('createdon');
+    ctrl.setShowTime(true);
+    expect(ctrl.getShowTime()).toBe(true);
+  });
+
+  it('setShowTime should toggle back to false', () => {
+    const ctrl = new MockControl('createdon');
+    ctrl.setShowTime(true);
+    ctrl.setShowTime(false);
+    expect(ctrl.getShowTime()).toBe(false);
+  });
+
+  // --- WebResource/IFrame-specific: getContentWindow ---
+
+  it('getContentWindow should return a Promise', () => {
+    const ctrl = new MockControl('WebResource_script');
+    const result = ctrl.getContentWindow();
+    expect(result).toBeInstanceOf(Promise);
+  });
+
+  it('getContentWindow should resolve to a Window-like object', async () => {
+    const ctrl = new MockControl('WebResource_script');
+    const win = await ctrl.getContentWindow();
+    expect(win).toBeDefined();
+    expect(typeof win).toBe('object');
   });
 });

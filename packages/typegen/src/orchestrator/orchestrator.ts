@@ -20,7 +20,7 @@ import type { EntityTypeInfo, OptionSetMetadata } from '../metadata/types.js';
 import { generateEntityInterface } from '../generators/entity-generator.js';
 import { generateEntityOptionSets } from '../generators/optionset-generator.js';
 import { generateEntityForms } from '../generators/form-generator.js';
-import { generateActionDeclarations, generateActionModule, groupCustomApis } from '../generators/action-generator.js';
+import { generateActionModule, groupCustomApis } from '../generators/action-generator.js';
 import { generateEntityFieldsEnum, generateEntityNavigationProperties } from '../generators/entity-fields-generator.js';
 import { generateEntityNamesEnum } from '../generators/entity-names-generator.js';
 import { generateActivityPartyInterface } from '../generators/activity-party.js';
@@ -549,27 +549,21 @@ export class TypeGenerationOrchestrator {
       const grouped = groupCustomApis(customApis);
 
       for (const [key, apis] of grouped.actions) {
-        const entityName = key === 'global' ? undefined : key;
-        const declarations = generateActionDeclarations(apis, false, entityName, { importPath });
         const module = generateActionModule(apis, false, { importPath });
 
-        // Combine declarations and module into a single .ts file
         files.push({
           relativePath: `actions/${key}.ts`,
-          content: addGeneratedHeader(`${declarations}\n${module}`),
+          content: addGeneratedHeader(module),
           type: 'action',
         });
       }
 
       for (const [key, apis] of grouped.functions) {
-        const entityName = key === 'global' ? undefined : key;
-        const declarations = generateActionDeclarations(apis, true, entityName, { importPath });
         const module = generateActionModule(apis, true, { importPath });
 
-        // Combine declarations and module into a single .ts file
         files.push({
           relativePath: `functions/${key}.ts`,
-          content: addGeneratedHeader(`${declarations}\n${module}`),
+          content: addGeneratedHeader(module),
           type: 'action',
         });
       }

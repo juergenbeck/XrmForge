@@ -25,6 +25,11 @@ export class MockControl {
   private _disabled: boolean = false;
   private _label: string = '';
   private _notifications: Map<string, string> = new Map();
+  private _entityTypes: string[] = [];
+  private _preSearchHandlers: Array<() => void> = [];
+  private _customFilters: Array<{ filter: string; entityLogicalName?: string }> =
+    [];
+  private _showTime: boolean = false;
 
   /**
    * @param name - Logical name of the control (matches the attribute name)
@@ -118,13 +123,80 @@ export class MockControl {
     return {} as Xrm.Controls.Section;
   }
 
-  /** Lookup-specific: addPreSearch (no-op for non-lookup controls) */
-  addPreSearch(_handler: () => void): void {
-    // no-op
+  // --- Lookup-specific methods ---
+
+  /**
+   * Sets the entity types available for a lookup control.
+   *
+   * @param entityTypes - Array of entity logical names (e.g. ['account', 'contact'])
+   */
+  setEntityTypes(entityTypes: string[]): void {
+    this._entityTypes = entityTypes;
   }
 
-  /** Lookup-specific: addCustomFilter (no-op for non-lookup controls) */
-  addCustomFilter(_filter: string, _entityLogicalName?: string): void {
-    // no-op
+  /** Returns the entity types set on this lookup control. */
+  getEntityTypes(): string[] {
+    return this._entityTypes;
+  }
+
+  /**
+   * Registers a pre-search handler on a lookup control.
+   * The handler is stored but not executed.
+   *
+   * @param handler - Function to call before the lookup search dialog opens
+   */
+  addPreSearch(handler: () => void): void {
+    this._preSearchHandlers.push(handler);
+  }
+
+  /** @internal Returns all registered pre-search handlers (for assertions). */
+  getPreSearchHandlers(): ReadonlyArray<() => void> {
+    return this._preSearchHandlers;
+  }
+
+  /**
+   * Adds a custom FetchXML filter to a lookup control.
+   * The filter is stored but not applied.
+   *
+   * @param filter - FetchXML filter string
+   * @param entityLogicalName - Optional entity logical name to scope the filter
+   */
+  addCustomFilter(filter: string, entityLogicalName?: string): void {
+    this._customFilters.push({ filter, entityLogicalName });
+  }
+
+  /** @internal Returns all registered custom filters (for assertions). */
+  getCustomFilters(): ReadonlyArray<{
+    filter: string;
+    entityLogicalName?: string;
+  }> {
+    return this._customFilters;
+  }
+
+  // --- DateTime-specific methods ---
+
+  /**
+   * Sets whether the time component is shown on a DateTime control.
+   *
+   * @param showTime - true to show time, false to hide
+   */
+  setShowTime(showTime: boolean): void {
+    this._showTime = showTime;
+  }
+
+  /** Returns whether the time component is shown. */
+  getShowTime(): boolean {
+    return this._showTime;
+  }
+
+  // --- WebResource/IFrame-specific methods ---
+
+  /**
+   * Returns a mock content window for a WebResource or IFrame control.
+   *
+   * @returns Promise resolving to an empty mock Window object
+   */
+  getContentWindow(): Promise<Window> {
+    return Promise.resolve({} as Window);
   }
 }
