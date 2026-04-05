@@ -4,7 +4,7 @@
 
 | Package | Version | Tests | Description |
 |---------|---------|-------|-------------|
-| @xrmforge/typegen | 0.6.0 | 444 | Core: type generation engine, metadata client, HTTP client, helpers |
+| @xrmforge/typegen | 0.8.0 | 444 | Core: type generation engine, metadata client, HTTP client, helpers |
 | @xrmforge/cli | 0.4.2 | 10 | CLI: generate, build, init commands |
 | @xrmforge/testing | 0.2.0 | 76 | Test utilities: createFormMock, fireOnChange, setupXrmMock |
 | @xrmforge/helpers | 0.1.0 | 59 | Browser-safe runtime: select(), parseLookup(), typedForm(), Xrm constants, Action executors |

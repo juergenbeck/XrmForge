@@ -14,7 +14,7 @@ Generiert TypeScript-Deklarationen aus einer Dataverse-Umgebung.
 | `--token <token>` | string | variiert | Vorab erworbenes Bearer-Token (nur Token-Auth) |
 | `--entities <list>` | string | - | Kommagetrennte logische Entitätsnamen |
 | `--solutions <list>` | string | - | Kommagetrennte eindeutige Lösungsnamen |
-| `--output <dir>` | string | ./typings | Ausgabeverzeichnis |
+| `--output <dir>` | string | ./generated | Ausgabeverzeichnis |
 | `--label-language <n>` | string | 1033 | Primäre Label-Sprache (LCID) |
 | `--secondary-language <n>` | string | - | Sekundäre Label-Sprache für JSDoc |
 | `--no-forms` | flag | - | Formular-Interface-Generierung überspringen |
@@ -55,4 +55,4 @@ Erstellt ein neues D365-Formularskript-Projekt.
 | `--skip-install` | flag | false | npm install überspringen |
 | `--force` | flag | false | Nicht-leere Verzeichnisse erlauben |
 
-Generiert 11 Dateien: package.json, tsconfig.json, xrmforge.config.json, vitest.config.ts, .gitignore, AGENT.md, example-form.ts, example-form.test.ts, typings/.gitkeep, GitHub Actions CI, Azure DevOps Pipeline.
+Generiert 11 Dateien: package.json, tsconfig.json, xrmforge.config.json, vitest.config.ts, .gitignore, AGENT.md, example-form.ts, example-form.test.ts, generated/.gitkeep, GitHub Actions CI, Azure DevOps Pipeline.

@@ -10,5 +10,5 @@ Bekannte Probleme bei der Arbeit mit `@types/xrm`:
 | setNotification | `setNotification(message)` | `setNotification(message, uniqueId)` (erfordert 2 Argumente) |
 | openFile | `openFile({ fileName, ... })` | Muss `fileSize`-Eigenschaft in FileDetails enthalten |
 | SubmitMode | `Xrm.Attributes.SubmitMode` | `Xrm.SubmitMode` |
-| const enum in .d.ts | `const enum` in `.d.ts`-Dateien | Reguläres `enum` in `.ts`-Dateien verwenden (vitest kann const enums aus .d.ts nicht importieren) |
+| const enum in .d.ts | `const enum` in `.d.ts`-Dateien | `const enum` in `.ts`-ES-Modulen verwenden (typegen 0.8.0+ generiert `.ts`-Dateien, wodurch dieses Problem gelöst ist) |
 | Grid.refresh() | `grid.refresh()` | `(grid as any).refresh()` (nicht typisiert in @types/xrm) |

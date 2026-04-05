@@ -35,4 +35,4 @@ Five AI models were tested converting legacy D365 JavaScript (account.js + lm_he
 
 **Criteria (11, max 5 points each = 55 max):** Fields Enum usage, OptionSet Enums, FormContext typing, XrmForge helpers, module exports, tests present, test quality, error handling, code quality, bugs found, documentation.
 
-**Key finding:** No AI consistently used `@xrmforge/typegen/helpers` imports (select, parseLookup). This remains the biggest adoption gap.
+**Key finding:** No AI consistently used `@xrmforge/helpers` imports (select, parseLookup). This remains the biggest adoption gap.

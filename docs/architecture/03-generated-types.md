@@ -1,91 +1,93 @@
 # Generated Types
 
-Running `xrmforge generate` produces the following TypeScript declarations:
+Running `xrmforge generate` produces the following TypeScript ES modules:
 
-### 3.1 Entity Interfaces (`entities/{entity}.d.ts`)
+### 3.1 Entity Interfaces (`entities/{entity}.ts`)
 
 ```typescript
-declare namespace XrmForge.Entities {
-  /** Account | Konto */
-  interface Account {
-    /** Account Name | Kontoname */
-    name: string | null;
-    accountid: string | null;
-    revenue: number | null;
-    _parentaccountid_value: string | null;  // Lookup GUID
-    // ...
-  }
+// generated/entities/account.ts
+/** Account | Konto */
+export interface Account {
+  /** Account Name | Kontoname */
+  name: string | null;
+  accountid: string | null;
+  revenue: number | null;
+  _parentaccountid_value: string | null;  // Lookup GUID
+  // ...
 }
 ```
 
 **Type mapping:** String/Memo/EntityName to `string`, Integer/BigInt/Decimal/Double/Money to `number`, Boolean to `boolean`, DateTime/Uniqueidentifier/Lookup to `string`, Picklist/State/Status to `number`.
 
-### 3.2 Entity Fields Enums (`entities/{entity}.d.ts`)
+### 3.2 Entity Fields Enums (`fields/{entity}.ts`)
 
 ```typescript
-declare namespace XrmForge.Entities {
-  const enum AccountFields {
-    /** Account Name | Kontoname */
-    Name = 'name',
-    Revenue = 'revenue',
-    // all readable attributes
-  }
+// generated/fields/account.ts
+export const enum AccountFields {
+  /** Account Name | Kontoname */
+  Name = 'name',
+  Telephone1 = 'telephone1',
+  Revenue = 'revenue',
+  // all entity attributes for $select queries
+}
+
+export const enum AccountNavigationProperties {
+  PrimaryContact = 'primarycontactid',
+  ContactCustomerAccounts = 'contact_customer_accounts',
+  // all lookup navigation properties
 }
 ```
 
 Used for Web API `$select`: `select(AccountFields.Name, AccountFields.Revenue)`.
 
-### 3.3 Navigation Properties (`entities/{entity}.d.ts`)
+### 3.3 Navigation Properties (`fields/{entity}.ts`)
+
+Navigation property enums are co-located with the Fields enums in the same file (see 3.2 above). Example usage:
 
 ```typescript
-declare namespace XrmForge.Entities {
-  const enum AccountNavigation {
-    PrimaryContactId = 'primarycontactid',
-    ContactCustomerAccounts = 'contact_customer_accounts',
-    // OneToMany + ManyToMany relationships
-  }
-}
+import { AccountNavigationProperties } from '../generated/fields/account';
+// used for $expand queries
 ```
 
-### 3.4 Form Interfaces (`forms/{entity}.d.ts`)
+### 3.4 Form Interfaces (`forms/{entity}.ts`)
 
 ```typescript
-declare namespace XrmForge.Forms.Account {
-  // Union type restricting valid field names
-  type AccountMainFormFields = 'name' | 'telephone1' | 'revenue';
+// generated/forms/account.ts
 
-  // Mapped type: field name to Xrm attribute type
-  type AccountMainFormAttributeMap = {
-    name: Xrm.Attributes.StringAttribute;
-    telephone1: Xrm.Attributes.StringAttribute;
-    revenue: Xrm.Attributes.NumberAttribute;
-  };
+// Union type restricting valid field names
+export type AccountMainFormFields = 'name' | 'telephone1' | 'revenue';
 
-  // Mapped type: field name to Xrm control type
-  type AccountMainFormControlMap = {
-    name: Xrm.Controls.StringControl;
-    telephone1: Xrm.Controls.StringControl;
-    revenue: Xrm.Controls.NumberControl;
-  };
+// Mapped type: field name to Xrm attribute type
+export type AccountMainFormAttributeMap = {
+  name: Xrm.Attributes.StringAttribute;
+  telephone1: Xrm.Attributes.StringAttribute;
+  revenue: Xrm.Attributes.NumberAttribute;
+};
 
-  // Fields enum for autocomplete
-  const enum AccountMainFormFieldsEnum {
-    /** Account Name | Kontoname */
-    AccountName = 'name',
-    Telephone1 = 'telephone1',
-    Revenue = 'revenue',
-  }
+// Mapped type: field name to Xrm control type
+export type AccountMainFormControlMap = {
+  name: Xrm.Controls.StringControl;
+  telephone1: Xrm.Controls.StringControl;
+  revenue: Xrm.Controls.NumberControl;
+};
 
-  // Type-safe FormContext with overloaded getAttribute/getControl
-  interface AccountMainForm extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> {
-    getAttribute<K extends AccountMainFormFields>(name: K): AccountMainFormAttributeMap[K];
-    getAttribute(index: number): Xrm.Attributes.Attribute;
-    getAttribute(): Xrm.Attributes.Attribute[];
+// Fields enum for autocomplete
+export const enum AccountMainFormFieldsEnum {
+  /** Account Name | Kontoname */
+  AccountName = 'name',
+  Telephone1 = 'telephone1',
+  Revenue = 'revenue',
+}
 
-    getControl<K extends AccountMainFormFields>(name: K): AccountMainFormControlMap[K];
-    getControl(index: number): Xrm.Controls.Control;
-    getControl(): Xrm.Controls.Control[];
-  }
+// Type-safe FormContext with overloaded getAttribute/getControl
+export interface AccountMainForm extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> {
+  getAttribute<K extends AccountMainFormFields>(name: K): AccountMainFormAttributeMap[K];
+  getAttribute(index: number): Xrm.Attributes.Attribute;
+  getAttribute(): Xrm.Attributes.Attribute[];
+
+  getControl<K extends AccountMainFormFields>(name: K): AccountMainFormControlMap[K];
+  getControl(index: number): Xrm.Controls.Control;
+  getControl(): Xrm.Controls.Control[];
 }
 ```
 
@@ -104,30 +106,28 @@ const enum AccountMainFormSubgrids { Contacts = 'Contacts_Subgrid' }
 const enum AccountMainFormQuickViews { ContactPreview = 'ContactQuickView' }
 ```
 
-### 3.6 OptionSet Enums (`optionsets/{entity}.d.ts`)
+### 3.6 OptionSet Enums (`optionsets/{entity}.ts`)
 
 ```typescript
-declare namespace XrmForge.OptionSets.Account {
-  /** Account Category Code | Kontokategoriecode */
-  const enum AccountCategoryCode {
-    /** Preferred Customer | Bevorzugter Kunde */
-    PreferredCustomer = 1,
-    Standard = 2,
-  }
+// generated/optionsets/account.ts
+/** Account Category Code | Kontokategoriecode */
+export const enum AccountCategoryCode {
+  /** Preferred Customer | Bevorzugter Kunde */
+  PreferredCustomer = 1,
+  Standard = 2,
 }
 ```
 
 Includes Picklist, Status, State, and MultiSelectPicklist attributes. Duplicate labels are disambiguated with `_{Value}` suffix.
 
-### 3.7 EntityNames Enum (`entity-names.d.ts`)
+### 3.7 EntityNames Enum (`entity-names.ts`)
 
 ```typescript
-declare namespace XrmForge {
-  const enum EntityNames {
-    Account = 'account',
-    Contact = 'contact',
-    // all entities in scope
-  }
+// generated/entity-names.ts
+export const enum EntityNames {
+  Account = 'account',
+  Contact = 'contact',
+  // all entities in scope
 }
 ```
 
@@ -143,19 +143,15 @@ type AccountMainFormMockValues = {
 
 Used with `createFormMock<AccountMainForm, AccountMainFormMockValues>({ name: 'Test' })`.
 
-### 3.9 Action/Function Executors (`actions/{entity|global}.d.ts` + `.ts`)
+### 3.9 Action/Function Executors (`actions/{entity|global}.ts`)
 
-**Declaration (.d.ts):**
 ```typescript
-declare namespace XrmForge.Actions {
-  interface NormalizePhoneParams { Input: string; AllowSuspicious?: boolean; }
-  interface NormalizePhoneResult { Normalized: string; Status: number; }
-}
-```
+// generated/actions/global.ts
+import { createUnboundAction } from '@xrmforge/helpers';
 
-**Runtime module (.ts):**
-```typescript
-import { createUnboundAction } from '@xrmforge/typegen';
+export interface NormalizePhoneParams { Input: string; AllowSuspicious?: boolean; }
+export interface NormalizePhoneResult { Normalized: string; Status: number; }
+
 export const NormalizePhone = createUnboundAction<NormalizePhoneParams, NormalizePhoneResult>(
   'markant_NormalizePhone',
   { Input: { typeName: 'String', structuralProperty: 1 } }

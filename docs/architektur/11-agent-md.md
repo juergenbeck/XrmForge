@@ -35,4 +35,4 @@ Fünf KI-Modelle wurden beim Konvertieren von Legacy-D365-JavaScript (account.js
 
 **Kriterien (11, maximal 5 Punkte je = 55 max):** Fields-Enum-Nutzung, OptionSet-Enums, FormContext-Typisierung, XrmForge-Helpers, Modul-Exports, Tests vorhanden, Testqualität, Fehlerbehandlung, Codequalität, gefundene Bugs, Dokumentation.
 
-**Zentrale Erkenntnis:** Keine KI hat konsistent `@xrmforge/typegen/helpers`-Imports (select, parseLookup) verwendet. Dies bleibt die grösste Adoptionslücke.
+**Zentrale Erkenntnis:** Keine KI hat konsistent `@xrmforge/helpers`-Imports (select, parseLookup) verwendet. Dies bleibt die grösste Adoptionslücke.

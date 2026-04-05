@@ -14,7 +14,7 @@ Generates TypeScript declarations from a Dataverse environment.
 | `--token <token>` | string | varies | Pre-acquired bearer token (token auth only) |
 | `--entities <list>` | string | - | Comma-separated entity logical names |
 | `--solutions <list>` | string | - | Comma-separated solution unique names |
-| `--output <dir>` | string | ./typings | Output directory |
+| `--output <dir>` | string | ./generated | Output directory |
 | `--label-language <n>` | string | 1033 | Primary label language (LCID) |
 | `--secondary-language <n>` | string | - | Secondary label language for JSDoc |
 | `--no-forms` | flag | - | Skip form interface generation |
@@ -55,4 +55,4 @@ Scaffolds a new D365 form scripting project.
 | `--skip-install` | flag | false | Skip npm install |
 | `--force` | flag | false | Allow non-empty directories |
 
-Generates 11 files: package.json, tsconfig.json, xrmforge.config.json, vitest.config.ts, .gitignore, AGENT.md, example-form.ts, example-form.test.ts, typings/.gitkeep, GitHub Actions CI, Azure DevOps Pipeline.
+Generates 11 files: package.json, tsconfig.json, xrmforge.config.json, vitest.config.ts, .gitignore, AGENT.md, example-form.ts, example-form.test.ts, generated/.gitkeep, GitHub Actions CI, Azure DevOps Pipeline.

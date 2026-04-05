@@ -4,7 +4,7 @@
 
 ```typescript
 import { createFormMock } from '@xrmforge/testing';
-import type { AccountMainForm, AccountMainFormMockValues } from '../typings/forms/account';
+import type { AccountMainForm, AccountMainFormMockValues } from '../generated/forms/account';
 
 const mock = createFormMock<AccountMainForm, AccountMainFormMockValues>({
   name: 'Contoso Ltd',

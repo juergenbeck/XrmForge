@@ -36,7 +36,7 @@ Verbietet rohe Zahlen (>= 2) in Vergleichen mit `.getValue()`.
 if (attr.getValue() === 595300000) { }
 
 // Richtig
-import { StatusCode } from '../typings/optionsets/account';
+import { StatusCode } from '../generated/optionsets/account';
 if (attr.getValue() === StatusCode.Active) { }
 ```
 

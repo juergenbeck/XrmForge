@@ -36,7 +36,7 @@ Forbids raw numbers (>= 2) in comparisons with `.getValue()`.
 if (attr.getValue() === 595300000) { }
 
 // Good
-import { StatusCode } from '../typings/optionsets/account';
+import { StatusCode } from '../generated/optionsets/account';
 if (attr.getValue() === StatusCode.Active) { }
 ```
 

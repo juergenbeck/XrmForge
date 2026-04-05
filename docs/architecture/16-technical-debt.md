@@ -12,6 +12,6 @@
 
 ### 16.2 Accepted Limitations
 
-- **const enum limitation:** Cannot be imported at runtime by test frameworks from `.d.ts` files. Workaround: use `.ts` files with regular `enum` for manual typings.
+- **const enum limitation:** Resolved in typegen 0.8.0. Generated output is now `.ts` ES modules, so `const enum` works directly with vitest and other test frameworks.
 - **Grid.refresh() requires `as any`:** Not typed in @types/xrm.
 - **Single solution per entity:** If an entity appears in multiple solutions, it is only generated once.

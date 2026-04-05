@@ -12,6 +12,6 @@
 
 ## 16.2 Akzeptierte Einschränkungen
 
-- **const-enum-Einschränkung:** Kann zur Laufzeit von Test-Frameworks nicht aus `.d.ts`-Dateien importiert werden. Workaround: `.ts`-Dateien mit regulärem `enum` für manuelle Typings verwenden.
+- **const-enum-Einschränkung:** Gelöst in typegen 0.8.0. Generierter Output sind jetzt `.ts`-ES-Module, sodass `const enum` direkt mit vitest und anderen Test-Frameworks funktioniert.
 - **Grid.refresh() erfordert `as any`:** Nicht typisiert in @types/xrm.
 - **Eine Solution pro Entität:** Wenn eine Entität in mehreren Solutions vorkommt, wird sie nur einmal generiert.
