@@ -8,13 +8,13 @@
  *     --auth client-credentials \
  *     --tenant <tenant-id> --client-id <app-id> --client-secret <secret> \
  *     --entities account,contact \
- *     --output ./typings
+ *     --output ./generated
  *
  *   xrmforge generate --url https://myorg.crm4.dynamics.com \
  *     --auth interactive \
  *     --tenant <tenant-id> --client-id <app-id> \
  *     --entities account,contact,opportunity \
- *     --output ./typings \
+ *     --output ./generated \
  *     --label-language 1033 --secondary-language 1031
  */
 
@@ -74,7 +74,7 @@ export function registerGenerateCommand(program: Command): void {
     .option('--solutions <list>', 'Comma-separated solution unique names to discover entities')
 
     // Output
-    .option('--output <dir>', 'Output directory for generated .d.ts files', './typings')
+    .option('--output <dir>', 'Output directory for generated .ts files', './generated')
 
     // Labels
     .option('--label-language <code>', 'Primary label language code', '1033')
@@ -256,6 +256,9 @@ function buildAuthConfig(opts: GenerateOptions): AuthConfig {
       if (!opts.tenantId) throw new Error('--tenant-id is required for client-credentials auth.');
       if (!opts.clientId) throw new Error('--client-id is required for client-credentials auth.');
       if (!opts.clientSecret) throw new Error('--client-secret is required for client-credentials auth.');
+      if (opts.clientSecret) {
+        console.warn('WARNING: Passing --client-secret via CLI exposes it in shell history. Use XRMFORGE_CLIENT_SECRET environment variable instead.');
+      }
       return {
         method: 'client-credentials',
         tenantId: opts.tenantId,

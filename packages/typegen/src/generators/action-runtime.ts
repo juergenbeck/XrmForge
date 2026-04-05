@@ -256,8 +256,7 @@ export function createUnboundAction<
   paramMeta?: ParameterMetaMap,
 ): UnboundActionExecutor | UnboundActionWithParamsExecutor<TParams, TResult> {
   return {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- return type varies (Response or parsed JSON)
-    async execute(params?: TParams): Promise<any> {
+    async execute(params?: TParams): Promise<TResult extends void ? Response : TResult> {
       const req = buildUnboundRequest(
         operationName, OperationType.Action, paramMeta, params,
       );
@@ -266,11 +265,11 @@ export function createUnboundAction<
         const errorText = await response.text();
         throw new Error(errorText);
       }
-      // Wenn Response-Properties definiert sind, JSON parsen
+      // Parse JSON when response properties are defined
       if (response.status !== 204) {
-        return response.json();
+        return response.json() as Promise<TResult extends void ? Response : TResult>;
       }
-      return response;
+      return response as TResult extends void ? Response : TResult;
     },
     request(params?: TParams): Record<string, unknown> {
       return buildUnboundRequest(

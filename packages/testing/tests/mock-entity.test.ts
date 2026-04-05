@@ -57,12 +57,10 @@ describe('MockEntity', () => {
     expect(entity.attributes.getLength()).toBe(0);
   });
 
-  it('should have a save method that resolves', () => {
+  it('should have a save method that resolves', async () => {
     const attrs = new Map<string, MockAttribute>();
     const entity = new MockEntity('account', 'abc', attrs);
-    let called = false;
-    entity.save().then(() => { called = true; });
-    expect(called).toBe(true);
+    await entity.save();
   });
 
   it('should not be dirty when no attributes changed', () => {

@@ -10,13 +10,15 @@ This file helps AI coding assistants write optimal Dynamics 365 form scripts.
 - `@xrmforge/devkit` - esbuild IIFE bundles via xrmforge build
 - `@xrmforge/eslint-plugin` - D365-specific ESLint rules
 
-## Generated Types (typings/ directory)
+## Generated Types (generated/ directory)
 
 Run `xrmforge generate` to create:
-- `typings/forms/{entity}.d.ts` - Form interface + Fields/Tabs/Sections/Subgrids enums
-- `typings/optionsets/{entity}.d.ts` - OptionSet const enums
-- `typings/entities/{entity}.d.ts` - Entity interface + Fields enum
-- `typings/entity-names.d.ts` - EntityNames const enum
+- `generated/forms/{entity}.ts` - Form interface + Fields/Tabs/Sections/Subgrids enums
+- `generated/optionsets/{entity}.ts` - OptionSet const enums
+- `generated/entities/{entity}.ts` - Entity interface
+- `generated/fields/{entity}.ts` - Entity Fields enum for type-safe $select queries
+- `generated/entity-names.ts` - EntityNames const enum
+- `generated/index.ts` - Barrel file with `export * from` re-exports
 
 ## Rules: Always
 
@@ -59,7 +61,8 @@ Run `xrmforge generate` to create:
 ```typescript
 // BEFORE: formContext.getAttribute("name").getValue()
 // AFTER:
-import { AccountMainFormFieldsEnum as Fields } from '../typings/forms/account';
+import { AccountMainFormFieldsEnum as Fields } from '../generated/forms/account.js';
+import type { AccountMainForm } from '../generated/forms/account.js';
 const form = ctx.getFormContext() as AccountMainForm;
 form.getAttribute(Fields.AccountName).getValue();  // StringAttribute, typed
 ```
@@ -68,14 +71,14 @@ form.getAttribute(Fields.AccountName).getValue();  // StringAttribute, typed
 ```typescript
 // BEFORE: if (status.getValue() === 595300002) { ... }
 // AFTER:
-import { StatusCode } from '../typings/optionsets/invoice';
+import { StatusCode } from '../generated/optionsets/invoice.js';
 if (status.getValue() === StatusCode.Gebucht) { ... }
 ```
 
 ### Testing
 ```typescript
 import { createFormMock } from '@xrmforge/testing';
-const mock = createFormMock<AccountMainForm, AccountMainFormMockValues>({
+const mock = createFormMock<AccountMainForm>({
   name: 'Test', statuscode: 0
 });
 onLoad(mock.executionContext);
@@ -87,7 +90,7 @@ expect(mock.formContext.getControl('revenue').getVisible()).toBe(true);
 ```
 src/forms/{entity}-form.ts       - Form scripts (one per entity)
 src/shared/{name}.ts             - Shared utilities
-typings/                         - Generated types (do not edit manually)
+generated/                       - Generated types (do not edit manually)
 tests/forms/{entity}.test.ts     - Tests
 xrmforge.config.json             - Build config
 ```
@@ -113,12 +116,12 @@ When you see these patterns in legacy code, apply the XrmForge replacement:
 
 When you find magic numbers like `getValue() === 105710002` in legacy code:
 1. Search the file for ALL numeric comparisons with getValue()
-2. Create a const enum in typings/optionsets/ with descriptive names
+2. Create a const enum in generated/optionsets/ with descriptive names
 3. Import and use the enum instead of the number
 
 Example:
 ```typescript
-// typings/optionsets/invoice.ts
+// generated/optionsets/invoice.ts
 export const enum InvoiceStatusCode {
   Neu = 1,
   Versendet = 105710000,
@@ -127,7 +130,7 @@ export const enum InvoiceStatusCode {
 }
 
 // In the form script:
-import { InvoiceStatusCode } from '../../typings/optionsets/invoice';
+import { InvoiceStatusCode } from '../../generated/optionsets/invoice.js';
 if (status.getValue() === InvoiceStatusCode.Gebucht) { ... }
 ```
 
@@ -178,6 +181,7 @@ When creating manual typings without `xrmforge generate`:
 5. **openFile()** requires `fileSize` property in FileDetails.
 
 6. **const enum in .d.ts files** cannot be imported at runtime by test frameworks.
+   Since v0.8.0, XrmForge generates `.ts` files, so this is no longer an issue.
    For manual typings, use regular `enum` in `.ts` files (not `.d.ts`).
 
 ## Full Migration Guide

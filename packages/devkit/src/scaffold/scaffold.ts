@@ -117,8 +117,8 @@ function generatePackageJson(projectName: string): string {
     },
     devDependencies: {
       '@types/xrm': '^9.0.90',
-      '@xrmforge/cli': '^0.3.0',
-      '@xrmforge/testing': '^0.1.0',
+      '@xrmforge/cli': '^0.4.3',
+      '@xrmforge/testing': '^0.2.0',
       '@xrmforge/helpers': '^0.1.0',
       typescript: '^5.7.0',
       vitest: '^3.0.0',

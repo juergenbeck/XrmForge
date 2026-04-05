@@ -20,6 +20,8 @@ export function onLoad(executionContext: Xrm.Events.EventContext): void {
   );
 
   // Example: read a field value
+  // TODO: Replace with generated Fields enum after running 'xrmforge generate'
+  // Example: formContext.getAttribute(Fields.Name)
   const nameAttr = formContext.getAttribute('name');
   if (nameAttr) {
     const value = nameAttr.getValue();

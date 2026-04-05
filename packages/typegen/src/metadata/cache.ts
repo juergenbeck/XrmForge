@@ -89,7 +89,7 @@ export class MetadataCache {
 
       return data;
     } catch (error: unknown) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      if (error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
         log.info('No metadata cache found, will do full refresh');
       } else {
         log.warn('Failed to read metadata cache, will do full refresh', {
@@ -188,7 +188,7 @@ export class MetadataCache {
       await fs.unlink(this.cacheFilePath);
       log.info('Metadata cache cleared');
     } catch (error: unknown) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      if (!(error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT')) {
         throw error;
       }
     }
