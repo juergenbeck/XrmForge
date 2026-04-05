@@ -24,7 +24,12 @@ import { join } from 'node:path';
 import type { BuildConfig } from '@xrmforge/devkit';
 import { ConfigError, ErrorCode } from '@xrmforge/typegen';
 
-/** Shape of xrmforge.config.json */
+/**
+ * Shape of xrmforge.config.json.
+ *
+ * Combines generate options (url, auth, entities) with build configuration.
+ * All fields are optional since they can be provided via CLI flags.
+ */
 export interface XrmForgeConfig {
   /** Dataverse environment URL */
   url?: string;
@@ -61,9 +66,15 @@ export interface XrmForgeConfig {
 const CONFIG_FILENAME = 'xrmforge.config.json';
 
 /**
- * Load config from xrmforge.config.json in the current working directory.
- * Returns empty object if file doesn't exist.
- * Throws with clear message if file exists but is invalid JSON.
+ * Load configuration from xrmforge.config.json in the given working directory.
+ *
+ * Returns an empty object if the file does not exist.
+ * Throws a {@link ConfigError} if the file exists but contains invalid JSON.
+ * Emits a warning to stderr if clientSecret is found in the config file.
+ *
+ * @param cwd - Working directory to search for xrmforge.config.json (defaults to process.cwd())
+ * @returns Parsed configuration object, or empty object if no config file exists
+ * @throws {ConfigError} If the config file contains invalid JSON
  */
 export function loadConfig(cwd: string = process.cwd()): XrmForgeConfig {
   const configPath = join(cwd, CONFIG_FILENAME);
@@ -93,7 +104,15 @@ export function loadConfig(cwd: string = process.cwd()): XrmForgeConfig {
 
 /**
  * Merge config file values with CLI options.
- * CLI flags take precedence over config file.
+ *
+ * CLI flags always take precedence over config file values. Only fills
+ * in config values for options not explicitly set via CLI. Handles type
+ * conversions (e.g. config arrays to CLI comma-separated strings, numeric
+ * LCIDs to string representations).
+ *
+ * @param config - Parsed xrmforge.config.json values
+ * @param cliOpts - CLI options parsed by Commander.js
+ * @returns Merged options with CLI taking precedence
  */
 export function mergeWithCliOptions(
   config: XrmForgeConfig,

@@ -46,8 +46,15 @@ export interface ResolvedBuildConfig {
 }
 
 /**
- * Validate a raw build config object.
- * Throws BuildError with CONFIG_INVALID if any required field is missing or invalid.
+ * Validate a raw build config object parsed from xrmforge.config.json.
+ *
+ * Checks that all required fields (entries, input, namespace) are present
+ * and have valid types. Throws {@link BuildError} with CONFIG_INVALID if
+ * any validation check fails.
+ *
+ * @param raw - Untyped config object to validate
+ * @returns The validated build configuration
+ * @throws {BuildError} If any required field is missing or has an invalid type
  */
 export function validateBuildConfig(raw: unknown): BuildConfig {
   if (!raw || typeof raw !== 'object') {
@@ -119,6 +126,12 @@ export function validateBuildConfig(raw: unknown): BuildConfig {
 
 /**
  * Apply default values to a validated build config.
+ *
+ * Fills in defaults for optional fields: bundler ('esbuild'), outDir ('./dist'),
+ * target ('es2020'), sourcemap (true), minify (false), external ([]).
+ *
+ * @param config - Validated build configuration
+ * @returns Fully resolved configuration with all defaults applied
  */
 export function resolveBuildConfig(config: BuildConfig): ResolvedBuildConfig {
   return {

@@ -5,23 +5,43 @@
  * Used for onLoad/onSave/onChange handler invocation.
  */
 
+/**
+ * Mock implementation of {@link Xrm.Events.EventContext} for unit testing.
+ *
+ * Provides access to the form context and event source, enabling
+ * invocation of onLoad, onSave, and onChange handlers in tests.
+ *
+ * @example
+ * ```typescript
+ * const mock = createFormMock<AccountMainForm>({ name: 'Contoso' });
+ * const eventCtx = mock.asEventContext();
+ * onLoad(eventCtx);
+ * ```
+ */
 export class MockEventContext {
   private _formContext: Xrm.FormContext;
   private _eventSource: unknown;
 
+  /**
+   * @param formContext - The mock form context to return from getFormContext()
+   * @param eventSource - Optional event source (defaults to the form context)
+   */
   constructor(formContext: Xrm.FormContext, eventSource?: unknown) {
     this._formContext = formContext;
     this._eventSource = eventSource ?? formContext;
   }
 
+  /** Returns the mock form context. */
   getFormContext(): Xrm.FormContext {
     return this._formContext;
   }
 
+  /** Returns the event source (the attribute for onChange, the form context for onLoad). */
   getEventSource(): unknown {
     return this._eventSource;
   }
 
+  /** Returns a minimal stub of the Xrm global context. */
   getContext(): Xrm.GlobalContext {
     // Minimal stub; tests that need specific GlobalContext values
     // should mock them explicitly via Object.assign or similar.
@@ -49,14 +69,26 @@ export class MockEventContext {
     } as unknown as Xrm.GlobalContext;
   }
 
+  /** Returns the execution depth (always 1 in this mock). */
   getDepth(): number {
     return 1;
   }
 
+  /**
+   * Returns a shared variable value (always undefined in this mock).
+   *
+   * @param _key - Variable key name
+   */
   getSharedVariable(_key: string): unknown {
     return undefined;
   }
 
+  /**
+   * Sets a shared variable (no-op in this mock).
+   *
+   * @param _key - Variable key name
+   * @param _value - Variable value
+   */
   setSharedVariable(_key: string, _value: unknown): void {
     // no-op
   }

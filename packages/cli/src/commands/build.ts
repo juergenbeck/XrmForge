@@ -19,17 +19,27 @@ import {
 } from '@xrmforge/devkit';
 import { ConfigError, ErrorCode } from '@xrmforge/typegen';
 
-/** CLI options for the build command */
+/** CLI options for the build command (parsed by Commander.js). */
 interface BuildOptions {
+  /** Whether to run in watch mode with incremental rebuilds */
   watch: boolean;
+  /** Whether to minify output bundles */
   minify?: boolean;
+  /** Whether to generate source maps (default: true) */
   sourcemap: boolean;
+  /** Override output directory from config */
   outDir?: string;
+  /** Whether to enable verbose logging */
   verbose: boolean;
 }
 
 /**
  * Register the 'build' subcommand on the CLI program.
+ *
+ * Adds options for watch mode, minification, source maps,
+ * output directory override, and verbose logging.
+ *
+ * @param program - The Commander.js program instance to register on
  */
 export function registerBuildCommand(program: Command): void {
   program
@@ -60,7 +70,10 @@ export function registerBuildCommand(program: Command): void {
 }
 
 /**
- * Execute the build command.
+ * Execute the build command: load config, validate, and invoke esbuild
+ * for a single build or watch mode.
+ *
+ * @param opts - Parsed CLI options for the build command
  */
 async function runBuild(opts: BuildOptions): Promise<void> {
   const fileConfig = loadConfig();
@@ -151,7 +164,12 @@ async function runBuild(opts: BuildOptions): Promise<void> {
   console.log(`${result.entries.length} entries built in ${result.totalDurationMs}ms\n`);
 }
 
-/** Format bytes to human-readable string */
+/**
+ * Format a byte count to a human-readable string (e.g. '12.3 kB').
+ *
+ * @param bytes - File size in bytes
+ * @returns Formatted string with appropriate unit
+ */
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   const kb = bytes / 1024;

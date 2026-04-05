@@ -5,19 +5,49 @@
  * Tracks form notifications for assertions.
  */
 
+/** Represents a form-level notification with message and severity level. */
 export interface FormNotification {
+  /** The notification message text. */
   message: string;
+  /** The severity level ('INFO', 'WARNING', or 'ERROR'). */
   level: string;
 }
 
+/**
+ * Mock implementation of {@link Xrm.Ui} for unit testing.
+ *
+ * Tracks form-level notifications and provides stub implementations
+ * for tabs, close, and viewport methods.
+ *
+ * @example
+ * ```typescript
+ * const mock = createFormMock<AccountMainForm>({ name: 'Contoso' });
+ * mock.ui.setFormNotification('Saved', 'INFO', 'save-ok');
+ * expect(mock.ui.getFormNotification('save-ok')?.message).toBe('Saved');
+ * ```
+ */
 export class MockUi {
   private _notifications: Map<string, FormNotification> = new Map();
 
+  /**
+   * Sets a form-level notification.
+   *
+   * @param message - Notification message text
+   * @param level - Severity level ('INFO', 'WARNING', or 'ERROR')
+   * @param uniqueId - Unique identifier for the notification
+   * @returns Always true (success)
+   */
   setFormNotification(message: string, level: string, uniqueId: string): boolean {
     this._notifications.set(uniqueId, { message, level });
     return true;
   }
 
+  /**
+   * Clears a form-level notification.
+   *
+   * @param uniqueId - Unique identifier of the notification to clear
+   * @returns Always true (success)
+   */
   clearFormNotification(uniqueId: string): boolean {
     this._notifications.delete(uniqueId);
     return true;
@@ -70,26 +100,40 @@ export class MockUi {
     getLength: () => 0,
   };
 
+  /** Closes the form (no-op in this mock). */
   close(): void {
     // no-op
   }
 
+  /** Returns the form type (always 2 / Update in this mock). */
   getFormType(): XrmEnum.FormType {
     return 2 as XrmEnum.FormType; // Update
   }
 
+  /** Returns the viewport height in pixels (always 800 in this mock). */
   getViewPortHeight(): number {
     return 800;
   }
 
+  /** Returns the viewport width in pixels (always 1200 in this mock). */
   getViewPortWidth(): number {
     return 1200;
   }
 
+  /**
+   * Refreshes the command bar / ribbon (no-op in this mock).
+   *
+   * @param _refreshAll - Whether to refresh all ribbons
+   */
   refreshRibbon(_refreshAll?: boolean): void {
     // no-op
   }
 
+  /**
+   * Sets the form entity name (no-op in this mock).
+   *
+   * @param _name - Entity name to set
+   */
   setFormEntityName(_name: string): void {
     // no-op
   }

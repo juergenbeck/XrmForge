@@ -15,17 +15,27 @@ import type { Command } from 'commander';
 import { resolve, basename } from 'node:path';
 import { scaffoldProject } from '@xrmforge/devkit';
 
-/** CLI options for the init command */
+/** CLI options for the init command (parsed by Commander.js). */
 interface InitOptions {
+  /** Project name for package.json (defaults to directory name) */
   name?: string;
+  /** Publisher prefix for D365 WebResources (e.g. 'contoso') */
   prefix: string;
+  /** Base namespace for form scripts (defaults to PascalCase of prefix) */
   namespace?: string;
+  /** Whether to skip running npm install after scaffolding */
   skipInstall: boolean;
+  /** Whether to allow scaffolding in non-empty directories */
   force: boolean;
 }
 
 /**
  * Register the 'init' subcommand on the CLI program.
+ *
+ * Adds options for project name, publisher prefix, namespace,
+ * skip-install, and force mode.
+ *
+ * @param program - The Commander.js program instance to register on
  */
 export function registerInitCommand(program: Command): void {
   program
@@ -53,7 +63,11 @@ export function registerInitCommand(program: Command): void {
 }
 
 /**
- * Execute the init command.
+ * Execute the init command: resolve target directory, derive project
+ * settings, and scaffold a new D365 form scripting project.
+ *
+ * @param dir - Optional target directory (defaults to current directory)
+ * @param opts - Parsed CLI options for the init command
  */
 async function runInit(dir: string | undefined, opts: InitOptions): Promise<void> {
   const targetDir = resolve(dir ?? '.');
@@ -102,7 +116,15 @@ async function runInit(dir: string | undefined, opts: InitOptions): Promise<void
   console.log('');
 }
 
-/** Convert a string to PascalCase (e.g. "my-prefix" -> "MyPrefix") */
+/**
+ * Convert a string to PascalCase (e.g. 'my-prefix' becomes 'MyPrefix').
+ *
+ * Splits on hyphens, underscores, and whitespace, capitalizes each part,
+ * and joins them together.
+ *
+ * @param str - Input string with optional separators
+ * @returns PascalCase version of the input
+ */
 function toPascalCase(str: string): string {
   return str
     .split(/[-_\s]+/)

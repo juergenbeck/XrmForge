@@ -78,8 +78,10 @@ export async function scaffoldProject(config: ScaffoldConfig): Promise<ScaffoldR
 }
 
 /**
- * Generate all template file contents.
- * Returns an array of [relativePath, content] tuples.
+ * Generate all template file contents for a scaffolded project.
+ *
+ * @param config - Scaffold configuration with project name, prefix, and namespace
+ * @returns Array of [relativePath, content] tuples for each file to create
  */
 async function generateTemplates(config: ScaffoldConfig): Promise<Array<[string, string]>> {
   const { projectName, prefix, namespace } = config;
@@ -101,6 +103,12 @@ async function generateTemplates(config: ScaffoldConfig): Promise<Array<[string,
   ];
 }
 
+/**
+ * Generate package.json content for a scaffolded project.
+ *
+ * @param projectName - The project name for the name field
+ * @returns Formatted JSON string
+ */
 function generatePackageJson(projectName: string): string {
   const pkg = {
     name: projectName,
@@ -127,6 +135,11 @@ function generatePackageJson(projectName: string): string {
   return JSON.stringify(pkg, null, 2) + '\n';
 }
 
+/**
+ * Generate tsconfig.json content for a scaffolded project.
+ *
+ * @returns Formatted JSON string with D365-appropriate compiler options
+ */
 function generateTsConfig(): string {
   const config = {
     compilerOptions: {
@@ -149,6 +162,13 @@ function generateTsConfig(): string {
   return JSON.stringify(config, null, 2) + '\n';
 }
 
+/**
+ * Generate xrmforge.config.json content for a scaffolded project.
+ *
+ * @param prefix - Publisher prefix for WebResource paths (lowercase)
+ * @param namespace - Base namespace for form script globals
+ * @returns Formatted JSON string with a sample build entry
+ */
 function generateXrmForgeConfig(prefix: string, namespace: string): string {
   const config = {
     build: {

@@ -32,30 +32,53 @@ import {
 } from '@xrmforge/typegen';
 import type { AuthConfig } from '@xrmforge/typegen';
 
-/** CLI options for the generate command */
+/** CLI options for the generate command (parsed by Commander.js). */
 interface GenerateOptions {
+  /** Dataverse environment URL (e.g. 'https://myorg.crm4.dynamics.com') */
   url: string;
+  /** Authentication method ('client-credentials', 'interactive', 'device-code', 'token') */
   auth: string;
+  /** Azure AD tenant ID */
   tenantId?: string;
+  /** Azure AD application (client) ID */
   clientId?: string;
+  /** Client secret for client-credentials auth */
   clientSecret?: string;
+  /** Pre-acquired Bearer token for token auth */
   token?: string;
+  /** Comma-separated entity logical names */
   entities?: string;
+  /** Comma-separated solution unique names */
   solutions?: string;
+  /** Output directory for generated .ts files */
   output: string;
+  /** Primary label language LCID as string */
   labelLanguage: string;
+  /** Secondary label language LCID as string */
   secondaryLanguage?: string;
+  /** Whether to generate form interfaces */
   forms: boolean;
+  /** Whether to generate OptionSet enums */
   optionsets: boolean;
+  /** Whether to generate Custom API action executors */
   actions: boolean;
+  /** Prefix filter for Custom API generation */
   actionsFilter?: string;
+  /** Whether to enable metadata caching */
   cache: boolean;
+  /** Directory for metadata cache files */
   cacheDir: string;
+  /** Whether to enable verbose (debug) logging */
   verbose: boolean;
 }
 
 /**
  * Register the 'generate' subcommand on the CLI program.
+ *
+ * Adds options for Dataverse connection, authentication, entity scope,
+ * output directory, label languages, feature toggles, and caching.
+ *
+ * @param program - The Commander.js program instance to register on
  */
 export function registerGenerateCommand(program: Command): void {
   program
@@ -115,7 +138,10 @@ export function registerGenerateCommand(program: Command): void {
 }
 
 /**
- * Execute the generate command.
+ * Execute the generate command: validate options, authenticate, and run
+ * the type generation orchestrator.
+ *
+ * @param cliOpts - Parsed CLI options merged with config file values
  */
 async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
   // Load config file and merge with CLI options (CLI takes precedence)
@@ -249,7 +275,15 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
 }
 
 /**
- * Build AuthConfig from CLI options.
+ * Build an {@link AuthConfig} from parsed CLI options.
+ *
+ * Maps the --auth method to the appropriate credential configuration
+ * and validates that required fields are present for each method.
+ *
+ * @param opts - Parsed CLI options containing auth method and credentials
+ * @returns Validated authentication configuration
+ * @throws {AuthenticationError} If required credentials are missing for the chosen method
+ * @throws {ConfigError} If the auth method is unrecognized
  */
 function buildAuthConfig(opts: GenerateOptions): AuthConfig {
   const method = opts.auth as AuthConfig['method'];

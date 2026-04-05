@@ -16,13 +16,31 @@ export enum BuildErrorCode {
 }
 
 /**
- * Error class for build operations.
- * Carries a machine-readable code and optional context for debugging.
+ * Structured error class for build operations.
+ *
+ * Carries a machine-readable {@link BuildErrorCode} and optional context
+ * for debugging. The error message is prefixed with the code (e.g. `[BUILD_6001]`).
+ *
+ * @example
+ * ```typescript
+ * throw new BuildError(
+ *   BuildErrorCode.ENTRY_NOT_FOUND,
+ *   'Could not find entry point: ./src/missing.ts',
+ *   { entry: 'my_script' },
+ * );
+ * ```
  */
 export class BuildError extends Error {
+  /** Machine-readable error code for programmatic handling. */
   public readonly code: BuildErrorCode;
+  /** Additional context for debugging (e.g. entry name, file path). */
   public readonly context: Record<string, unknown>;
 
+  /**
+   * @param code - Machine-readable error code
+   * @param message - Human-readable error description
+   * @param context - Optional key-value pairs for debugging context
+   */
   constructor(code: BuildErrorCode, message: string, context: Record<string, unknown> = {}) {
     super(`[${code}] ${message}`);
     this.name = 'BuildError';

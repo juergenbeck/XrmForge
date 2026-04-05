@@ -23,7 +23,12 @@
  * ```
  */
 
-/** Options for customizing the Xrm mock */
+/**
+ * Options for customizing the global Xrm mock.
+ *
+ * Allows overriding specific Xrm.WebApi methods to simulate
+ * server responses in tests.
+ */
 export interface SetupXrmMockOptions {
   /** Override specific Xrm.WebApi methods */
   webApiOverrides?: Partial<{
@@ -36,8 +41,23 @@ export interface SetupXrmMockOptions {
 }
 
 /**
- * Set up a global Xrm mock for testing.
- * Call in beforeEach() or vitest setup file.
+ * Set up a global Xrm mock for testing form scripts that access Xrm.WebApi,
+ * Xrm.Navigation, or Xrm.Utility.
+ *
+ * All WebApi methods return resolved promises with empty results by default.
+ * Override specific methods via the options parameter.
+ *
+ * @param options - Optional overrides for Xrm.WebApi methods
+ *
+ * @example
+ * ```typescript
+ * beforeEach(() => setupXrmMock({
+ *   webApiOverrides: {
+ *     retrieveMultipleRecords: async () => ({ entities: [{ name: 'Test' }] }),
+ *   },
+ * }));
+ * afterEach(() => teardownXrmMock());
+ * ```
  */
 export function setupXrmMock(options?: SetupXrmMockOptions): void {
   const webApi = {
