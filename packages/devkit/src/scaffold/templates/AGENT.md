@@ -20,40 +20,106 @@ Run `xrmforge generate` to create:
 - `generated/entity-names.ts` - EntityNames const enum
 - `generated/index.ts` - Barrel file with `export * from` re-exports
 
-## Rules: Always
+## Rules: MANDATORY (every violation is a bug)
 
-1. **Fields Enum** for getAttribute/getControl (not raw strings):
-   `form.getAttribute(Fields.AccountName)` not `form.getAttribute("name")`
+1. **Fields Enum** for ALL getAttribute/getControl calls. Never raw strings.
+   ```typescript
+   import { AccountMainFormFieldsEnum as Fields } from '../generated/forms/account.js';
+   form.getAttribute(Fields.Name)  // CORRECT
+   form.getAttribute("name")       // BUG - raw string
+   ```
 
-2. **OptionSet Enum** for comparisons (not magic numbers):
-   `status === StatusCode.Active` not `status === 0`
+2. **OptionSet Enum** for ALL value comparisons. Never magic numbers.
+   ```typescript
+   import { StatusCode } from '../generated/optionsets/invoice.js';
+   if (status === StatusCode.Active) // CORRECT
+   if (status === 0)                 // BUG - magic number
+   ```
 
-3. **Cast formContext** to generated form interface:
-   `const form = ctx.getFormContext() as AccountMainForm;`
+3. **FormContext Cast** to generated form interface in every onLoad:
+   ```typescript
+   import type { AccountMainForm } from '../generated/forms/account.js';
+   const form = ctx.getFormContext() as AccountMainForm;
+   ```
 
-4. **EntityNames Enum** for Web API calls:
-   `Xrm.WebApi.retrieveRecord(EntityNames.Account, id)`
+4. **EntityNames Enum** in ALL Xrm.WebApi calls:
+   ```typescript
+   import { EntityNames } from '../generated/entity-names.js';
+   Xrm.WebApi.retrieveRecord(EntityNames.Account, id)
+   ```
 
-5. **parseLookup()** from @xrmforge/helpers for lookup values
+5. **parseLookup()** from @xrmforge/helpers for ALL lookup value access:
+   ```typescript
+   import { parseLookup } from '@xrmforge/helpers';
+   const customer = parseLookup(form.getAttribute(Fields.CustomerId));
+   ```
 
-6. **select()** from @xrmforge/helpers for $select queries
+6. **select()** from @xrmforge/helpers for ALL $select queries:
+   ```typescript
+   import { select } from '@xrmforge/helpers';
+   Xrm.WebApi.retrieveRecord(EntityNames.Account, id, select(Fields.Name, Fields.Revenue))
+   ```
 
-7. **createFormMock()** from @xrmforge/testing for tests
+7. **wrapHandler()** around EVERY exported async event handler:
+   ```typescript
+   import { createLogger } from '../shared/logger';
+   import { wrapHandler } from '../shared/error-handler';
+   const logger = createLogger('Namespace.Entity');
+   export const onLoad = wrapHandler('Namespace.Entity.onLoad', logger, async (ctx) => {
+     // handler code
+   });
+   ```
 
-8. **Module exports** (not window/global assignments). esbuild globalName handles namespacing.
+8. **createFormMock()** from @xrmforge/testing for ALL form tests:
+   ```typescript
+   import { createFormMock, fireOnChange, setupXrmMock } from '@xrmforge/testing';
+   ```
 
-9. **Tabs/Sections/Subgrids Enums** for UI access
+9. **Module exports** (not window/global assignments). esbuild globalName handles namespacing.
 
-10. **Error handling** in all async event handlers (try/catch)
+10. **Structured Logger** instead of console.* (except in logger.ts itself):
+    ```typescript
+    import { createLogger } from '../shared/logger';
+    const logger = createLogger('Namespace.Entity');
+    logger.info('Form loaded', { recordId });
+    ```
 
-## Rules: Never
+## Rules: NEVER (every occurrence is a bug)
 
 - Never `getAttribute("raw_string")` when Fields enum exists
-- Never magic numbers for OptionSet values
+- Never magic numbers for OptionSet values (use OptionSet enums)
 - Never `Xrm.Page` (deprecated since D365 v9.0)
 - Never synchronous XMLHttpRequest
 - Never `eval()`
 - Never `window.X = ...` (use module exports)
+- Never `console.log/warn/error` in form scripts (use shared logger)
+- Never export async handlers without wrapHandler()
+- Never `Xrm.WebApi.retrieveRecord("account", ...)` with raw entity name (use EntityNames)
+- Never `"?$select=name,revenue"` as raw string (use select() from @xrmforge/helpers)
+- Never `.getValue()[0].id.replace(...)` for lookups (use parseLookup() from @xrmforge/helpers)
+
+## Mandatory Shared Utilities
+
+Every XrmForge project MUST have these in `src/shared/`:
+
+### logger.ts
+```typescript
+export interface Logger { debug(msg: string, data?: unknown): void; info(...); warn(...); error(...); }
+export function createLogger(namespace: string): Logger;
+// Only file allowed to use console.*
+```
+
+### error-handler.ts
+```typescript
+export function wrapHandler<T>(name: string, logger: Logger, handler: T): T;
+// Catches sync+async errors, shows form notification, never rethrows
+```
+
+### constants.ts
+```typescript
+export const NOTIFICATION_IDS = { ... } as const;
+export const MESSAGES = { ... } as const;
+```
 
 ## Before/After Examples
 

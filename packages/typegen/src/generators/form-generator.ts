@@ -195,29 +195,41 @@ export function generateFormInterface(
 
   // 1. Union Type: restricts which field names are valid
   lines.push(`/** Valid field names for the "${form.name}" form */`);
-  lines.push(`export type ${fieldsTypeName} =`);
-  for (let i = 0; i < fields.length; i++) {
-    const separator = i === fields.length - 1 ? ';' : '';
-    lines.push(`  | "${fields[i]!.logicalName}"${separator}`);
+  if (fields.length === 0) {
+    lines.push(`export type ${fieldsTypeName} = never;`);
+  } else {
+    lines.push(`export type ${fieldsTypeName} =`);
+    for (let i = 0; i < fields.length; i++) {
+      const separator = i === fields.length - 1 ? ';' : '';
+      lines.push(`  | "${fields[i]!.logicalName}"${separator}`);
+    }
   }
   lines.push('');
 
   // 2. Attribute Map: maps field name to Xrm.Attributes.* type
   lines.push(`/** Attribute type map for "${form.name}" */`);
-  lines.push(`export type ${attrMapName} = {`);
-  for (const field of fields) {
-    lines.push(`  ${field.logicalName}: ${field.formAttributeType};`);
+  if (fields.length === 0) {
+    lines.push(`export type ${attrMapName} = Record<string, never>;`);
+  } else {
+    lines.push(`export type ${attrMapName} = {`);
+    for (const field of fields) {
+      lines.push(`  ${field.logicalName}: ${field.formAttributeType};`);
+    }
+    lines.push('};');
   }
-  lines.push('};');
   lines.push('');
 
   // 3. Control Map: maps field name to Xrm.Controls.* type
   lines.push(`/** Control type map for "${form.name}" */`);
-  lines.push(`export type ${ctrlMapName} = {`);
-  for (const field of fields) {
-    lines.push(`  ${field.logicalName}: ${field.formControlType};`);
+  if (fields.length === 0) {
+    lines.push(`export type ${ctrlMapName} = Record<string, never>;`);
+  } else {
+    lines.push(`export type ${ctrlMapName} = {`);
+    for (const field of fields) {
+      lines.push(`  ${field.logicalName}: ${field.formControlType};`);
+    }
+    lines.push('};');
   }
-  lines.push('};');
   lines.push('');
 
   // 4. Fields const enum: autocomplete with dual-language labels

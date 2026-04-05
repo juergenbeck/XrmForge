@@ -105,7 +105,7 @@ describe('file-writer integration (real filesystem)', () => {
 
     const index = generateBarrelIndex(files);
     expect(index).toContain("export * from './entities/account.js';");
-    expect(index).toContain("export * from './optionsets/account.js';");
+    expect(index).toContain("//   import { ... } from './optionsets/account.js';");
     expect(index).toContain("export * from './forms/account.js';");
   });
 });

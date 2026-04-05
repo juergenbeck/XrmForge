@@ -29,7 +29,7 @@ describe('generateBarrelIndex', () => {
     const result = generateBarrelIndex(files);
 
     expect(result).toContain("export * from './entities/account.js';");
-    expect(result).toContain("export * from './optionsets/account.js';");
+    expect(result).toContain("//   import { ... } from './optionsets/account.js';");
     expect(result).toContain("export * from './forms/account.js';");
   });
 
@@ -43,7 +43,7 @@ describe('generateBarrelIndex', () => {
     const result = generateBarrelIndex(files);
 
     expect(result).toContain('// Entity Interfaces');
-    expect(result).toContain('// OptionSet Enums');
+    expect(result).toContain('// OptionSet Enums - import directly from individual files to avoid name conflicts:');
   });
 
   it('should skip sections with no files', () => {

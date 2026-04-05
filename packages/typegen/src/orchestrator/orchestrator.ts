@@ -23,6 +23,8 @@ import { generateEntityForms } from '../generators/form-generator.js';
 import { generateActionDeclarations, generateActionModule, groupCustomApis } from '../generators/action-generator.js';
 import { generateEntityFieldsEnum, generateEntityNavigationProperties } from '../generators/entity-fields-generator.js';
 import { generateEntityNamesEnum } from '../generators/entity-names-generator.js';
+import { generateActivityPartyInterface } from '../generators/activity-party.js';
+import { isPartyListType } from '../generators/type-mapping.js';
 import { addGeneratedHeader, writeAllFiles, generateBarrelIndex, deleteOrphanedFiles } from './file-writer.js';
 import type {
   GenerateConfig,
@@ -180,7 +182,22 @@ export class TypeGenerationOrchestrator {
       }
     }
 
-    // 3b. Generate types for all entities in order (cached + freshly fetched)
+    // 3b. Generate ActivityParty interface if any entity has PartyList attributes
+    if (this.config.generateEntities) {
+      const hasPartyList = Object.values(cachedEntityInfos).some((info) =>
+        info.attributes.some((a) => isPartyListType(a.AttributeType)),
+      );
+      if (hasPartyList) {
+        const activityPartyContent = generateActivityPartyInterface();
+        allFiles.push({
+          relativePath: 'entities/_activity-party.ts',
+          content: addGeneratedHeader(activityPartyContent),
+          type: 'entity',
+        });
+      }
+    }
+
+    // 3c. Generate types for all entities in order (cached + freshly fetched)
     this.logger.info(`Generating types for ${this.config.entities.length - failedEntities.size} entities`);
 
     for (const entityName of this.config.entities) {
@@ -205,13 +222,13 @@ export class TypeGenerationOrchestrator {
       allFiles.push(...result.files);
     }
 
-    // 3c. Generate Custom API Action/Function executors
+    // 3d. Generate Custom API Action/Function executors
     if (this.config.generateActions && !signal?.aborted) {
       const actionFiles = await this.generateActions(metadataClient);
       allFiles.push(...actionFiles);
     }
 
-    // 3d. Generate EntityNames enum (all entities in one file)
+    // 3e. Generate EntityNames enum (all entities in one file)
     if (this.config.entities.length > 0) {
       const entityNamesContent = generateEntityNamesEnum(this.config.entities);
       allFiles.push({
@@ -528,7 +545,7 @@ export class TypeGenerationOrchestrator {
     }
 
     if (customApis.length > 0) {
-      const importPath = '@xrmforge/typegen';
+      const importPath = '@xrmforge/helpers';
       const grouped = groupCustomApis(customApis);
 
       for (const [key, apis] of grouped.actions) {

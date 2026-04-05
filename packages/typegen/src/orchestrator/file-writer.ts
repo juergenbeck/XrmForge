@@ -169,9 +169,9 @@ export function generateBarrelIndex(files: GeneratedFile[]): string {
   }
 
   if (optionsets.length > 0) {
-    lines.push('// OptionSet Enums');
+    lines.push('// OptionSet Enums - import directly from individual files to avoid name conflicts:');
     for (const f of optionsets) {
-      lines.push(`export * from '${toImportSpecifier(f.relativePath)}';`);
+      lines.push(`//   import { ... } from '${toImportSpecifier(f.relativePath)}';`);
     }
     lines.push('');
   }
@@ -185,9 +185,9 @@ export function generateBarrelIndex(files: GeneratedFile[]): string {
   }
 
   if (fields.length > 0) {
-    lines.push('// Entity Fields & Navigation Properties');
+    lines.push('// Entity Fields & Navigation Properties - import directly from individual files to avoid name conflicts:');
     for (const f of fields) {
-      lines.push(`export * from '${toImportSpecifier(f.relativePath)}';`);
+      lines.push(`//   import { ... } from '${toImportSpecifier(f.relativePath)}';`);
     }
     lines.push('');
   }
