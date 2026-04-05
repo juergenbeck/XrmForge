@@ -22,6 +22,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { BuildConfig } from '@xrmforge/devkit';
+import { ConfigError, ErrorCode } from '@xrmforge/typegen';
 
 /** Shape of xrmforge.config.json */
 export interface XrmForgeConfig {
@@ -84,7 +85,7 @@ export function loadConfig(cwd: string = process.cwd()): XrmForgeConfig {
     return config;
   } catch (error) {
     if (error instanceof SyntaxError) {
-      throw new Error(`Invalid JSON in ${configPath}: ${error.message}`);
+      throw new ConfigError(ErrorCode.CONFIG_INVALID, `Invalid JSON in ${configPath}: ${error.message}`, { file: configPath });
     }
     throw error;
   }

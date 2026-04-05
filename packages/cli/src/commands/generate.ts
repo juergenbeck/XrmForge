@@ -26,6 +26,9 @@ import {
   configureLogging,
   ConsoleLogSink,
   LogLevel,
+  AuthenticationError,
+  ConfigError,
+  ErrorCode,
 } from '@xrmforge/typegen';
 import type { AuthConfig } from '@xrmforge/typegen';
 
@@ -128,13 +131,13 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
 
   // Validate required options (may come from config file)
   if (!opts.url) {
-    throw new Error('--url is required. Set it via CLI flag or in xrmforge.config.json.');
+    throw new ConfigError(ErrorCode.CONFIG_INVALID, '--url is required. Set it via CLI flag or in xrmforge.config.json.', { option: 'url' });
   }
   if (!opts.auth) {
-    throw new Error('--auth is required. Set it via CLI flag or in xrmforge.config.json.');
+    throw new ConfigError(ErrorCode.CONFIG_INVALID, '--auth is required. Set it via CLI flag or in xrmforge.config.json.', { option: 'auth' });
   }
   if (!opts.entities && !opts.solutions) {
-    throw new Error('Either --entities or --solutions must be specified (CLI or xrmforge.config.json).');
+    throw new ConfigError(ErrorCode.CONFIG_INVALID, 'Either --entities or --solutions must be specified (CLI or xrmforge.config.json).', { option: 'entities' });
   }
 
   // Build auth config
@@ -152,19 +155,19 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
     : [];
 
   if (entities.length === 0 && solutionNames.length === 0) {
-    throw new Error('No entities specified. Use --entities or --solutions.');
+    throw new ConfigError(ErrorCode.CONFIG_INVALID, 'No entities specified. Use --entities or --solutions.', { option: 'entities' });
   }
 
   // Build label config (R8-05: validate LCID)
   const primaryLanguage = parseInt(opts.labelLanguage, 10);
   if (isNaN(primaryLanguage)) {
-    throw new Error(`Invalid --label-language: "${opts.labelLanguage}". Must be a numeric LCID (e.g. 1033, 1031).`);
+    throw new ConfigError(ErrorCode.CONFIG_INVALID, `Invalid --label-language: "${opts.labelLanguage}". Must be a numeric LCID (e.g. 1033, 1031).`, { option: 'labelLanguage', value: opts.labelLanguage });
   }
   let secondaryLanguage: number | undefined;
   if (opts.secondaryLanguage) {
     secondaryLanguage = parseInt(opts.secondaryLanguage, 10);
     if (isNaN(secondaryLanguage)) {
-      throw new Error(`Invalid --secondary-language: "${opts.secondaryLanguage}". Must be a numeric LCID (e.g. 1033, 1031).`);
+      throw new ConfigError(ErrorCode.CONFIG_INVALID, `Invalid --secondary-language: "${opts.secondaryLanguage}". Must be a numeric LCID (e.g. 1033, 1031).`, { option: 'secondaryLanguage', value: opts.secondaryLanguage });
     }
   }
 
@@ -253,9 +256,9 @@ function buildAuthConfig(opts: GenerateOptions): AuthConfig {
 
   switch (method) {
     case 'client-credentials':
-      if (!opts.tenantId) throw new Error('--tenant-id is required for client-credentials auth.');
-      if (!opts.clientId) throw new Error('--client-id is required for client-credentials auth.');
-      if (!opts.clientSecret) throw new Error('--client-secret is required for client-credentials auth.');
+      if (!opts.tenantId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--tenant-id is required for client-credentials auth.', { method: 'client-credentials', missing: 'tenantId' });
+      if (!opts.clientId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--client-id is required for client-credentials auth.', { method: 'client-credentials', missing: 'clientId' });
+      if (!opts.clientSecret) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--client-secret is required for client-credentials auth.', { method: 'client-credentials', missing: 'clientSecret' });
       if (opts.clientSecret) {
         console.warn('WARNING: Passing --client-secret via CLI exposes it in shell history. Use XRMFORGE_CLIENT_SECRET environment variable instead.');
       }
@@ -267,8 +270,8 @@ function buildAuthConfig(opts: GenerateOptions): AuthConfig {
       };
 
     case 'interactive':
-      if (!opts.tenantId) throw new Error('--tenant-id is required for interactive auth.');
-      if (!opts.clientId) throw new Error('--client-id is required for interactive auth.');
+      if (!opts.tenantId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--tenant-id is required for interactive auth.', { method: 'interactive', missing: 'tenantId' });
+      if (!opts.clientId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--client-id is required for interactive auth.', { method: 'interactive', missing: 'clientId' });
       return {
         method: 'interactive',
         tenantId: opts.tenantId,
@@ -276,8 +279,8 @@ function buildAuthConfig(opts: GenerateOptions): AuthConfig {
       };
 
     case 'device-code':
-      if (!opts.tenantId) throw new Error('--tenant-id is required for device-code auth.');
-      if (!opts.clientId) throw new Error('--client-id is required for device-code auth.');
+      if (!opts.tenantId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--tenant-id is required for device-code auth.', { method: 'device-code', missing: 'tenantId' });
+      if (!opts.clientId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--client-id is required for device-code auth.', { method: 'device-code', missing: 'clientId' });
       return {
         method: 'device-code',
         tenantId: opts.tenantId,
@@ -288,9 +291,11 @@ function buildAuthConfig(opts: GenerateOptions): AuthConfig {
       // Token from --token flag or XRMFORGE_TOKEN environment variable
       const token = opts.token || process.env['XRMFORGE_TOKEN'];
       if (!token) {
-        throw new Error(
+        throw new AuthenticationError(
+          ErrorCode.AUTH_MISSING_CONFIG,
           'Token authentication requires a token. ' +
           'Set XRMFORGE_TOKEN environment variable or use --token flag.',
+          { method: 'token', missing: 'token' },
         );
       }
       if (opts.token) {
@@ -301,9 +306,11 @@ function buildAuthConfig(opts: GenerateOptions): AuthConfig {
     }
 
     default:
-      throw new Error(
+      throw new ConfigError(
+        ErrorCode.CONFIG_INVALID,
         `Unknown auth method: "${opts.auth}". ` +
         `Supported: client-credentials, interactive, device-code, token`,
+        { option: 'auth', value: opts.auth },
       );
   }
 }

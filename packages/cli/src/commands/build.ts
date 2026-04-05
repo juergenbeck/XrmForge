@@ -17,6 +17,7 @@ import {
   build,
   watch,
 } from '@xrmforge/devkit';
+import { ConfigError, ErrorCode } from '@xrmforge/typegen';
 
 /** CLI options for the build command */
 interface BuildOptions {
@@ -65,7 +66,8 @@ async function runBuild(opts: BuildOptions): Promise<void> {
   const fileConfig = loadConfig();
 
   if (!fileConfig.build) {
-    throw new Error(
+    throw new ConfigError(
+      ErrorCode.CONFIG_INVALID,
       'No "build" section found in xrmforge.config.json.\n' +
       'Add a build configuration with entries to get started:\n\n' +
       '  {\n' +
@@ -78,6 +80,7 @@ async function runBuild(opts: BuildOptions): Promise<void> {
       '      }\n' +
       '    }\n' +
       '  }\n',
+      { section: 'build' },
     );
   }
 
