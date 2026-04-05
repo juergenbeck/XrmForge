@@ -36,20 +36,20 @@ export interface ParameterMeta {
 export type ParameterMetaMap = Record<string, ParameterMeta>;
 
 /** Executor for a bound action without additional parameters */
-export interface BoundActionExecutor {
-  execute(recordId: string): Promise<Response>;
+export interface BoundActionExecutor<TResult = void> {
+  execute(recordId: string): Promise<TResult extends void ? Response : TResult>;
   request(recordId: string): Record<string, unknown>;
 }
 
 /** Executor for a bound action with typed parameters */
-export interface BoundActionWithParamsExecutor<TParams> {
-  execute(recordId: string, params: TParams): Promise<Response>;
+export interface BoundActionWithParamsExecutor<TParams, TResult = void> {
+  execute(recordId: string, params: TParams): Promise<TResult extends void ? Response : TResult>;
   request(recordId: string, params: TParams): Record<string, unknown>;
 }
 
 /** Executor for an unbound action without parameters */
-export interface UnboundActionExecutor {
-  execute(): Promise<Response>;
+export interface UnboundActionExecutor<TResult = void> {
+  execute(): Promise<TResult extends void ? Response : TResult>;
   request(): Record<string, unknown>;
 }
 
@@ -181,7 +181,7 @@ function buildUnboundRequest(
 // Action Factories
 
 /**
- * Create an executor for a bound action (entity-bound).
+ * Create an executor for a bound action (entity-bound) without parameters or typed response.
  *
  * @param operationName - Custom API unique name (e.g. "markant_winquote")
  * @param entityLogicalName - Entity logical name (e.g. "quote")
@@ -192,30 +192,56 @@ export function createBoundAction(
 ): BoundActionExecutor;
 
 /**
- * Create an executor for a bound action with typed parameters.
+ * Create an executor for a bound action without parameters but with typed response.
+ *
+ * @param operationName - Custom API unique name
+ * @param entityLogicalName - Entity logical name
+ */
+export function createBoundAction<TResult>(
+  operationName: string,
+  entityLogicalName: string,
+): BoundActionExecutor<TResult>;
+
+/**
+ * Create an executor for a bound action with typed parameters and optional typed response.
  *
  * @param operationName - Custom API unique name
  * @param entityLogicalName - Entity logical name
  * @param paramMeta - Parameter metadata map (parameter name to OData type info)
  */
-export function createBoundAction<TParams extends Record<string, unknown>>(
+export function createBoundAction<
+  TParams extends Record<string, unknown>,
+  TResult = void,
+>(
   operationName: string,
   entityLogicalName: string,
   paramMeta: ParameterMetaMap,
-): BoundActionWithParamsExecutor<TParams>;
+): BoundActionWithParamsExecutor<TParams, TResult>;
 
-export function createBoundAction<TParams extends Record<string, unknown>>(
+export function createBoundAction<
+  TParams extends Record<string, unknown>,
+  TResult = void,
+>(
   operationName: string,
   entityLogicalName: string,
   paramMeta?: ParameterMetaMap,
-): BoundActionExecutor | BoundActionWithParamsExecutor<TParams> {
+): BoundActionExecutor<TResult> | BoundActionWithParamsExecutor<TParams, TResult> {
   return {
-    execute(recordId: string, params?: TParams): Promise<Response> {
+    async execute(recordId: string, params?: TParams): Promise<TResult extends void ? Response : TResult> {
       const req = buildBoundRequest(
         operationName, entityLogicalName, OperationType.Action,
         recordId, paramMeta, params,
       );
-      return executeRequest(req);
+      const response = await executeRequest(req);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText);
+      }
+      // Parse JSON when response properties are defined (TResult is not void)
+      if (response.status !== 204) {
+        return response.json() as Promise<TResult extends void ? Response : TResult>;
+      }
+      return response as TResult extends void ? Response : TResult;
     },
     request(recordId: string, params?: TParams): Record<string, unknown> {
       return buildBoundRequest(
@@ -227,7 +253,7 @@ export function createBoundAction<TParams extends Record<string, unknown>>(
 }
 
 /**
- * Create an executor for an unbound (global) action without parameters.
+ * Create an executor for an unbound (global) action without parameters or typed response.
  *
  * @param operationName - Custom API unique name
  */
@@ -236,7 +262,16 @@ export function createUnboundAction(
 ): UnboundActionExecutor;
 
 /**
- * Create an executor for an unbound action with typed parameters and response.
+ * Create an executor for an unbound action without parameters but with typed response.
+ *
+ * @param operationName - Custom API unique name
+ */
+export function createUnboundAction<TResult>(
+  operationName: string,
+): UnboundActionExecutor<TResult>;
+
+/**
+ * Create an executor for an unbound action with typed parameters and optional typed response.
  *
  * @param operationName - Custom API unique name
  * @param paramMeta - Parameter metadata map

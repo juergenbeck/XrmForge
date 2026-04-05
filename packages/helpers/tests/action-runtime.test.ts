@@ -70,8 +70,8 @@ describe('executeMultiple', () => {
 // createBoundAction
 
 describe('createBoundAction', () => {
-  it('should create executor without params', async () => {
-    const resp = mockResponse(true, 200);
+  it('should create executor without params (204 no-content)', async () => {
+    const resp = mockResponse(true, 204);
     mockExecute.mockResolvedValue(resp);
 
     const action = createBoundAction('markant_winquote', 'quote');
@@ -79,8 +79,25 @@ describe('createBoundAction', () => {
     expect(result).toBe(resp);
   });
 
+  it('should parse JSON response for bound action with result type', async () => {
+    const resp = mockResponse(true, 200, { IsValid: true });
+    mockExecute.mockResolvedValue(resp);
+
+    const action = createBoundAction<{ IsValid: boolean }>('markant_validate', 'quote');
+    const result = await action.execute('id1');
+    expect(result.IsValid).toBe(true);
+  });
+
+  it('should throw on non-ok response', async () => {
+    const resp = mockResponse(false, 400, 'Bad Request');
+    mockExecute.mockResolvedValue(resp);
+
+    const action = createBoundAction('test_action', 'account');
+    await expect(action.execute('id1')).rejects.toThrow();
+  });
+
   it('should strip braces from recordId', async () => {
-    mockExecute.mockResolvedValue(mockResponse(true, 200));
+    mockExecute.mockResolvedValue(mockResponse(true, 204));
 
     const action = createBoundAction('test_action', 'account');
     await action.execute('{abc-123}');
@@ -91,7 +108,7 @@ describe('createBoundAction', () => {
   });
 
   it('should build correct metadata', async () => {
-    mockExecute.mockResolvedValue(mockResponse(true, 200));
+    mockExecute.mockResolvedValue(mockResponse(true, 204));
 
     const action = createBoundAction('test_action', 'account');
     await action.execute('id1');
@@ -111,7 +128,7 @@ describe('createBoundAction', () => {
   });
 
   it('should pass typed parameters', async () => {
-    mockExecute.mockResolvedValue(mockResponse(true, 200));
+    mockExecute.mockResolvedValue(mockResponse(true, 204));
 
     const paramMeta: ParameterMetaMap = {
       Amount: { typeName: 'Edm.Decimal', structuralProperty: 1 },
@@ -123,6 +140,20 @@ describe('createBoundAction', () => {
     expect(request.Amount).toBe(100);
     const metadata = request.getMetadata();
     expect(metadata.parameterTypes.Amount).toBeDefined();
+  });
+
+  it('should pass typed parameters with result', async () => {
+    const resp = mockResponse(true, 200, { ClonedId: 'guid-123' });
+    mockExecute.mockResolvedValue(resp);
+
+    const paramMeta: ParameterMetaMap = {
+      IncludeProducts: { typeName: 'Edm.Boolean', structuralProperty: 1 },
+    };
+    const action = createBoundAction<{ IncludeProducts: boolean }, { ClonedId: string }>(
+      'markant_clone', 'quote', paramMeta,
+    );
+    const result = await action.execute('id1', { IncludeProducts: true });
+    expect(result.ClonedId).toBe('guid-123');
   });
 });
 

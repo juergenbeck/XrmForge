@@ -211,14 +211,19 @@ export function generateActionModule(
       lines.push('');
     }
 
-    // Executor export
+    // Executor export with type parameters for Params and Result types
+    const typeArgs = buildTypeArgs(name, hasParams, hasResult);
+
     if (apiInfo.api.bindingtype === CustomApiBindingType.Global) {
       // Unbound
       if (isFunction) {
-        lines.push(`export const ${name} = createUnboundFunction('${apiInfo.api.uniquename}');`);
+        const funcTypeArg = hasResult ? `<${name}Result>` : '<unknown>';
+        lines.push(`export const ${name} = createUnboundFunction${funcTypeArg}('${apiInfo.api.uniquename}');`);
       } else if (hasParams) {
         const paramMeta = generateParameterMetaMap(apiInfo.requestParameters);
-        lines.push(`export const ${name} = createUnboundAction('${apiInfo.api.uniquename}', ${paramMeta});`);
+        lines.push(`export const ${name} = createUnboundAction${typeArgs}('${apiInfo.api.uniquename}', ${paramMeta});`);
+      } else if (hasResult) {
+        lines.push(`export const ${name} = createUnboundAction<${name}Result>('${apiInfo.api.uniquename}');`);
       } else {
         lines.push(`export const ${name} = createUnboundAction('${apiInfo.api.uniquename}');`);
       }
@@ -226,10 +231,13 @@ export function generateActionModule(
       // Bound
       const entity = apiInfo.api.boundentitylogicalname!;
       if (isFunction) {
-        lines.push(`export const ${name} = createBoundFunction('${apiInfo.api.uniquename}', '${entity}');`);
+        const funcTypeArg = hasResult ? `<${name}Result>` : '<unknown>';
+        lines.push(`export const ${name} = createBoundFunction${funcTypeArg}('${apiInfo.api.uniquename}', '${entity}');`);
       } else if (hasParams) {
         const paramMeta = generateParameterMetaMap(apiInfo.requestParameters);
-        lines.push(`export const ${name} = createBoundAction('${apiInfo.api.uniquename}', '${entity}', ${paramMeta});`);
+        lines.push(`export const ${name} = createBoundAction${typeArgs}('${apiInfo.api.uniquename}', '${entity}', ${paramMeta});`);
+      } else if (hasResult) {
+        lines.push(`export const ${name} = createBoundAction<${name}Result>('${apiInfo.api.uniquename}', '${entity}');`);
       } else {
         lines.push(`export const ${name} = createBoundAction('${apiInfo.api.uniquename}', '${entity}');`);
       }
@@ -239,6 +247,28 @@ export function generateActionModule(
   }
 
   return lines.join('\n');
+}
+
+// ─── Type Argument Builder ──────────────────────────────────────────────────
+
+/**
+ * Build the generic type argument string for factory function calls.
+ *
+ * For actions with params: `<NameParams>` or `<NameParams, NameResult>`
+ * For actions without params but with result: `<NameResult>`
+ * For actions without params or result: empty string (no generics)
+ */
+function buildTypeArgs(name: string, hasParams: boolean, hasResult: boolean): string {
+  if (hasParams && hasResult) {
+    return `<${name}Params, ${name}Result>`;
+  }
+  if (hasParams) {
+    return `<${name}Params>`;
+  }
+  if (hasResult) {
+    return `<${name}Result>`;
+  }
+  return '';
 }
 
 // ─── Parameter Metadata Map ─────────────────────────────────────────────────

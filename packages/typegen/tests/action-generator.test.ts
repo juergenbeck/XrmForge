@@ -53,6 +53,54 @@ const boundAction: CustomApiTypeInfo = {
   responseProperties: [],
 };
 
+const boundActionWithResult: CustomApiTypeInfo = {
+  api: {
+    uniquename: 'markant_ValidateQuote',
+    bindingtype: 1,
+    isfunction: false,
+    boundentitylogicalname: 'quote',
+    displayname: 'Validate Quote',
+    description: 'Validates a quote',
+  },
+  requestParameters: [],
+  responseProperties: [
+    { uniquename: 'IsValid', type: 0 },
+    { uniquename: 'Message', type: 10 },
+  ],
+};
+
+const boundActionWithParamsAndResult: CustomApiTypeInfo = {
+  api: {
+    uniquename: 'markant_CloneQuote',
+    bindingtype: 1,
+    isfunction: false,
+    boundentitylogicalname: 'quote',
+    displayname: 'Clone Quote',
+    description: 'Clones a quote with options',
+  },
+  requestParameters: [
+    { uniquename: 'IncludeProducts', type: 0, isoptional: true },
+  ],
+  responseProperties: [
+    { uniquename: 'ClonedQuoteId', type: 12 },
+  ],
+};
+
+const unboundActionWithResultOnly: CustomApiTypeInfo = {
+  api: {
+    uniquename: 'markant_GetServerTime',
+    bindingtype: 0,
+    isfunction: false,
+    boundentitylogicalname: null,
+    displayname: 'Get Server Time',
+    description: 'Returns current server time',
+  },
+  requestParameters: [],
+  responseProperties: [
+    { uniquename: 'Timestamp', type: 10 },
+  ],
+};
+
 const unboundFunction: CustomApiTypeInfo = {
   api: {
     uniquename: 'WhoAmI',
@@ -137,9 +185,9 @@ describe('generateActionModule', () => {
     expect(output).toContain("export const SimpleAction = createUnboundAction('markant_SimpleAction')");
   });
 
-  it('should generate executor with parameter metadata map', () => {
+  it('should generate executor with typed params and result', () => {
     const output = generateActionModule([unboundActionWithParams], false);
-    expect(output).toContain("export const NormalizePhone = createUnboundAction('markant_NormalizePhone',");
+    expect(output).toContain("export const NormalizePhone = createUnboundAction<NormalizePhoneParams, NormalizePhoneResult>('markant_NormalizePhone',");
     expect(output).toContain("Input: { typeName: 'Edm.String', structuralProperty: 1 }");
     expect(output).toContain("AllowSuspicious: { typeName: 'Edm.Boolean', structuralProperty: 1 }");
   });
@@ -150,10 +198,31 @@ describe('generateActionModule', () => {
     expect(output).toContain("export const Winquote = createBoundAction('markant_winquote', 'quote')");
   });
 
-  it('should generate unbound function executor', () => {
+  it('should generate unbound function executor with result type', () => {
     const output = generateActionModule([unboundFunction], true);
     expect(output).toContain("import { createUnboundFunction } from '@xrmforge/helpers'");
-    expect(output).toContain("export const WhoAmI = createUnboundFunction('WhoAmI')");
+    expect(output).toContain("export const WhoAmI = createUnboundFunction<WhoAmIResult>('WhoAmI')");
+  });
+
+  it('should generate bound action with result type only', () => {
+    const output = generateActionModule([boundActionWithResult], false);
+    expect(output).toContain("export const ValidateQuote = createBoundAction<ValidateQuoteResult>('markant_ValidateQuote', 'quote')");
+    expect(output).toContain('export interface ValidateQuoteResult');
+    expect(output).not.toContain('ValidateQuoteParams');
+  });
+
+  it('should generate bound action with params and result types', () => {
+    const output = generateActionModule([boundActionWithParamsAndResult], false);
+    expect(output).toContain("export const CloneQuote = createBoundAction<CloneQuoteParams, CloneQuoteResult>('markant_CloneQuote', 'quote',");
+    expect(output).toContain('export interface CloneQuoteParams');
+    expect(output).toContain('export interface CloneQuoteResult');
+  });
+
+  it('should generate unbound action with result type only (no params)', () => {
+    const output = generateActionModule([unboundActionWithResultOnly], false);
+    expect(output).toContain("export const GetServerTime = createUnboundAction<GetServerTimeResult>('markant_GetServerTime')");
+    expect(output).toContain('export interface GetServerTimeResult');
+    expect(output).not.toContain('GetServerTimeParams');
   });
 
   it('should use custom import path', () => {
