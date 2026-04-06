@@ -238,6 +238,17 @@ export class TypeGenerationOrchestrator {
       });
     }
 
+    // 3f. Generate form-mapping.json (AI agent helper: entity -> form interface names)
+    const formFiles = allFiles.filter((f) => f.type === 'form');
+    if (formFiles.length > 0) {
+      const formMapping = this.generateFormMapping(formFiles);
+      allFiles.push({
+        relativePath: 'form-mapping.json',
+        content: JSON.stringify(formMapping, null, 2) + '\n',
+        type: 'entity',
+      });
+    }
+
     // 4. Write barrel index
     if (allFiles.length > 0) {
       const indexContent = generateBarrelIndex(allFiles);
@@ -610,5 +621,51 @@ export class TypeGenerationOrchestrator {
     }
 
     return result;
+  }
+
+  /**
+   * Generate a form-mapping.json that maps entity names to their generated
+   * form interface names, fields enums, and tabs enums.
+   *
+   * This helps AI agents find the correct interface names without guessing.
+   */
+  private generateFormMapping(
+    formFiles: GeneratedFile[],
+  ): Record<string, Array<{ formName: string; interface: string; fieldsEnum: string; tabsEnum: string }>> {
+    const mapping: Record<string, Array<{ formName: string; interface: string; fieldsEnum: string; tabsEnum: string }>> = {};
+
+    for (const file of formFiles) {
+      // Extract entity name from path: forms/account.ts -> account
+      const match = file.relativePath.match(/^forms\/(.+)\.ts$/);
+      if (!match) continue;
+      const entityName = match[1]!;
+
+      // Parse interface/enum names from generated content
+      const interfaces = [...file.content.matchAll(/export\s+interface\s+(\w+Form)\s+extends/g)].map((m) => m[1]!);
+      const fieldsEnums = [...file.content.matchAll(/export\s+const\s+enum\s+(\w+FormFieldsEnum)\s*\{/g)].map((m) => m[1]!);
+      const tabsEnums = [...file.content.matchAll(/export\s+const\s+enum\s+(\w+FormTabs)\s*\{/g)].map((m) => m[1]!);
+
+      const forms: Array<{ formName: string; interface: string; fieldsEnum: string; tabsEnum: string }> = [];
+
+      for (let i = 0; i < interfaces.length; i++) {
+        // Extract form name from JSDoc above the interface: /** FormName */
+        const interfaceName = interfaces[i]!;
+        const jsdocMatch = file.content.match(new RegExp(`/\\*\\*\\s*(.+?)\\s*\\*/\\s*export\\s+interface\\s+${interfaceName}`));
+        const formName = jsdocMatch?.[1] ?? interfaceName.replace(/Form$/, '');
+
+        forms.push({
+          formName,
+          interface: interfaceName,
+          fieldsEnum: fieldsEnums[i] ?? '',
+          tabsEnum: tabsEnums[i] ?? '',
+        });
+      }
+
+      if (forms.length > 0) {
+        mapping[entityName] = forms;
+      }
+    }
+
+    return mapping;
   }
 }

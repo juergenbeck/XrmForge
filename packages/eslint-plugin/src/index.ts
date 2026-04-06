@@ -22,11 +22,12 @@ import noMagicOptionSet from './rules/no-magic-optionset.js';
 import noSyncWebapi from './rules/no-sync-webapi.js';
 import requireErrorHandling from './rules/require-error-handling.js';
 import requireNamespace from './rules/require-namespace.js';
+import noTypegenImport from './rules/no-typegen-import.js';
 
 const plugin = {
   meta: {
     name: '@xrmforge/eslint-plugin',
-    version: '0.2.0',
+    version: '0.2.1',
   },
 
   rules: {
@@ -35,6 +36,7 @@ const plugin = {
     'no-sync-webapi': noSyncWebapi,
     'require-error-handling': requireErrorHandling,
     'require-namespace': requireNamespace,
+    'no-typegen-import': noTypegenImport,
   },
 
   configs: {} as Record<string, unknown>,
@@ -51,8 +53,9 @@ plugin.configs['recommended'] = {
     '@xrmforge/no-sync-webapi': 'error',
     '@xrmforge/require-error-handling': 'warn',
     '@xrmforge/require-namespace': 'warn',
+    '@xrmforge/no-typegen-import': 'error',
   },
 };
 
 export default plugin;
-export { noXrmPage, noMagicOptionSet, noSyncWebapi, requireErrorHandling, requireNamespace };
+export { noXrmPage, noMagicOptionSet, noSyncWebapi, requireErrorHandling, requireNamespace, noTypegenImport };

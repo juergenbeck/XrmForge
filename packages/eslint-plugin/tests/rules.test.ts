@@ -207,6 +207,7 @@ describe('plugin', () => {
     expect(plugin.rules['no-sync-webapi']).toBeDefined();
     expect(plugin.rules['require-error-handling']).toBeDefined();
     expect(plugin.rules['require-namespace']).toBeDefined();
+    expect(plugin.rules['no-typegen-import']).toBeDefined();
   });
 
   it('should export recommended config', () => {
@@ -215,6 +216,45 @@ describe('plugin', () => {
 
   it('should have meta with name and version', () => {
     expect(plugin.meta.name).toBe('@xrmforge/eslint-plugin');
-    expect(plugin.meta.version).toBe('0.2.0');
+    expect(plugin.meta.version).toBe('0.2.1');
+  });
+});
+
+// ─── no-typegen-import ───────────────────────────────────────────────────────
+
+describe('no-typegen-import', () => {
+  it('should report import from @xrmforge/typegen', () => {
+    const result = lint(`import { select } from '@xrmforge/typegen';`, {
+      '@xrmforge/no-typegen-import': 'error',
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]!.message).toContain('Do not import from @xrmforge/typegen');
+  });
+
+  it('should report import from @xrmforge/typegen/helpers subpath', () => {
+    const result = lint(`import { select } from '@xrmforge/typegen/helpers';`, {
+      '@xrmforge/no-typegen-import': 'error',
+    });
+    expect(result).toHaveLength(1);
+  });
+
+  it('should not report import from @xrmforge/helpers', () => {
+    const result = lint(`import { select } from '@xrmforge/helpers';`, {
+      '@xrmforge/no-typegen-import': 'error',
+    });
+    expect(result).toHaveLength(0);
+  });
+
+  it('should not report import from @xrmforge/testing', () => {
+    const result = lint(`import { createFormMock } from '@xrmforge/testing';`, {
+      '@xrmforge/no-typegen-import': 'error',
+    });
+    expect(result).toHaveLength(0);
+  });
+
+  it('should have rule metadata', () => {
+    const rule = plugin.rules['no-typegen-import']!;
+    expect(rule.meta?.type).toBe('problem');
+    expect(rule.meta?.messages).toHaveProperty('noTypegenImport');
   });
 });
