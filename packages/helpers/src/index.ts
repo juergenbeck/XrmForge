@@ -17,6 +17,8 @@ export {
   parseLookup,
   parseLookups,
   parseFormattedValue,
+  formLookup,
+  formLookupId,
 } from './webapi-helpers.js';
 
 // Xrm constants (const enums, zero runtime overhead)

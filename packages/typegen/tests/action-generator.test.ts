@@ -129,10 +129,10 @@ describe('generateActionDeclarations', () => {
 
   it('should generate params and result interfaces', () => {
     const output = generateActionDeclarations([unboundActionWithParams], false);
-    expect(output).toContain('export interface NormalizePhoneParams');
+    expect(output).toContain('export type NormalizePhoneParams');
     expect(output).toContain('Input: string');
     expect(output).toContain('AllowSuspicious?: boolean');
-    expect(output).toContain('export interface NormalizePhoneResult');
+    expect(output).toContain('export type NormalizePhoneResult');
     expect(output).toContain('Normalized: string');
     expect(output).toContain('Status: number');
     expect(output).toContain('Message: string');
@@ -147,7 +147,7 @@ describe('generateActionDeclarations', () => {
   it('should generate function declarations without namespace', () => {
     const output = generateActionDeclarations([unboundFunction], true);
     expect(output).not.toContain('declare namespace');
-    expect(output).toContain('export interface WhoAmIResult');
+    expect(output).toContain('export type WhoAmIResult');
     expect(output).toContain('UserId: string');
     expect(output).toContain('BusinessUnitId: string');
   });
@@ -207,21 +207,21 @@ describe('generateActionModule', () => {
   it('should generate bound action with result type only', () => {
     const output = generateActionModule([boundActionWithResult], false);
     expect(output).toContain("export const ValidateQuote = createBoundAction<ValidateQuoteResult>('markant_ValidateQuote', 'quote')");
-    expect(output).toContain('export interface ValidateQuoteResult');
+    expect(output).toContain('export type ValidateQuoteResult');
     expect(output).not.toContain('ValidateQuoteParams');
   });
 
   it('should generate bound action with params and result types', () => {
     const output = generateActionModule([boundActionWithParamsAndResult], false);
     expect(output).toContain("export const CloneQuote = createBoundAction<CloneQuoteParams, CloneQuoteResult>('markant_CloneQuote', 'quote',");
-    expect(output).toContain('export interface CloneQuoteParams');
-    expect(output).toContain('export interface CloneQuoteResult');
+    expect(output).toContain('export type CloneQuoteParams');
+    expect(output).toContain('export type CloneQuoteResult');
   });
 
   it('should generate unbound action with result type only (no params)', () => {
     const output = generateActionModule([unboundActionWithResultOnly], false);
     expect(output).toContain("export const GetServerTime = createUnboundAction<GetServerTimeResult>('markant_GetServerTime')");
-    expect(output).toContain('export interface GetServerTimeResult');
+    expect(output).toContain('export type GetServerTimeResult');
     expect(output).not.toContain('GetServerTimeParams');
   });
 

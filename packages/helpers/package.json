@@ -1,6 +1,6 @@
 {
   "name": "@xrmforge/helpers",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Browser-safe runtime helpers for Dynamics 365 form scripts: select(), parseLookup(), typedForm(), Xrm constants, Action/Function executors",
   "keywords": [
     "dynamics-365",

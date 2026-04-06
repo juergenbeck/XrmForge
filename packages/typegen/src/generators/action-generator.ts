@@ -66,7 +66,7 @@ function generateParamsInterface(
   if (params.length === 0) return '';
 
   const lines: string[] = [];
-  lines.push(`export interface ${name}Params {`);
+  lines.push(`export type ${name}Params = {`);
 
   for (const param of params) {
     const mapped = mapCustomApiParameterType(param.type, param.logicalentityname);
@@ -77,7 +77,7 @@ function generateParamsInterface(
     lines.push(`  ${param.uniquename}${optional}: ${mapped.tsType};`);
   }
 
-  lines.push('}');
+  lines.push('};');
   return lines.join('\n');
 }
 
@@ -88,7 +88,7 @@ function generateResultInterface(
   if (props.length === 0) return '';
 
   const lines: string[] = [];
-  lines.push(`export interface ${name}Result {`);
+  lines.push(`export type ${name}Result = {`);
 
   for (const prop of props) {
     const mapped = mapCustomApiParameterType(prop.type, prop.logicalentityname);
@@ -98,7 +98,7 @@ function generateResultInterface(
     lines.push(`  ${prop.uniquename}: ${mapped.tsType};`);
   }
 
-  lines.push('}');
+  lines.push('};');
   return lines.join('\n');
 }
 

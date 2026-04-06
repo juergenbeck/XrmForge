@@ -48,10 +48,14 @@ Run `xrmforge generate` to create:
    Xrm.WebApi.retrieveRecord(EntityNames.Account, id)
    ```
 
-5. **parseLookup()** from @xrmforge/helpers for ALL lookup value access:
+5. **Lookup helpers** from @xrmforge/helpers for ALL lookup value access:
    ```typescript
-   import { parseLookup } from '@xrmforge/helpers';
-   const customer = parseLookup(form.getAttribute(Fields.CustomerId));
+   import { formLookup, formLookupId, parseLookup } from '@xrmforge/helpers';
+   // Form lookups (getAttribute on FormContext):
+   const customer = formLookup(form.getAttribute(Fields.CustomerId));
+   const customerId = formLookupId(form.getAttribute(Fields.CustomerId));
+   // Web API response lookups (_fieldname_value + OData annotations):
+   const parent = parseLookup(apiResponse, 'parentaccountid');
    ```
 
 6. **select()** from @xrmforge/helpers for ALL $select queries:
@@ -96,7 +100,8 @@ Run `xrmforge generate` to create:
 - Never export async handlers without wrapHandler()
 - Never `Xrm.WebApi.retrieveRecord("account", ...)` with raw entity name (use EntityNames)
 - Never `"?$select=name,revenue"` as raw string (use select() from @xrmforge/helpers)
-- Never `.getValue()[0].id.replace(...)` for lookups (use parseLookup() from @xrmforge/helpers)
+- Never `.getValue()[0].id.replace(...)` for lookups (use formLookup/formLookupId from @xrmforge/helpers)
+- Never `import ... from '@xrmforge/typegen'` in browser code. @xrmforge/typegen is a Node.js CLI tool. Use `@xrmforge/helpers` for browser-safe runtime functions (select, parseLookup, formLookup, createUnboundAction, etc.)
 
 ## Mandatory Shared Utilities
 
@@ -249,6 +254,103 @@ When creating manual typings without `xrmforge generate`:
 6. **const enum in .d.ts files** cannot be imported at runtime by test frameworks.
    Since v0.8.0, XrmForge generates `.ts` files, so this is no longer an issue.
    For manual typings, use regular `enum` in `.ts` files (not `.d.ts`).
+
+## Self-Check (MANDATORY before Tests)
+
+After converting ALL scripts, run these checks. Fix every violation before proceeding to tests.
+Document results in SESSION-GEDAECHTNIS.md (violation count per category).
+
+### Pattern Compliance (all must be 0, or documented exception)
+
+```bash
+# 1. Raw field strings in getAttribute/getControl (must use Fields Enum)
+grep -rn "getAttribute('" src/forms/ --include="*.ts" | grep -v "Fields\."
+grep -rn "getControl('" src/forms/ --include="*.ts" | grep -v "Fields\."
+
+# 2. Magic numbers in OptionSet comparisons (must use OptionSet Enum)
+grep -rn "getValue() ===" src/ --include="*.ts" | grep -E "[0-9]{3,}"
+
+# 3. Direct _value access instead of parseLookup (in Web API responses)
+grep -rn "_value\b" src/ --include="*.ts" | grep -v "generated/" | grep -v "parseLookup" | grep -v "getValue"
+
+# 4. Raw entity names in WebApi calls (must use EntityNames)
+grep -rn "retrieveRecord\|retrieveMultipleRecords\|deleteRecord\|createRecord\|updateRecord" src/ --include="*.ts" | grep "'[a-z]" | grep -v "EntityNames"
+
+# 5. Missing select() in retrieveRecord (no raw "$select=" strings)
+grep -rn "retrieveRecord\|retrieveMultipleRecords" src/ --include="*.ts" | grep "\$select" | grep -v "select("
+
+# 6. Missing FormContext Cast in onLoad (must have "as <Generated>Form")
+grep -rn "getFormContext()" src/forms/ --include="*.ts" | grep -v " as "
+
+# 7. Exported handlers without wrapHandler
+grep -rn "^export const\|^export async function\|^export function" src/forms/ --include="*.ts" | grep -v "wrapHandler"
+
+# 8. Entity-level FieldsEnums not used (generated/fields/ should be imported)
+echo "Fields imports from generated/fields/:"
+grep -rn "from.*generated/fields/" src/ --include="*.ts" | wc -l
+```
+
+### Code Quality (all must be 0)
+
+```bash
+# console.* outside logger.ts
+grep -rn "console\." src/ --include="*.ts" | grep -v "logger.ts"
+
+# Xrm.Page (deprecated since D365 v9.0)
+grep -rn "Xrm\.Page" src/ --include="*.ts"
+
+# var declarations
+grep -rnE "^\s*var " src/ --include="*.ts"
+
+# eval()
+grep -rn "\beval(" src/ --include="*.ts"
+
+# XMLHttpRequest
+grep -rn "XMLHttpRequest" src/ --include="*.ts"
+
+# as any without eslint-disable comment explaining why
+grep -rn "as any" src/ --include="*.ts" | grep -v "eslint-disable"
+```
+
+### Documentation (all must pass)
+
+```bash
+# Files without JSDoc header (first line must be /**)
+for f in src/forms/*.ts src/shared/*.ts; do
+  head -1 "$f" | grep -q "^/\*\*" || echo "No header: $f"
+done
+
+# Exported functions without JSDoc
+grep -rn -B1 "^export " src/ --include="*.ts" | grep -E "^[^*]*export" | grep -v "/\*\*"
+```
+
+### Test Completeness
+
+```bash
+# Every form script needs a test file
+for f in src/forms/*.ts; do
+  base=$(basename "$f" .ts)
+  test -f "tests/forms/${base}.test.ts" || echo "No test: $f"
+done
+
+# Every test file must use setupXrmMock
+for f in tests/**/*.test.ts; do
+  grep -q "setupXrmMock" "$f" || echo "No setupXrmMock: $f"
+done
+
+# Every test file needs at least 2 test cases
+for f in tests/**/*.test.ts; do
+  count=$(grep -c "it(" "$f" 2>/dev/null || echo 0)
+  [ "$count" -lt 2 ] && echo "Only $count tests: $f"
+done
+```
+
+### Exceptions
+
+Some checks have legitimate exceptions:
+- **Raw field strings in helpers**: Generic helper functions that accept `fieldName: string` parameters cannot use Fields Enums. Document these.
+- **System entities not in EntityNames**: Entities not in the Solution (e.g. `annotation`, `transactioncurrency`, `systemuser`) may use string literals. Document which ones.
+- **as any for Grid.refresh()**: `@types/xrm` does not type `Grid.refresh()`. Requires eslint-disable with explanation.
 
 ## Full Migration Guide
 

@@ -12,7 +12,9 @@
  * afterEach(() => teardownXrmMock());
  * ```
  *
- * All WebApi methods return resolved promises with empty results by default.
+ * All methods are plain functions (not spies). To spy on a method, wrap it
+ * with vi.fn() in your test or use webApiOverrides/navigationOverrides.
+ *
  * Override specific methods in your test:
  * ```typescript
  * setupXrmMock({
@@ -26,8 +28,8 @@
 /**
  * Options for customizing the global Xrm mock.
  *
- * Allows overriding specific Xrm.WebApi methods to simulate
- * server responses in tests.
+ * Allows overriding specific Xrm.WebApi, Xrm.Navigation, and Xrm.Utility methods
+ * to simulate server responses and user interactions in tests.
  */
 export interface SetupXrmMockOptions {
   /** Override specific Xrm.WebApi methods */
@@ -38,26 +40,30 @@ export interface SetupXrmMockOptions {
     updateRecord: (entityType: string, id: string, data: Record<string, unknown>) => Promise<{ id: string }>;
     deleteRecord: (entityType: string, id: string) => Promise<{ id: string }>;
   }>;
+  /** Override specific Xrm.Navigation methods */
+  navigationOverrides?: Partial<{
+    openAlertDialog: (...args: unknown[]) => Promise<unknown>;
+    openConfirmDialog: (...args: unknown[]) => Promise<{ confirmed: boolean }>;
+    openErrorDialog: (...args: unknown[]) => Promise<unknown>;
+    openForm: (...args: unknown[]) => Promise<{ savedEntityReference: unknown[] }>;
+  }>;
+  /** Override specific Xrm.Utility.getGlobalContext() values */
+  globalContextOverrides?: Partial<{
+    clientUrl: string;
+    languageId: number;
+    userId: string;
+    userName: string;
+    securityRoles: Array<{ id: string; name?: string }>;
+  }>;
 }
 
 /**
  * Set up a global Xrm mock for testing form scripts that access Xrm.WebApi,
- * Xrm.Navigation, or Xrm.Utility.
+ * Xrm.Navigation, Xrm.Utility, or Xrm.App.
  *
- * All WebApi methods return resolved promises with empty results by default.
- * Override specific methods via the options parameter.
+ * Covers all commonly used Xrm APIs identified across 4 showcase sessions.
  *
- * @param options - Optional overrides for Xrm.WebApi methods
- *
- * @example
- * ```typescript
- * beforeEach(() => setupXrmMock({
- *   webApiOverrides: {
- *     retrieveMultipleRecords: async () => ({ entities: [{ name: 'Test' }] }),
- *   },
- * }));
- * afterEach(() => teardownXrmMock());
- * ```
+ * @param options - Optional overrides for Xrm methods
  */
 export function setupXrmMock(options?: SetupXrmMockOptions): void {
   const webApi = {
@@ -71,33 +77,57 @@ export function setupXrmMock(options?: SetupXrmMockOptions): void {
       ?? (async () => ({ id: '00000000-0000-0000-0000-000000000000' })),
     deleteRecord: options?.webApiOverrides?.deleteRecord
       ?? (async () => ({ id: '00000000-0000-0000-0000-000000000000' })),
+    online: {
+      execute: async () => new Response(null, { status: 204 }),
+      executeMultiple: async () => [],
+    },
   };
 
   const navigation = {
-    openAlertDialog: async () => ({}),
-    openConfirmDialog: async () => ({ confirmed: false }),
-    openForm: async () => ({ savedEntityReference: [] }),
+    openAlertDialog: options?.navigationOverrides?.openAlertDialog
+      ?? (async () => ({})),
+    openConfirmDialog: options?.navigationOverrides?.openConfirmDialog
+      ?? (async () => ({ confirmed: false })),
+    openErrorDialog: options?.navigationOverrides?.openErrorDialog
+      ?? (async () => ({})),
+    openForm: options?.navigationOverrides?.openForm
+      ?? (async () => ({ savedEntityReference: [] })),
     openFile: async () => undefined,
+    openUrl: () => undefined,
+    openWebResource: () => undefined,
   };
+
+  const gcOverrides = options?.globalContextOverrides;
 
   const utility = {
     showProgressIndicator: () => undefined,
     closeProgressIndicator: () => undefined,
+    getEntityMetadata: async () => ({ LogicalName: '', EntitySetName: '' }),
+    lookupObjects: async () => [],
     getGlobalContext: () => ({
-      getClientUrl: () => 'https://test.crm4.dynamics.com',
+      getClientUrl: () => gcOverrides?.clientUrl ?? 'https://test.crm4.dynamics.com',
+      getQueryStringParameters: () => ({}),
       organizationSettings: { uniqueName: 'testorg' },
       userSettings: {
-        userId: '{00000000-0000-0000-0000-000000000001}',
-        userName: 'Test User',
-        languageId: 1033,
+        userId: gcOverrides?.userId ?? '{00000000-0000-0000-0000-000000000001}',
+        userName: gcOverrides?.userName ?? 'Test User',
+        languageId: gcOverrides?.languageId ?? 1033,
+        securityRoles: gcOverrides?.securityRoles ?? [],
+        roles: { getAll: () => gcOverrides?.securityRoles ?? [] },
       },
     }),
+  };
+
+  const app = {
+    addGlobalNotification: async () => '1',
+    clearGlobalNotification: async () => undefined,
   };
 
   const xrmMock = {
     WebApi: webApi,
     Navigation: navigation,
     Utility: utility,
+    App: app,
   };
 
   (globalThis as Record<string, unknown>)['Xrm'] = xrmMock;

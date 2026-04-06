@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { select, selectExpand, parseLookup, parseLookups, parseFormattedValue } from '../src/webapi-helpers.js';
+import { select, selectExpand, parseLookup, parseLookups, parseFormattedValue, formLookup, formLookupId } from '../src/webapi-helpers.js';
 
 // select / selectExpand
 
@@ -134,5 +134,67 @@ describe('parseFormattedValue', () => {
   it('should return null when no formatted value exists', () => {
     const response: Record<string, unknown> = { 'name': 'Contoso' };
     expect(parseFormattedValue(response, 'name')).toBeNull();
+  });
+});
+
+// ─── formLookup ─────────────────────────────────────────────────────────────
+
+describe('formLookup', () => {
+  it('should extract first lookup value with normalized id', () => {
+    const attr = {
+      getValue: () => [{ id: '{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}', name: 'Contoso', entityType: 'account' }],
+    };
+    const result = formLookup(attr);
+    expect(result).toEqual({
+      id: 'A1B2C3D4-E5F6-7890-ABCD-EF1234567890',
+      name: 'Contoso',
+      entityType: 'account',
+    });
+  });
+
+  it('should return null for empty array', () => {
+    const attr = { getValue: () => [] };
+    expect(formLookup(attr)).toBeNull();
+  });
+
+  it('should return null for null value', () => {
+    const attr = { getValue: () => null };
+    expect(formLookup(attr)).toBeNull();
+  });
+
+  it('should handle missing name', () => {
+    const attr = {
+      getValue: () => [{ id: 'A1B2C3D4-E5F6-7890-ABCD-EF1234567890', entityType: 'contact' }],
+    };
+    const result = formLookup(attr as Parameters<typeof formLookup>[0]);
+    expect(result!.name).toBe('');
+  });
+
+  it('should handle id without braces', () => {
+    const attr = {
+      getValue: () => [{ id: 'A1B2C3D4-E5F6-7890-ABCD-EF1234567890', name: 'Test', entityType: 'account' }],
+    };
+    expect(formLookup(attr)!.id).toBe('A1B2C3D4-E5F6-7890-ABCD-EF1234567890');
+  });
+});
+
+// ─── formLookupId ───────────────────────────────────────────────────────────
+
+describe('formLookupId', () => {
+  it('should return normalized id', () => {
+    const attr = {
+      getValue: () => [{ id: '{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}' }],
+    };
+    expect(formLookupId(attr)).toBe('A1B2C3D4-E5F6-7890-ABCD-EF1234567890');
+  });
+
+  it('should return null for empty lookup', () => {
+    const attr = { getValue: () => [] };
+    expect(formLookupId(attr)).toBeNull();
+  });
+
+  it('should return null for null value', () => {
+    const attr = { getValue: () => null };
+    expect(formLookupId(attr)).toBeNull();
   });
 });

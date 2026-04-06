@@ -136,3 +136,62 @@ export function selectExpand(fields: string[], expand: string): string {
   if (expand) parts.push(`$expand=${expand}`);
   return parts.length > 0 ? `?${parts.join('&')}` : '';
 }
+
+// ─── Form Lookup Helpers ────────────────────────────────────────────────────
+
+/**
+ * Extract the first lookup value from a FormContext lookup attribute.
+ *
+ * Centralizes the common pattern of reading a lookup from a form field,
+ * handling null/empty arrays, and normalizing the GUID (removing braces).
+ *
+ * @param attr - A lookup attribute from formContext.getAttribute()
+ * @returns Xrm.LookupValue with normalized id (no braces), or null if empty
+ *
+ * @example
+ * ```typescript
+ * import { formLookup } from '@xrmforge/helpers';
+ * const customer = formLookup(form.getAttribute(Fields.CustomerId));
+ * if (customer) {
+ *   console.log(customer.id, customer.name, customer.entityType);
+ * }
+ * ```
+ */
+export function formLookup(
+  attr: { getValue(): { id: string; name?: string; entityType: string }[] | null },
+): { id: string; name: string; entityType: string } | null {
+  const values = attr.getValue();
+  if (!values || values.length === 0) return null;
+  const first = values[0]!;
+  return {
+    id: first.id.replace(/[{}]/g, ''),
+    name: first.name ?? '',
+    entityType: first.entityType,
+  };
+}
+
+/**
+ * Extract just the normalized GUID from a FormContext lookup attribute.
+ *
+ * Shorthand for the most common lookup use case: getting the record ID
+ * for a Web API call or comparison.
+ *
+ * @param attr - A lookup attribute from formContext.getAttribute()
+ * @returns Normalized GUID string (no braces), or null if empty
+ *
+ * @example
+ * ```typescript
+ * import { formLookupId } from '@xrmforge/helpers';
+ * const accountId = formLookupId(form.getAttribute(Fields.AccountId));
+ * if (accountId) {
+ *   await Xrm.WebApi.retrieveRecord(EntityNames.Account, accountId, select(...));
+ * }
+ * ```
+ */
+export function formLookupId(
+  attr: { getValue(): { id: string }[] | null },
+): string | null {
+  const values = attr.getValue();
+  if (!values || values.length === 0) return null;
+  return values[0]!.id.replace(/[{}]/g, '');
+}
