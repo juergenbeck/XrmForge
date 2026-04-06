@@ -1,6 +1,6 @@
 {
   "name": "@xrmforge/cli",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "CLI for XrmForge - TypeScript type generator for Dynamics 365",
   "keywords": [
     "dynamics-365",
