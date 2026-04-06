@@ -154,7 +154,7 @@ export function generateBarrelIndex(files: GeneratedFile[]): string {
   const lines: string[] = [GENERATED_HEADER];
 
   // Group by type for organized output
-  const entities = files.filter((f) => f.type === 'entity');
+  const entities = files.filter((f) => f.type === 'entity' && !f.relativePath.endsWith('.json'));
   const optionsets = files.filter((f) => f.type === 'optionset');
   const forms = files.filter((f) => f.type === 'form');
   const fields = files.filter((f) => f.type === 'fields');
