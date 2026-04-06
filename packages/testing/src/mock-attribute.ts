@@ -147,10 +147,34 @@ export class MockAttribute {
     return { canRead: true, canUpdate: true, canCreate: true };
   }
 
-  /** Stub controls collection (empty). */
+  /** @internal Mutable backing array for the controls collection. */
+  private _controls: Xrm.Controls.Control[] = [];
+
+  /**
+   * Controls collection that mirrors the real Xrm.Collection.ItemCollection behavior.
+   * Supports forEach, get() (all items), get(index), get(name), and getLength().
+   */
   controls: Xrm.Collection.ItemCollection<Xrm.Controls.Control> = {
-    forEach: () => {},
-    get: (() => null) as unknown as Xrm.Collection.ItemCollection<Xrm.Controls.Control>['get'],
-    getLength: () => 0,
+    forEach: (callback: (item: Xrm.Controls.Control, index: number) => void) => {
+      this._controls.forEach(callback);
+    },
+    get: ((nameOrIndex?: string | number) => {
+      if (nameOrIndex === undefined) {
+        return [...this._controls];
+      }
+      if (typeof nameOrIndex === 'number') {
+        return this._controls[nameOrIndex] ?? null;
+      }
+      return this._controls.find((c) => (c as { getName(): string }).getName() === nameOrIndex) ?? null;
+    }) as Xrm.Collection.ItemCollection<Xrm.Controls.Control>['get'],
+    getLength: () => this._controls.length,
   };
+
+  /**
+   * @internal Add a control to this attribute's controls collection.
+   * Called by createFormMock to link controls to their attributes.
+   */
+  addControl(control: Xrm.Controls.Control): void {
+    this._controls.push(control);
+  }
 }

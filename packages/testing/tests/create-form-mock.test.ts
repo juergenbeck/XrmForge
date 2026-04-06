@@ -203,4 +203,38 @@ describe('createFormMock', () => {
 
     expect(() => mock.fireOnChange('name')).not.toThrow();
   });
+
+  it('should link controls to attribute.controls collection', () => {
+    const mock = createFormMock<TestAccountForm>({
+      name: 'Contoso',
+    } satisfies TestAccountFormMockValues);
+
+    const attr = mock.getAttribute('name');
+    expect(attr.controls.getLength()).toBe(1);
+
+    // controls.get() without args should return array
+    const allControls = (attr.controls.get as () => unknown[])();
+    expect(allControls).toHaveLength(1);
+  });
+
+  it('should support attr.controls.forEach for disabling all controls', () => {
+    const mock = createFormMock<TestAccountForm>({
+      name: 'Contoso',
+    } satisfies TestAccountFormMockValues);
+
+    const attr = mock.getAttribute('name');
+    attr.controls.forEach((ctrl) => {
+      (ctrl as Xrm.Controls.StandardControl).setDisabled(true);
+    });
+
+    expect(mock.getControl('name').getDisabled()).toBe(true);
+  });
+
+  it('should link controls for lazy-initialized attributes', () => {
+    const mock = createFormMock<TestAccountForm>({});
+
+    // Access attribute not in initial values (lazy-init)
+    const attr = mock.getAttribute('name');
+    expect(attr.controls.getLength()).toBe(1);
+  });
 });

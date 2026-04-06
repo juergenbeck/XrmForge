@@ -45,8 +45,11 @@ export function createFormMock<TForm>(
   const controls = new Map<string, MockControl>();
 
   for (const [name, value] of Object.entries(values)) {
-    attributes.set(name, new MockAttribute(name, value));
-    controls.set(name, new MockControl(name));
+    const attr = new MockAttribute(name, value);
+    const ctrl = new MockControl(name);
+    attr.addControl(ctrl as unknown as Xrm.Controls.Control);
+    attributes.set(name, attr);
+    controls.set(name, ctrl);
   }
 
   // Lazy-init: fields accessed but not in initial values get null
@@ -54,6 +57,8 @@ export function createFormMock<TForm>(
     let attr = attributes.get(name);
     if (!attr) {
       attr = new MockAttribute(name, null);
+      const ctrl = getOrCreateControl(name);
+      attr.addControl(ctrl as unknown as Xrm.Controls.Control);
       attributes.set(name, attr);
     }
     return attr;
@@ -64,6 +69,11 @@ export function createFormMock<TForm>(
     if (!ctrl) {
       ctrl = new MockControl(name);
       controls.set(name, ctrl);
+      // Link to existing attribute if it exists
+      const attr = attributes.get(name);
+      if (attr && attr.controls.getLength() === 0) {
+        attr.addControl(ctrl as unknown as Xrm.Controls.Control);
+      }
     }
     return ctrl;
   };

@@ -276,8 +276,8 @@ grep -rn "_value\b" src/ --include="*.ts" | grep -v "generated/" | grep -v "pars
 # 4. Raw entity names in WebApi calls (must use EntityNames)
 grep -rn "retrieveRecord\|retrieveMultipleRecords\|deleteRecord\|createRecord\|updateRecord" src/ --include="*.ts" | grep "'[a-z]" | grep -v "EntityNames"
 
-# 5. Missing select() in retrieveRecord (no raw "$select=" strings)
-grep -rn "retrieveRecord\|retrieveMultipleRecords" src/ --include="*.ts" | grep "\$select" | grep -v "select("
+# 5. Missing select() - no raw "$select=" strings anywhere in src/
+grep -rn '\$select' src/ --include="*.ts" | grep -v "select(" | grep -v "generated/"
 
 # 6. Missing FormContext Cast in onLoad (must have "as <Generated>Form")
 grep -rn "getFormContext()" src/forms/ --include="*.ts" | grep -v " as "

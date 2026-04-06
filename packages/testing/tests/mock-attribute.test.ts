@@ -121,8 +121,50 @@ describe('MockAttribute', () => {
     expect(priv.canCreate).toBe(true);
   });
 
-  it('controls collection should exist', () => {
+  it('controls collection should exist with zero length by default', () => {
     const attr = new MockAttribute('name');
     expect(attr.controls.getLength()).toBe(0);
+  });
+
+  it('controls.get() should return empty array when no controls', () => {
+    const attr = new MockAttribute('name');
+    const all = (attr.controls.get as () => unknown[])();
+    expect(all).toEqual([]);
+  });
+
+  it('controls should be iterable via forEach after addControl', () => {
+    const attr = new MockAttribute('name');
+    const mockCtrl = { getName: () => 'name', setDisabled: () => {} } as unknown as Xrm.Controls.Control;
+    attr.addControl(mockCtrl);
+    expect(attr.controls.getLength()).toBe(1);
+
+    const visited: Xrm.Controls.Control[] = [];
+    attr.controls.forEach((ctrl) => visited.push(ctrl));
+    expect(visited).toHaveLength(1);
+    expect(visited[0]).toBe(mockCtrl);
+  });
+
+  it('controls.get() should return all controls as array', () => {
+    const attr = new MockAttribute('name');
+    const mockCtrl = { getName: () => 'name' } as unknown as Xrm.Controls.Control;
+    attr.addControl(mockCtrl);
+    const all = (attr.controls.get as () => unknown[])();
+    expect(all).toHaveLength(1);
+  });
+
+  it('controls.get(index) should return control by index', () => {
+    const attr = new MockAttribute('name');
+    const mockCtrl = { getName: () => 'name' } as unknown as Xrm.Controls.Control;
+    attr.addControl(mockCtrl);
+    expect(attr.controls.get(0)).toBe(mockCtrl);
+    expect(attr.controls.get(1)).toBeNull();
+  });
+
+  it('controls.get(name) should return control by name', () => {
+    const attr = new MockAttribute('name');
+    const mockCtrl = { getName: () => 'name' } as unknown as Xrm.Controls.Control;
+    attr.addControl(mockCtrl);
+    expect(attr.controls.get('name')).toBe(mockCtrl);
+    expect(attr.controls.get('other')).toBeNull();
   });
 });

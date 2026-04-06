@@ -44,6 +44,7 @@ export async function scaffoldProject(config: ScaffoldConfig): Promise<ScaffoldR
   // Create directory structure
   const dirs = [
     'src/forms',
+    'src/shared',
     'typings',
     'tests/forms',
   ];
@@ -98,8 +99,13 @@ async function generateTemplates(config: ScaffoldConfig): Promise<Array<[string,
     ['src/forms/example-form.ts', await loadTemplate('example-form.ts', namespaceVars)],
     ['typings/.gitkeep', ''],
     ['tests/forms/example-form.test.ts', await loadTemplate('example-form.test.ts', namespaceVars)],
+    ['src/shared/logger.ts', await loadTemplate('logger.ts', namespaceVars)],
+    ['src/shared/error-handler.ts', await loadTemplate('error-handler.ts')],
+    ['src/shared/constants.ts', await loadTemplate('constants.ts', namespaceVars)],
+    ['eslint.config.js', await loadTemplate('eslint.config.js')],
     ['.github/workflows/ci.yml', await loadTemplate('github-actions-ci.yml')],
     ['azure-pipelines.yml', await loadTemplate('azure-pipelines.yml')],
+    ['scripts/self-check.sh', await loadTemplate('self-check.sh')],
   ];
 }
 
@@ -125,9 +131,11 @@ function generatePackageJson(projectName: string): string {
     },
     devDependencies: {
       '@types/xrm': '^9.0.90',
-      '@xrmforge/cli': '^0.4.3',
-      '@xrmforge/testing': '^0.2.0',
-      '@xrmforge/helpers': '^0.1.0',
+      '@xrmforge/cli': '^0.4.8',
+      '@xrmforge/eslint-plugin': '^0.2.1',
+      '@xrmforge/helpers': '^0.1.3',
+      '@xrmforge/testing': '^0.2.3',
+      eslint: '^9.0.0',
       typescript: '^5.7.0',
       vitest: '^3.0.0',
     },
