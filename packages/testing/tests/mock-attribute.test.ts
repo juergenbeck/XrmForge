@@ -167,4 +167,15 @@ describe('MockAttribute', () => {
     expect(attr.controls.get('name')).toBe(mockCtrl);
     expect(attr.controls.get('other')).toBeNull();
   });
+
+  it('controls.get(chooser) should filter controls by predicate', () => {
+    const attr = new MockAttribute('name');
+    const ctrl1 = { getName: () => 'ctrl1' } as unknown as Xrm.Controls.Control;
+    const ctrl2 = { getName: () => 'ctrl2' } as unknown as Xrm.Controls.Control;
+    attr.addControl(ctrl1);
+    attr.addControl(ctrl2);
+    const result = attr.controls.get((c) => (c as { getName(): string }).getName() === 'ctrl2');
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBe(ctrl2);
+  });
 });

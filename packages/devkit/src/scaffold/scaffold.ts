@@ -131,6 +131,8 @@ function generatePackageJson(projectName: string): string {
     },
     devDependencies: {
       '@types/xrm': '^9.0.90',
+      '@typescript-eslint/eslint-plugin': '^8.0.0',
+      '@typescript-eslint/parser': '^8.0.0',
       '@xrmforge/cli': '^0.4.8',
       '@xrmforge/eslint-plugin': '^0.2.1',
       '@xrmforge/helpers': '^0.1.3',

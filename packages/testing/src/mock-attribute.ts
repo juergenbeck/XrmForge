@@ -158,14 +158,17 @@ export class MockAttribute {
     forEach: (callback: (item: Xrm.Controls.Control, index: number) => void) => {
       this._controls.forEach(callback);
     },
-    get: ((nameOrIndex?: string | number) => {
-      if (nameOrIndex === undefined) {
+    get: ((nameOrIndexOrChooser?: string | number | ((item: Xrm.Controls.Control, index: number) => boolean)) => {
+      if (nameOrIndexOrChooser === undefined) {
         return [...this._controls];
       }
-      if (typeof nameOrIndex === 'number') {
-        return this._controls[nameOrIndex] ?? null;
+      if (typeof nameOrIndexOrChooser === 'function') {
+        return this._controls.filter(nameOrIndexOrChooser);
       }
-      return this._controls.find((c) => (c as { getName(): string }).getName() === nameOrIndex) ?? null;
+      if (typeof nameOrIndexOrChooser === 'number') {
+        return this._controls[nameOrIndexOrChooser] ?? null;
+      }
+      return this._controls.find((c) => (c as { getName(): string }).getName() === nameOrIndexOrChooser) ?? null;
     }) as Xrm.Collection.ItemCollection<Xrm.Controls.Control>['get'],
     getLength: () => this._controls.length,
   };
