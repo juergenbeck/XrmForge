@@ -147,7 +147,7 @@ import { createFormMock } from '@xrmforge/testing';
 const mock = createFormMock<AccountMainForm>({
   name: 'Test', statuscode: 0
 });
-onLoad(mock.executionContext);
+onLoad(mock.asEventContext());
 expect(mock.formContext.getControl('revenue').getVisible()).toBe(true);
 ```
 
