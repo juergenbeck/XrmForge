@@ -155,7 +155,7 @@ export class MockAttribute {
    * Supports forEach, get() (all items), get(index), get(name), and getLength().
    */
   controls: Xrm.Collection.ItemCollection<Xrm.Controls.Control> = {
-    forEach: (callback: (item: Xrm.Controls.Control, index: number) => void) => {
+    forEach: (callback: (item: Xrm.Controls.Control, index?: number) => void) => {
       this._controls.forEach(callback);
     },
     get: ((nameOrIndexOrChooser?: string | number | ((item: Xrm.Controls.Control, index: number) => boolean)) => {

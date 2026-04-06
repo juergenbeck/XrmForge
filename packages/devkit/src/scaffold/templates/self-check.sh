@@ -3,7 +3,7 @@
 # Run this before tests to catch common violations.
 # Exit code: 0 = all clean, 1 = violations found
 
-set -euo pipefail
+set -uo pipefail
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'

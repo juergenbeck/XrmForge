@@ -11,7 +11,7 @@ export interface Logger {
   error(message: string, data?: unknown): void;
 }
 
-const DEBUG_STORAGE_KEY = '{namespace}.debug'.toLowerCase();
+const DEBUG_STORAGE_KEY = '{{namespace}}.debug'.toLowerCase();
 
 /** Check if the current host is a dev/test environment. */
 function isDebugHost(): boolean {

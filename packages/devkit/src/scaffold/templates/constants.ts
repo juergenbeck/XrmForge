@@ -4,7 +4,7 @@
 
 /** Unique IDs for form-level notifications. */
 export const NOTIFICATION_IDS = {
-  genericError: '{namespace}.notification.generic-error'.toLowerCase(),
+  genericError: '{{namespace}}.notification.generic-error'.toLowerCase(),
 } as const;
 
 /** Localized message strings (extend as needed). */
