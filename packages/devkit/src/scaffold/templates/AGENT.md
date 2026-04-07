@@ -48,11 +48,12 @@ not the logical field name. Always read the generated files to get correct names
    const form = ctx.getFormContext() as AccountMainForm;
    ```
 
-4. **EntityNames Enum** in ALL Xrm.WebApi calls:
+4. **EntityNames Enum** in ALL Xrm.WebApi calls — no exceptions, even for system entities:
    ```typescript
    import { EntityNames } from '../generated/entity-names.js';
    Xrm.WebApi.retrieveRecord(EntityNames.Account, id)
    ```
+   If an entity is not in EntityNames, extend the generation (`--entities` flag) to include it.
 
 5. **Lookup helpers** from @xrmforge/helpers for ALL lookup value access:
    ```typescript
@@ -121,11 +122,25 @@ not the logical field name. Always read the generated files to get correct names
 - Never `window.X = ...` (use module exports)
 - Never `console.log/warn/error` in form scripts (use shared logger)
 - Never export async handlers without wrapHandler()
-- Never `Xrm.WebApi.retrieveRecord("account", ...)` with raw entity name (use EntityNames)
+- Never `Xrm.WebApi.retrieveRecord("account", ...)` with raw entity name (use EntityNames, no exceptions even for system entities)
 - Never `"?$select=name,revenue"` as raw string (use select() from @xrmforge/helpers)
 - Never `.getValue()[0].id` or `.getValue()[0].id.replace(...)` for lookups (use formLookup/formLookupId from @xrmforge/helpers)
 - Never build your own lookup helper (getLookupValueId, firstLookupValue, etc.) when formLookup/formLookupId exists
 - Never `import ... from '@xrmforge/typegen'` in browser code. @xrmforge/typegen is a Node.js CLI tool. Use `@xrmforge/helpers` for browser-safe runtime functions (select, parseLookup, formLookup, createUnboundAction, etc.)
+
+## Subagent Handoff (when delegating to sub-agents)
+
+Copy these MANDATORY rules into every sub-agent prompt:
+
+```
+1. Fields Enum for ALL getAttribute/getControl (never raw strings)
+2. OptionSet Enum for ALL value comparisons (never magic numbers)
+3. EntityNames for ALL Xrm.WebApi calls (never raw entity names, no exceptions)
+4. formLookup/formLookupId for ALL lookup access (never .getValue()[0].id)
+5. select() for ALL $select queries (never raw "$select=" strings)
+6. wrapHandler() around EVERY exported async handler
+7. createLogger() instead of console.* (except logger.ts)
+```
 
 ## Mandatory Shared Utilities
 
@@ -311,8 +326,9 @@ grep -rn "getValue() ===" src/ --include="*.ts" | grep -E "[0-9]{3,}"
 # 3. Direct _value access instead of parseLookup (in Web API responses)
 grep -rn "_value\b" src/ --include="*.ts" | grep -v "generated/" | grep -v "parseLookup" | grep -v "getValue"
 
-# 4. Raw entity names in WebApi calls (must use EntityNames)
+# 4. Raw entity names in WebApi calls (must use EntityNames, no exceptions)
 grep -rn "retrieveRecord\|retrieveMultipleRecords\|deleteRecord\|createRecord\|updateRecord" src/ --include="*.ts" | grep "'[a-z]" | grep -v "EntityNames"
+# Every match is a violation. If entity is missing from EntityNames, extend generation.
 
 # 5. Missing select() - no raw "$select=" strings anywhere in src/
 grep -rn '\$select' src/ --include="*.ts" | grep -v "select(" | grep -v "generated/"
