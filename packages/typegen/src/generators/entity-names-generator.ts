@@ -18,9 +18,8 @@
 
 import { toPascalCase } from './type-mapping.js';
 
-export interface EntityNamesGeneratorOptions {
-  // Options reserved for future use
-}
+/** Options for entity names enum generation (reserved for future use) */
+export type EntityNamesGeneratorOptions = Record<string, never>;
 
 /**
  * Generate a const enum mapping entity PascalCase names to logical names.
