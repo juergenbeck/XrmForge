@@ -26,6 +26,10 @@ names to form interface names. Do NOT guess interface names from entity names.
 Fields enum member names are based on the **primary language label** (often German),
 not the logical field name. Always read the generated files to get correct names.
 
+**Large projects (50+ entities):** `form-mapping.json` can be large. Do NOT grep through
+all generated files to find interface names. Read `form-mapping.json` once, then use
+the mapping for all imports. This saves time and avoids wrong guesses.
+
 ## Rules: MANDATORY (every violation is a bug)
 
 1. **Fields Enum** for ALL getAttribute/getControl calls. Never raw strings.
@@ -209,6 +213,10 @@ assertions. Pure smoke tests (`onLoad` + `not.toThrow`) do NOT count as behavior
 Tests that only check `getOnChangeHandlers().length > 0` are registration tests, not
 behavior tests. Every onChange handler MUST have a `fireOnChange` test.
 
+**attr.controls:** Since @xrmforge/testing 0.2.3, `createFormMock()` automatically links
+each attribute to its control. `mock.getControl(Fields.Name)` works out of the box.
+No need to mock controls separately.
+
 ## File Structure
 
 ```
@@ -313,6 +321,13 @@ When creating manual typings without `xrmforge generate`:
 After converting ALL scripts, run these checks. Fix every violation before proceeding to tests.
 Document results in SESSION-GEDAECHTNIS.md (violation count per category).
 
+**Platform note:** The checks below use bash/grep syntax. On Windows PowerShell, use
+`Select-String` instead of `grep`. Example:
+```powershell
+# PowerShell equivalent of: grep -rn "getAttribute('" src/forms/ --include="*.ts"
+Get-ChildItem -Recurse src/forms -Filter *.ts | Select-String "getAttribute\('" | Where-Object { $_.Line -notmatch 'Fields\.' }
+```
+
 ### Pattern Compliance (all must be 0, or documented exception)
 
 ```bash
@@ -397,6 +412,30 @@ for f in tests/**/*.test.ts; do
   count=$(grep -c "it(" "$f" 2>/dev/null || echo 0)
   [ "$count" -lt 2 ] && echo "Only $count tests: $f"
 done
+```
+
+### Test Gap Analysis (after writing tests)
+
+Before declaring tests complete, verify coverage gaps:
+
+```bash
+# 1. onChange handlers without fireOnChange test
+for f in tests/**/*.test.ts; do
+  has_onchange=$(grep -c "onChange\|on_change\|OnChange" "$(echo $f | sed 's|tests/|src/|;s|.test.ts|.ts|')" 2>/dev/null || echo 0)
+  has_fire=$(grep -c "fireOnChange" "$f" 2>/dev/null || echo 0)
+  [ "$has_onchange" -gt 0 ] && [ "$has_fire" -eq 0 ] && echo "Missing fireOnChange: $f"
+done
+
+# 2. WebApi calls without mock assertions
+grep -rln "Xrm.WebApi\|retrieveRecord\|retrieveMultiple" src/forms/ --include="*.ts" | while read f; do
+  test_f="tests/forms/$(basename "$f" .ts).test.ts"
+  [ -f "$test_f" ] && ! grep -q "retrieveRecord\|retrieveMultiple\|webApiOverrides" "$test_f" && echo "No WebApi mock: $test_f"
+done
+
+# 3. Behavior test ratio (target: >= 30%)
+total=$(grep -rc "it(" tests/ --include="*.test.ts" 2>/dev/null | awk -F: '{s+=$2}END{print s}')
+behavior=$(grep -rc "fireOnChange\|retrieveRecord\|retrieveMultiple\|expect.*getValue\|expect.*getVisible" tests/ --include="*.test.ts" 2>/dev/null | awk -F: '{s+=$2}END{print s}')
+echo "Behavior tests: $behavior / $total (target: >= 30%)"
 ```
 
 ### Exceptions
