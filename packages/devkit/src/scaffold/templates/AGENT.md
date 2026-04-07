@@ -18,7 +18,13 @@ Run `xrmforge generate` to create:
 - `generated/entities/{entity}.ts` - Entity interface
 - `generated/fields/{entity}.ts` - Entity Fields enum for type-safe $select queries
 - `generated/entity-names.ts` - EntityNames const enum
+- `generated/form-mapping.json` - Entity to form interface mapping (read after generate!)
 - `generated/index.ts` - Barrel file with `export * from` re-exports
+
+**After generate:** Read `generated/form-mapping.json` for the mapping of entity logical
+names to form interface names. Do NOT guess interface names from entity names.
+Fields enum member names are based on the **primary language label** (often German),
+not the logical field name. Always read the generated files to get correct names.
 
 ## Rules: MANDATORY (every violation is a bug)
 
@@ -57,11 +63,28 @@ Run `xrmforge generate` to create:
    // Web API response lookups (_fieldname_value + OData annotations):
    const parent = parseLookup(apiResponse, 'parentaccountid');
    ```
+   **NEVER** access lookup values directly:
+   ```typescript
+   // BUG - never do this:
+   form.getAttribute(Fields.CustomerId).getValue()[0].id.replace('{','')
+   // CORRECT:
+   formLookupId(form.getAttribute(Fields.CustomerId))
+   ```
 
 6. **select()** from @xrmforge/helpers for ALL $select queries:
    ```typescript
    import { select } from '@xrmforge/helpers';
+   // Simple query:
    Xrm.WebApi.retrieveRecord(EntityNames.Account, id, select(Fields.Name, Fields.Revenue))
+   // Combined with $filter:
+   Xrm.WebApi.retrieveMultipleRecords(EntityNames.Account,
+     `${select(Fields.Name, Fields.Revenue)}&$filter=statecode eq 0`)
+   ```
+   **Signature:** `select(...fields: string[])` takes REST parameters, NOT an array.
+   ```typescript
+   select(Fields.Name, Fields.Revenue)           // CORRECT
+   select([Fields.Name, Fields.Revenue])          // WRONG - array argument
+   select('account', Fields.Name)                 // WRONG - first arg is not entity name
    ```
 
 7. **wrapHandler()** around EVERY exported async event handler:
@@ -100,7 +123,8 @@ Run `xrmforge generate` to create:
 - Never export async handlers without wrapHandler()
 - Never `Xrm.WebApi.retrieveRecord("account", ...)` with raw entity name (use EntityNames)
 - Never `"?$select=name,revenue"` as raw string (use select() from @xrmforge/helpers)
-- Never `.getValue()[0].id.replace(...)` for lookups (use formLookup/formLookupId from @xrmforge/helpers)
+- Never `.getValue()[0].id` or `.getValue()[0].id.replace(...)` for lookups (use formLookup/formLookupId from @xrmforge/helpers)
+- Never build your own lookup helper (getLookupValueId, firstLookupValue, etc.) when formLookup/formLookupId exists
 - Never `import ... from '@xrmforge/typegen'` in browser code. @xrmforge/typegen is a Node.js CLI tool. Use `@xrmforge/helpers` for browser-safe runtime functions (select, parseLookup, formLookup, createUnboundAction, etc.)
 
 ## Mandatory Shared Utilities
@@ -146,15 +170,29 @@ import { StatusCode } from '../generated/optionsets/invoice.js';
 if (status.getValue() === StatusCode.Gebucht) { ... }
 ```
 
-### Testing
+### Testing (onLoad + onChange)
 ```typescript
-import { createFormMock } from '@xrmforge/testing';
-const mock = createFormMock<AccountMainForm>({
-  name: 'Test', statuscode: 0
-});
+import { createFormMock, setupXrmMock, teardownXrmMock } from '@xrmforge/testing';
+
+beforeEach(() => setupXrmMock());
+afterEach(() => teardownXrmMock());
+
+// onLoad test:
+const mock = createFormMock<AccountMainForm>({ name: 'Test', statuscode: 0 });
 onLoad(mock.asEventContext());
-expect(mock.formContext.getControl('revenue').getVisible()).toBe(true);
+expect(mock.getControl(Fields.Revenue).getVisible()).toBe(true);
+
+// onChange test (MANDATORY for every onChange handler):
+mock.setValue(Fields.Revenue, 500000);
+mock.fireOnChange(Fields.Revenue);
+expect(mock.getControl(Fields.CreditLimit).getVisible()).toBe(true);
+expect(mock.getValue(Fields.CreditOnHold)).toBe(true);
 ```
+
+**Test quality rule:** At least 30% of tests MUST use `fireOnChange` or WebApi mock
+assertions. Pure smoke tests (`onLoad` + `not.toThrow`) do NOT count as behavior tests.
+Tests that only check `getOnChangeHandlers().length > 0` are registration tests, not
+behavior tests. Every onChange handler MUST have a `fireOnChange` test.
 
 ## File Structure
 
@@ -177,7 +215,7 @@ When you see these patterns in legacy code, apply the XrmForge replacement:
 | `getValue() === 595300000` | `getValue() === OptionSets.StatusCode.Active` |
 | `Xrm.WebApi.retrieveRecord("account", id)` | `Xrm.WebApi.retrieveRecord(EntityNames.Account, id)` |
 | `"?$select=name,revenue"` | `select(Fields.Name, Fields.Revenue)` (from @xrmforge/helpers) |
-| `value[0].id.replace("{","")...` | `parseLookup(form.getAttribute(Fields.X))` (from @xrmforge/helpers) |
+| `value[0].id.replace("{","")...` | `formLookupId(form.getAttribute(Fields.X))` for forms, `parseLookup(response, 'field')` for Web API |
 | `Xrm.Page.getAttribute(...)` | `formContext.getAttribute(...)` |
 | `var formContext` (global) | `const form = ctx.getFormContext()` (parameter) |
 | `function form_OnLoad(ctx)` | `export function onLoad(ctx: Xrm.Events.EventContext)` |
@@ -293,11 +331,11 @@ grep -rn "from.*generated/fields/" src/ --include="*.ts" | wc -l
 ### Code Quality (all must be 0)
 
 ```bash
-# console.* outside logger.ts
-grep -rn "console\." src/ --include="*.ts" | grep -v "logger.ts"
+# console.* outside logger.ts (exclude JSDoc comments)
+grep -rn "console\." src/ --include="*.ts" | grep -v "logger.ts" | grep -v "^\s*\*" | grep -v "^\s*//"
 
-# Xrm.Page (deprecated since D365 v9.0)
-grep -rn "Xrm\.Page" src/ --include="*.ts"
+# Xrm.Page (deprecated since D365 v9.0, exclude JSDoc comments)
+grep -rn "Xrm\.Page" src/ --include="*.ts" | grep -v "^\s*\*" | grep -v "^\s*//"
 
 # var declarations
 grep -rnE "^\s*var " src/ --include="*.ts"

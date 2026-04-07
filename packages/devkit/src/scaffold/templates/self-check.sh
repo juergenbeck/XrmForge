@@ -57,10 +57,10 @@ echo ""
 echo "--- Code Quality ---"
 
 check "console.* outside logger.ts" \
-  bash -c 'grep -rn "console\." src/ --include="*.ts" | grep -v "logger.ts"'
+  bash -c 'grep -rn "console\." src/ --include="*.ts" | grep -v "logger.ts" | grep -v "^\s*\*" | grep -v "^\s*//"'
 
 check "Xrm.Page (deprecated since D365 v9.0)" \
-  bash -c 'grep -rn "Xrm\.Page" src/ --include="*.ts"'
+  bash -c 'grep -rn "Xrm\.Page" src/ --include="*.ts" | grep -v "^\s*\*" | grep -v "^\s*//"'
 
 check "var declarations" \
   bash -c 'grep -rnE "^\s*var " src/ --include="*.ts"'
