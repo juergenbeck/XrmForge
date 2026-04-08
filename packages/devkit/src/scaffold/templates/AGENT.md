@@ -484,21 +484,59 @@ each attribute to its control. `mock.getControl(Fields.Name)` works out of the b
 
 ## Pattern Recognition: Legacy to XrmForge
 
+### Xrm API Patterns
 | Legacy Pattern | XrmForge Replacement |
 |---|---|
-| `getAttribute("name")` | `form.name` (via typedForm) or `getAttribute(Fields.Name)` |
+| `getAttribute("name")` | `form.name` (via typedForm) |
 | `getControl("name")` | `form.$control(Fields.Name)` |
-| `getValue() === 595300000` | `form.statuscode.getValue() === StatusCode.Active` |
-| `Xrm.WebApi.retrieveRecord("account", id)` | `Xrm.WebApi.retrieveRecord(EntityNames.Account, id)` |
-| `"?$select=name,revenue"` | `select(AccountFields.Name, AccountFields.Revenue)` |
-| `value[0].id.replace("{","")` | `formLookupId(form.customerid)` |
 | `Xrm.Page.getAttribute(...)` | `form.fieldname` (via typedForm) |
 | `var formContext` (global) | `const form = typedForm<MyForm>(ctx.getFormContext())` |
 | `function form_OnLoad(ctx)` | `export const onLoad = wrapHandler(...)` |
+| `Xrm.WebApi.retrieveRecord("account", id)` | `Xrm.WebApi.retrieveRecord(EntityNames.Account, id)` |
+| `"?$select=name,revenue"` | `select(AccountFields.Name, AccountFields.Revenue)` |
+| `value[0].id.replace("{","")` | `formLookupId(form.customerid)` |
 | `ExecuteFunctionCall("name", ...)` | `import { Name } from '../../generated/actions/global.js'` |
 | `setFormNotification(msg, 'ERROR', id)` | `setFormNotification(msg, FormNotificationLevel.Error, id)` |
+| `getValue() === 595300000` | `form.statuscode.getValue() === StatusCode.Active` |
 | `86400000` | `const MS_PER_DAY = 24 * 60 * 60 * 1000` |
 | `'[Kurzbeschreibung]'` | `pickLang(languageId, MESSAGES).placeholder` |
+
+### Legacy Helper Functions (DO NOT recreate, use typedForm instead)
+
+These helper wrappers are common in legacy code. They destroy type safety.
+Never recreate them. Use the typed API directly.
+
+| Legacy Helper | XrmForge Replacement |
+|---|---|
+| `GetValue(fieldName)` | `form.fieldname.getValue()` (typed via typedForm) |
+| `SetValue(fieldName, value)` | `form.fieldname.setValue(value)` (typed via typedForm) |
+| `SetDisabled(attributeName, disabled)` | `form.$control(Fields.X).setDisabled(disabled)` |
+| `SetVisible(attributeName, visible)` | `form.$control(Fields.X).setVisible(visible)` |
+| `SetRequiredLevel(attributeName, level)` | `form.$context.getAttribute(Fields.X).setRequiredLevel(RequiredLevel.Required)` |
+| `AddOnChange(attributeName, callback)` | `form.$context.getAttribute(Fields.X).addOnChange(cb)` |
+| `AddPreSearch(controlName, callback)` | `(form.$control(Fields.X) as Xrm.Controls.LookupControl).addPreSearch(cb)` |
+| `GetLookupValueId(fieldName)` | `formLookupId(form.fieldname)` |
+| `SetLookupValue(field, id, type, name)` | `form.fieldname.setValue([{ id, entityType, name }])` |
+| `GetId()` | `form.$context.data.entity.getId()` |
+| `GetEntityName()` | `form.$context.data.entity.getEntityName()` |
+| `GetFormType()` | `form.$context.ui.getFormType()` |
+| `GetIsDirty()` | `form.$context.data.entity.getIsDirty()` |
+| `IsNullOrEmpty(value)` | `value == null \|\| value === ''` (inline) |
+| `IsAttributeNullOrEmpty(field)` | `form.fieldname.getValue() == null` |
+| `GetUserId()` | `Xrm.Utility.getGlobalContext().userSettings.userId` |
+| `GetUserLanguageId()` | `Xrm.Utility.getGlobalContext().userSettings.languageId` |
+| `OpenForm(entityName, id)` | `Xrm.Navigation.openForm({ entityName: EntityNames.X, entityId: id })` |
+| `OpenAlertDialog(text)` | `Xrm.Navigation.openAlertDialog({ text })` |
+| `OpenConfirmDialog(text, ...)` | `Xrm.Navigation.openConfirmDialog({ text, title, ... })` |
+| `ShowProgressIndicator(msg)` | `Xrm.Utility.showProgressIndicator(msg)` |
+| `CloseProgressIndicator()` | `Xrm.Utility.closeProgressIndicator()` |
+| `SetNotification(attr, msg)` | `form.$context.getControl(Fields.X).setNotification(msg, NOTIFICATION_IDS.x)` |
+| `SetSectionDisabled(tab, sec, off)` | `form.$context.ui.tabs.get(Tabs.X).sections.get(Sections.Y).setVisible(!off)` |
+
+**Rule of thumb:** If a helper function just wraps a single Xrm API call with a
+string parameter, it MUST NOT exist. The typed API is shorter, safer, and provides
+IDE autocomplete. Only keep shared helpers that contain actual domain logic
+(calculations, WebApi queries, multi-step workflows).
 
 ## @types/xrm Pitfalls (known issues)
 
