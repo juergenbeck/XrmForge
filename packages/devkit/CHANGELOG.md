@@ -1,5 +1,11 @@
 # @xrmforge/devkit
 
+## 0.7.1
+
+### Patch Changes
+
+- AGENT.md: legacy helper function mapping table (25 functions mapped to XrmForge replacements)
+
 ## 0.7.0
 
 ### Minor Changes
