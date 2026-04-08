@@ -1,5 +1,11 @@
 # @xrmforge/devkit
 
+## 0.7.2
+
+### Patch Changes
+
+- AGENT.md: quality philosophy preamble (code reads like business logic, not API mechanics)
+
 ## 0.7.1
 
 ### Patch Changes
