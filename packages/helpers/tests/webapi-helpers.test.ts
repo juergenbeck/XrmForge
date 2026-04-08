@@ -4,12 +4,28 @@ import { select, selectExpand, parseLookup, parseLookups, parseFormattedValue, f
 // select / selectExpand
 
 describe('select', () => {
-  it('should build $select query string', () => {
+  it('should build $select query string (variadic)', () => {
     expect(select('name', 'telephone1')).toBe('?$select=name,telephone1');
+  });
+
+  it('should build $select query string (array overload)', () => {
+    expect(select(['name', 'telephone1'])).toBe('?$select=name,telephone1');
   });
 
   it('should return empty string for no fields', () => {
     expect(select()).toBe('');
+  });
+
+  it('should return empty string for empty array', () => {
+    expect(select([])).toBe('');
+  });
+
+  it('should handle single field (variadic)', () => {
+    expect(select('name')).toBe('?$select=name');
+  });
+
+  it('should handle single field (array)', () => {
+    expect(select(['name'])).toBe('?$select=name');
   });
 });
 

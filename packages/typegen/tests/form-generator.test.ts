@@ -192,6 +192,35 @@ describe('generateFormInterface', () => {
     expect(result).not.toContain('unknown_field');
   });
 
+  it('should always include statuscode/statecode in fields when present in attribute map', () => {
+    const form = createForm('Account', ['name']);
+    const attrMap = new Map<string, AttributeMetadata>([
+      ['name', createAttr('name', 'String', 'Account Name')],
+      ['statuscode', createAttr('statuscode', 'Status', 'Status Reason')],
+      ['statecode', createAttr('statecode', 'State', 'Status')],
+    ]);
+
+    const result = generateFormInterface(form, 'account', attrMap);
+
+    // statuscode and statecode should be included even though they have no FormXml control
+    expect(result).toContain('| "statuscode"');
+    expect(result).toContain('| "statecode"');
+    expect(result).toContain("StatusReason = 'statuscode',");
+    expect(result).toContain("Status = 'statecode',");
+  });
+
+  it('should not include statuscode/statecode when not in attribute map', () => {
+    const form = createForm('Account', ['name']);
+    const attrMap = new Map<string, AttributeMetadata>([
+      ['name', createAttr('name', 'String', 'Account Name')],
+    ]);
+
+    const result = generateFormInterface(form, 'account', attrMap);
+
+    expect(result).not.toContain('statuscode');
+    expect(result).not.toContain('statecode');
+  });
+
   it('should generate = never for form with 0 recognized controls (BPF)', () => {
     // A form with controls whose datafieldnames are not in the attribute map
     const form = createForm('BPF', []);

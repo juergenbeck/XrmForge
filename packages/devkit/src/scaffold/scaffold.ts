@@ -106,6 +106,7 @@ async function generateTemplates(config: ScaffoldConfig): Promise<Array<[string,
     ['.github/workflows/ci.yml', await loadTemplate('github-actions-ci.yml')],
     ['azure-pipelines.yml', await loadTemplate('azure-pipelines.yml')],
     ['scripts/self-check.sh', await loadTemplate('self-check.sh')],
+    ['scripts/validate-form.mjs', await loadTemplate('validate-form.mjs')],
   ];
 }
 
@@ -128,14 +129,15 @@ function generatePackageJson(projectName: string): string {
       watch: 'xrmforge build --watch',
       test: 'vitest run',
       'test:watch': 'vitest',
+      validate: 'node scripts/validate-form.mjs',
     },
     devDependencies: {
       '@types/xrm': '^9.0.90',
       '@typescript-eslint/eslint-plugin': '^8.0.0',
       '@typescript-eslint/parser': '^8.0.0',
-      '@xrmforge/cli': '^0.4.8',
+      '@xrmforge/cli': '^0.4.9',
       '@xrmforge/eslint-plugin': '^0.2.1',
-      '@xrmforge/helpers': '^0.1.3',
+      '@xrmforge/helpers': '^0.2.0',
       '@xrmforge/testing': '^0.2.3',
       eslint: '^9.0.0',
       typescript: '^5.7.0',

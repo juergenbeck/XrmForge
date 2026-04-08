@@ -147,6 +147,14 @@ export function generateFormInterface(
     }
   }
 
+  // Always include statuscode/statecode - these system fields have no FormXml control
+  // but are accessible via getAttribute() and commonly used in legacy code
+  for (const systemField of ['statuscode', 'statecode']) {
+    if (attributeMap.has(systemField)) {
+      fieldNames.add(systemField);
+    }
+  }
+
   // Resolve field types from attribute metadata
   const fields: Array<{
     logicalName: string;

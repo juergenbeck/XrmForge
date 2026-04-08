@@ -21,10 +21,17 @@
 /**
  * Build an OData $select query string from field names.
  *
+ * Accepts either variadic arguments or a single array:
+ * - `select(Fields.Name, Fields.Email)` (variadic)
+ * - `select([Fields.Name, Fields.Email])` (array)
+ *
  * @param fields - Field names (use generated Fields enum for type safety)
  * @returns OData query string (e.g. "?$select=name,websiteurl,address1_line1")
  */
-export function select(...fields: string[]): string {
+export function select(fields: string[]): string;
+export function select(...fields: string[]): string;
+export function select(...args: string[] | [string[]]): string {
+  const fields = args.length === 1 && Array.isArray(args[0]) ? args[0] : args as string[];
   if (fields.length === 0) return '';
   return `?$select=${fields.join(',')}`;
 }

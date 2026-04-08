@@ -44,7 +44,8 @@ describe('scaffoldProject', () => {
     expect(result.filesCreated).toContain('.github/workflows/ci.yml');
     expect(result.filesCreated).toContain('azure-pipelines.yml');
     expect(result.filesCreated).toContain('scripts/self-check.sh');
-    expect(result.filesCreated).toHaveLength(16);
+    expect(result.filesCreated).toContain('scripts/validate-form.mjs');
+    expect(result.filesCreated).toHaveLength(17);
   });
 
   it('should use project name in package.json', async () => {
@@ -227,7 +228,7 @@ describe('scaffoldProject', () => {
       namespace: 'Contoso',
     });
 
-    expect(result.filesCreated.length).toBe(16);
+    expect(result.filesCreated.length).toBe(17);
     const exists = await fs.access(path.join(dir, 'package.json')).then(() => true).catch(() => false);
     expect(exists).toBe(true);
   });
