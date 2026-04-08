@@ -549,6 +549,25 @@ Never recreate them. Use the typed API directly.
 | `SetNotification(attr, msg)` | `form.$context.getControl(Fields.X).setNotification(msg, NOTIFICATION_IDS.x)` |
 | `SetSectionDisabled(tab, sec, off)` | `form.$context.ui.tabs.get(Tabs.X).sections.get(Sections.Y).setVisible(!off)` |
 
+### GUID Handling (common CRM anti-pattern)
+
+D365 returns GUIDs in various formats: `{A1B2C3D4-...}`, `a1b2c3d4-...`, `A1B2C3D4-...`.
+Legacy code commonly has helpers like `CompareGuid()`, `GetCompatibleGuid()`,
+`NormalizeGuid()`, `StripBraces()`. **Do NOT recreate these.**
+
+`formLookupId()` from @xrmforge/helpers already normalizes GUIDs (removes braces).
+GUID comparison is then a simple `===`:
+
+```typescript
+// WRONG: legacy GUID helpers
+function CompareGuid(a, b) { return a.replace(/[{}]/g,'').toLowerCase() === b.replace(/[{}]/g,'').toLowerCase(); }
+const id = GetCompatibleGuid(form.getAttribute("customerid").getValue()[0].id);
+
+// CORRECT: formLookupId normalizes automatically
+const customerId = formLookupId(form.customerid);  // already clean: "a1b2c3d4-..."
+if (customerId === otherNormalizedId) { ... }       // simple ===
+```
+
 **Rule of thumb:** If a helper function just wraps a single Xrm API call with a
 string parameter, it MUST NOT exist. The typed API is shorter, safer, and provides
 IDE autocomplete. Only keep shared helpers that contain actual domain logic
