@@ -1,6 +1,22 @@
 # XrmForge - AI Agent Instructions
 
-This file helps AI coding assistants write optimal Dynamics 365 form scripts.
+## Quality Philosophy
+
+The goal is not "code that compiles" or "code that passes a linter". The goal is
+code that reads like a description of the business logic. A developer opening a
+file should immediately understand what happens, without Xrm API docs, without
+OData knowledge, without deciphering GUIDs or magic numbers.
+
+Every string that references a Dataverse resource (field name, entity name,
+OptionSet value, tab name, section name, notification ID, navigation property)
+MUST come from a generated constant or a named constant from constants.ts.
+No exceptions. No workarounds. No helper wrappers that accept raw strings.
+
+Abstraction layers that merely wrap single API calls with string parameters
+(getValue, setValue, setDisabled, addOnChange) destroy type safety and must not
+exist. The correct abstraction is `typedForm()` (language-level proxy), not
+string wrappers (API-level indirection). Business logic belongs in named
+functions with domain-specific names, not in anonymous chains of API calls.
 
 ## Packages
 
