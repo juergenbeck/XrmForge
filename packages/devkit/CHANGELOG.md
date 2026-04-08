@@ -1,5 +1,21 @@
 # @xrmforge/devkit
 
+## 0.7.0
+
+### Minor Changes
+
+- typedForm() with full single-parameter type inference, AGENT.md overhaul, stricter quality gate
+
+  helpers:
+  - typedForm<MyForm>(fc) now correctly infers field types from generated form interfaces
+  - ExtractFields/ExtractAttributeMap/ExtractControlMap conditional types
+  - No `as any` needed, full IDE autocomplete
+
+  devkit:
+  - AGENT.md: typedForm as primary pattern, entity-level Fields in select(), OptionSet Enums in FetchXML, named constants, pickLang(), Custom API Executors
+  - validate-form.mjs: 15 checks (up from 6), catches raw strings in helpers/select/FetchXML
+  - example-form.ts: demonstrates typedForm pattern
+
 ## 0.6.1
 
 ### Patch Changes

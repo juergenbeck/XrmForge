@@ -1,5 +1,12 @@
 # @xrmforge/cli
 
+## 0.4.11
+
+### Patch Changes
+
+- Updated dependencies
+  - @xrmforge/devkit@0.7.0
+
 ## 0.4.10
 
 ### Patch Changes
