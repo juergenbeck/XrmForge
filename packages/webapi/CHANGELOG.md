@@ -1,6 +1,6 @@
-# @xrmforge/cli
+# @xrmforge/webapi
 
-## 0.4.10
+## 0.1.1
 
 ### Patch Changes
 
@@ -10,14 +10,3 @@
   - cli: catch (error: unknown) on all command handlers
   - devkit: FormNotificationLevel.Error in error-handler.ts template
   - typegen: catch (err: unknown) in file-writer
-- Updated dependencies
-  - @xrmforge/devkit@0.6.1
-  - @xrmforge/typegen@0.9.1
-
-## 0.4.9
-
-### Patch Changes
-
-- Updated dependencies
-  - @xrmforge/typegen@0.9.0
-  - @xrmforge/devkit@0.6.0
