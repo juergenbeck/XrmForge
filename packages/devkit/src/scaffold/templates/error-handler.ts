@@ -4,6 +4,7 @@
  */
 import type { Logger } from './logger.js';
 import { NOTIFICATION_IDS } from './constants.js';
+import { FormNotificationLevel } from '@xrmforge/helpers';
 
 type EventHandler = (ctx: Xrm.Events.EventContext, ...args: never[]) => unknown;
 
@@ -73,7 +74,7 @@ function logAndNotify(
   const message = err instanceof Error ? err.message : String(err);
   logger.error(`${name} failed`, { err });
   try {
-    ctx.getFormContext().ui.setFormNotification(message, 'ERROR', NOTIFICATION_IDS.genericError);
+    ctx.getFormContext().ui.setFormNotification(message, FormNotificationLevel.Error, NOTIFICATION_IDS.genericError);
   } catch {
     /* ignore */
   }
@@ -88,7 +89,7 @@ function logAndNotifyForm(
   const message = err instanceof Error ? err.message : String(err);
   logger.error(`${name} failed`, { err });
   try {
-    formContext.ui.setFormNotification(message, 'ERROR', NOTIFICATION_IDS.genericError);
+    formContext.ui.setFormNotification(message, FormNotificationLevel.Error, NOTIFICATION_IDS.genericError);
   } catch {
     /* ignore */
   }

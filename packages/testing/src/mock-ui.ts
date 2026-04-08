@@ -5,6 +5,13 @@
  * Tracks form notifications for assertions.
  */
 
+/**
+ * Default values matching @xrmforge/helpers const enums.
+ * Cannot import const enums across module boundaries with isolatedModules,
+ * so we mirror the values here with semantic names.
+ */
+const DEFAULT_DISPLAY_STATE: Xrm.DisplayState = 'expanded'; // DisplayState.Expanded
+
 /** Represents a form-level notification with message and severity level. */
 export interface FormNotification {
   /** The notification message text. */
@@ -70,7 +77,7 @@ export class MockUi {
         getName: () => name,
         getVisible: () => true,
         setVisible: () => {},
-        getDisplayState: () => 'expanded' as Xrm.DisplayState,
+        getDisplayState: () => DEFAULT_DISPLAY_STATE,
         setDisplayState: () => {},
         getLabel: () => name,
         setLabel: () => {},
@@ -107,7 +114,7 @@ export class MockUi {
 
   /** Returns the form type (always 2 / Update in this mock). */
   getFormType(): XrmEnum.FormType {
-    return 2 as XrmEnum.FormType; // Update
+    return 2 as XrmEnum.FormType; // XrmEnum.FormType.Update (const enum, cannot import with isolatedModules)
   }
 
   /** Returns the viewport height in pixels (always 800 in this mock). */

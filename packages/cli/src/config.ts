@@ -94,7 +94,7 @@ export function loadConfig(cwd: string = process.cwd()): XrmForgeConfig {
     }
 
     return config;
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof SyntaxError) {
       throw new ConfigError(ErrorCode.CONFIG_INVALID, `Invalid JSON in ${configPath}: ${error.message}`, { file: configPath });
     }

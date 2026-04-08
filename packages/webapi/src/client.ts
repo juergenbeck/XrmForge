@@ -40,7 +40,7 @@ export async function retrieve<T>(
   try {
     const result = await Xrm.WebApi.retrieveRecord(entityName, id, queryStr);
     return result as unknown as T;
-  } catch (error) {
+  } catch (error: unknown) {
     throw WebApiError.fromXrmError(error);
   }
 }
@@ -90,7 +90,7 @@ export async function retrieveMultiple<T>(
     }
 
     return allEntities as unknown as T[];
-  } catch (error) {
+  } catch (error: unknown) {
     throw WebApiError.fromXrmError(error);
   }
 }
@@ -111,7 +111,7 @@ export async function create(
   try {
     const result = await Xrm.WebApi.createRecord(entityName, data);
     return result.id;
-  } catch (error) {
+  } catch (error: unknown) {
     throw WebApiError.fromXrmError(error);
   }
 }
@@ -133,7 +133,7 @@ export async function update(
   if (!id) throw new WebApiError('id is required', 0, 'InvalidArgument');
   try {
     await Xrm.WebApi.updateRecord(entityName, id, data);
-  } catch (error) {
+  } catch (error: unknown) {
     throw WebApiError.fromXrmError(error);
   }
 }
@@ -153,7 +153,7 @@ export async function remove(
   if (!id) throw new WebApiError('id is required', 0, 'InvalidArgument');
   try {
     await Xrm.WebApi.deleteRecord(entityName, id);
-  } catch (error) {
+  } catch (error: unknown) {
     throw WebApiError.fromXrmError(error);
   }
 }

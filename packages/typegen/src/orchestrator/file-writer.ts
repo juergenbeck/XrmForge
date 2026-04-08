@@ -79,7 +79,7 @@ export async function writeAllFiles(outputDir: string, files: GeneratedFile[]): 
       } else {
         result.unchanged++;
       }
-    } catch (err) {
+    } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       result.warnings.push(`Konnte ${file.relativePath} nicht schreiben: ${message}`);
     }

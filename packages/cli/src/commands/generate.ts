@@ -123,7 +123,7 @@ export function registerGenerateCommand(program: Command): void {
     .action(async (opts: GenerateOptions) => {
       try {
         await runGenerate(opts);
-      } catch (error) {
+      } catch (error: unknown) {
         if (error instanceof Error) {
           console.error(`\nError: ${error.message}\n`);
           if (opts.verbose && error.stack) {

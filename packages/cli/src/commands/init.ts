@@ -51,7 +51,7 @@ export function registerInitCommand(program: Command): void {
     .action(async (dir: string | undefined, opts: InitOptions) => {
       try {
         await runInit(dir, opts);
-      } catch (error) {
+      } catch (error: unknown) {
         if (error instanceof Error) {
           console.error(`\nError: ${error.message}\n`);
         } else {

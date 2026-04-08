@@ -55,7 +55,7 @@ export function registerBuildCommand(program: Command): void {
     .action(async (opts: BuildOptions) => {
       try {
         await runBuild(opts);
-      } catch (error) {
+      } catch (error: unknown) {
         if (error instanceof Error) {
           console.error(`\nError: ${error.message}\n`);
           if (opts.verbose && error.stack) {

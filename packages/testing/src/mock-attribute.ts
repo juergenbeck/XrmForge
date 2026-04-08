@@ -5,6 +5,14 @@
  * Tracks value changes, required level, submit mode, and onChange handlers.
  */
 
+/**
+ * Default values matching @xrmforge/helpers const enums.
+ * Cannot import const enums across module boundaries with isolatedModules,
+ * so we mirror the values here with semantic names.
+ */
+const DEFAULT_REQUIRED_LEVEL: Xrm.Attributes.RequirementLevel = 'none'; // RequiredLevel.None
+const DEFAULT_SUBMIT_MODE: Xrm.SubmitMode = 'dirty'; // SubmitMode.Dirty
+
 type OnChangeHandler = (context: Xrm.Events.EventContext) => void;
 
 /**
@@ -25,8 +33,8 @@ export class MockAttribute {
   private _name: string;
   private _value: unknown;
   private _initialValue: unknown;
-  private _requiredLevel: Xrm.Attributes.RequirementLevel = 'none';
-  private _submitMode: Xrm.SubmitMode = 'dirty';
+  private _requiredLevel: Xrm.Attributes.RequirementLevel = DEFAULT_REQUIRED_LEVEL;
+  private _submitMode: Xrm.SubmitMode = DEFAULT_SUBMIT_MODE;
   private _onChangeHandlers: OnChangeHandler[] = [];
 
   /**
