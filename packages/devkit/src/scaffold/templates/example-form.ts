@@ -4,58 +4,73 @@
  * Register in D365 as: {{namespace}}.Example.onLoad
  *
  * This template demonstrates the correct patterns:
- * - Fields Enum for compile-time field validation
- * - Typed FormContext cast
+ * - typedForm() for direct typed field access
+ * - Fields Enum for addOnChange and $control
+ * - Entity-level Fields for Web API select() queries
  * - wrapHandler for unified error handling
  * - Logger instead of console.log
  * - FormNotificationLevel constant instead of raw string
- * - select() for Web API queries
+ * - pickLang() for localized UI strings
  *
  * Replace this file with your actual form logic after running 'xrmforge generate'.
  */
 import { createLogger } from '../shared/logger.js';
 import { wrapHandler } from '../shared/error-handler.js';
-import { FormNotificationLevel, select } from '@xrmforge/helpers';
-// TODO: Import your generated types after running 'xrmforge generate'
-// import type { ExampleForm } from '../../generated/entities/Example.js';
-// import { ExampleFormFieldsEnum as Fields } from '../../generated/entities/Example.js';
+import { MESSAGES, pickLang } from '../shared/constants.js';
+import { typedForm, FormNotificationLevel, select, formLookupId } from '@xrmforge/helpers';
+// TODO: After 'xrmforge generate', replace with your actual imports:
+// import type { ExampleForm } from '../../generated/forms/example.js';
+// import { ExampleFormFieldsEnum as Fields } from '../../generated/forms/example.js';
+// import { ExampleFields } from '../../generated/fields/example.js';
+// import { EntityNames } from '../../generated/entity-names.js';
 
 const logger = createLogger('{{namespace}}.Example');
 
 /**
  * Called when the form loads.
  */
-export const onLoad = wrapHandler('{{namespace}}.Example.onLoad', logger, (executionContext) => {
-  const form = executionContext.getFormContext();
-  // TODO: Cast to your generated form type:
-  // const form = executionContext.getFormContext() as ExampleForm;
+export const onLoad = wrapHandler('{{namespace}}.Example.onLoad', logger, async (ctx) => {
+  // TODO: Replace 'Xrm.FormContext' with your generated form type:
+  // const form = typedForm<ExampleForm>(ctx.getFormContext());
+  const form = typedForm<Xrm.FormContext>(ctx.getFormContext());
 
-  // Example: show a notification on the form
-  form.ui.setFormNotification(
-    'Form loaded successfully',
-    FormNotificationLevel.Info,
-    'example-load-notification',
+  // Direct field access via typedForm proxy (fully typed):
+  // const name = form.name.getValue();          // string | null
+  // form.revenue.setValue(150000);               // NumberAttribute
+
+  // addOnChange uses Fields Enum via $context:
+  // form.$context.getAttribute(Fields.Name).addOnChange(() => {
+  //   logger.debug('Name changed', { value: form.name.getValue() });
+  // });
+
+  // Web API queries use entity-level Fields:
+  // const result = await Xrm.WebApi.retrieveRecord(
+  //   EntityNames.Account, id,
+  //   select(ExampleFields.Name, ExampleFields.WebsiteUrl)
+  // );
+
+  // Lookup access:
+  // const parentId = formLookupId(form.parentaccountid);
+
+  // Localized UI strings:
+  const lang = pickLang(
+    Xrm.Utility.getGlobalContext().userSettings.languageId,
+    MESSAGES,
   );
+  logger.info('Form loaded', { language: lang });
 
-  // Example: read a field value using Fields Enum
-  // const nameAttr = form.getAttribute(Fields.Name);
-  // logger.debug('Name field value', { value: nameAttr.getValue() });
-
-  // Example: Web API query with select()
-  // const ref = formLookup(form.getAttribute(Fields.ParentAccountId));
-  // if (ref) {
-  //   const result = await Xrm.WebApi.retrieveRecord(
-  //     EntityNames.Account, ref.id, select(AccountFields.Name, AccountFields.WebsiteUrl)
-  //   );
-  // }
+  // Form notifications use constants:
+  form.$context.ui.setFormNotification(
+    'Form loaded',
+    FormNotificationLevel.Info,
+    'example-load',
+  );
 });
 
 /**
  * Called when the form is saved.
  */
-export const onSave = wrapHandler('{{namespace}}.Example.onSave', logger, (executionContext) => {
-  const form = executionContext.getFormContext();
-
-  // Clear the load notification on save
-  form.ui.clearFormNotification('example-load-notification');
+export const onSave = wrapHandler('{{namespace}}.Example.onSave', logger, (ctx) => {
+  const form = typedForm<Xrm.FormContext>(ctx.getFormContext());
+  form.$context.ui.clearFormNotification('example-load');
 });

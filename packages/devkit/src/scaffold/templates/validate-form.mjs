@@ -122,27 +122,32 @@ function checkPattern(label, files, regex, excludeFiles = []) {
 const formFiles = collectTsFiles('src/forms');
 const allSrcFiles = collectTsFiles('src');
 
+// ── Field Access ─────────────────────────────────────────────────────────────
+
 // 3a. Raw strings in getAttribute/getControl (must use Fields Enum)
 checkPattern(
-  'Raw field strings in getAttribute/getControl (must use Fields Enum)',
+  'Raw field strings in getAttribute/getControl',
   formFiles,
   /(?:getAttribute|getControl)\s*\(\s*['"][a-z]/,
 );
 
-// 3b. console.log/warn/error outside logger.ts (must use Logger)
+// 3b. Raw strings in helper wrappers (getValue, setFieldValue, setDisabled, addOnChange, setVisible, setRequiredLevel)
 checkPattern(
-  'console.* outside logger.ts (must use Logger)',
+  'Raw field strings in helper functions (use typedForm or Fields Enum)',
   allSrcFiles,
-  /\bconsole\.(log|warn|error|info|debug)\b/,
-  ['logger.ts'],
+  /(?:getValue|setFieldValue|setDisabled|addOnChange|setVisible|setRequiredLevel|addPreSearch)\s*\(\s*\w+\s*,\s*['"][a-z]/,
+  ['generated/', 'logger.ts'],
 );
 
-// 3c. Exported handlers without wrapHandler
+// 3c. Raw strings in select() (must use entity-level Fields Enum)
 checkPattern(
-  'Exported handlers without wrapHandler',
-  formFiles,
-  /^export\s+(const|async\s+function|function)\s+\w+(?!.*wrapHandler)/,
+  'Raw field strings in select() (use entity-level Fields Enum)',
+  allSrcFiles,
+  /\bselect\s*\(\s*['"][a-z]/,
+  ['generated/'],
 );
+
+// ── Entity Names ─────────────────────────────────────────────────────────────
 
 // 3d. Raw entity name strings in WebApi calls (must use EntityNames Enum)
 checkPattern(
@@ -152,18 +157,95 @@ checkPattern(
   ['generated/'],
 );
 
-// 3e. Xrm.Page (deprecated since D365 v9.0)
+// 3e. SystemEntities workaround (must extend generation instead)
+checkPattern(
+  'SystemEntities workaround (extend generation with --entities instead)',
+  allSrcFiles,
+  /SystemEntities\./,
+);
+
+// ── Magic Values ─────────────────────────────────────────────────────────────
+
+// 3f. Magic numbers in OptionSet comparisons (must use OptionSet Enum)
+checkPattern(
+  'Magic numbers in value comparisons (use OptionSet Enum)',
+  allSrcFiles,
+  /getValue\(\)\s*===?\s*\d{3,}/,
+  ['generated/'],
+);
+
+// 3g. Magic number 86400000 (must use named constant MS_PER_DAY)
+checkPattern(
+  'Magic number 86400000 (use named constant MS_PER_DAY)',
+  allSrcFiles,
+  /86400000/,
+);
+
+// 3h. Raw notification level strings (must use FormNotificationLevel)
+checkPattern(
+  'Raw notification level strings (use FormNotificationLevel from @xrmforge/helpers)',
+  allSrcFiles,
+  /setFormNotification\s*\([^)]*['"](?:ERROR|WARNING|INFO)['"]/,
+);
+
+// ── Deprecated / Unsafe ──────────────────────────────────────────────────────
+
+// 3i. Xrm.Page (deprecated since D365 v9.0)
 checkPattern(
   'Xrm.Page (deprecated since D365 v9.0)',
   allSrcFiles,
   /\bXrm\.Page\b/,
 );
 
-// 3f. Raw $select strings (must use select() from @xrmforge/helpers)
+// 3j. eval() usage
+checkPattern(
+  'eval() usage (use Number() or JSON.parse())',
+  allSrcFiles,
+  /\beval\s*\(/,
+);
+
+// 3k. console.log/warn/error outside logger.ts (must use Logger)
+checkPattern(
+  'console.* outside logger.ts (must use Logger)',
+  allSrcFiles,
+  /\bconsole\.(log|warn|error|info|debug)\b/,
+  ['logger.ts'],
+);
+
+// ── Handler Pattern ──────────────────────────────────────────────────────────
+
+// 3l. Exported handlers without wrapHandler
+checkPattern(
+  'Exported handlers without wrapHandler',
+  formFiles,
+  /^export\s+(const|async\s+function|function)\s+\w+(?!.*wrapHandler)/,
+);
+
+// ── Raw $select ──────────────────────────────────────────────────────────────
+
+// 3m. Raw $select strings (must use select() from @xrmforge/helpers)
 checkPattern(
   'Raw $select strings (must use select() from @xrmforge/helpers)',
   allSrcFiles,
   /['"]\?\$select=/,
+  ['generated/'],
+);
+
+// ── FetchXML ─────────────────────────────────────────────────────────────────
+
+// 3n. Raw field names in FetchXML attribute= (should use Fields Enum interpolation)
+checkPattern(
+  'Raw field names in FetchXML (use Fields Enum interpolation)',
+  allSrcFiles,
+  /attribute\s*=\s*'[a-z][a-z0-9_]+'/,
+  ['generated/'],
+);
+
+// 3o. Magic numbers in FetchXML <value> (should use OptionSet Enum)
+checkPattern(
+  'Magic numbers in FetchXML values (use OptionSet Enum)',
+  allSrcFiles,
+  /<value>\d{3,}<\/value>/,
   ['generated/'],
 );
 

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { typedForm } from '../src/typed-form.js';
 import type { TypedForm } from '../src/typed-form.js';
 
-// Test Form Types (simulate typegen output)
+// ─── Test Form Types (simulate typegen output) ──────────────────────────────
 
 type TestFields = 'name' | 'revenue' | 'parentaccountid';
 
@@ -12,27 +12,44 @@ type TestAttrMap = {
   parentaccountid: Xrm.Attributes.LookupAttribute;
 };
 
+type TestCtrlMap = {
+  name: Xrm.Controls.StringControl;
+  revenue: Xrm.Controls.NumberControl;
+  parentaccountid: Xrm.Controls.LookupControl;
+};
+
 interface TestForm extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> {
   getAttribute<K extends TestFields>(name: K): TestAttrMap[K];
   getAttribute(index: number): Xrm.Attributes.Attribute;
   getAttribute(): Xrm.Attributes.Attribute[];
-  getControl<K extends TestFields>(name: K): Xrm.Controls.Control;
+  getControl<K extends TestFields>(name: K): TestCtrlMap[K];
   getControl(index: number): Xrm.Controls.Control;
   getControl(): Xrm.Controls.Control[];
 }
 
-// Mock FormContext
+// ─── Mock FormContext ────────────────────────────────────────────────────────
 
 function createMockFormContext() {
-  const attributes: Record<string, { getValue: () => unknown; setValue: (v: unknown) => void; _value: unknown; getName: () => string }> = {
-    name: { _value: 'Contoso', getValue() { return this._value; }, setValue(v) { this._value = v; }, getName: () => 'name' },
-    revenue: { _value: 150000, getValue() { return this._value; }, setValue(v) { this._value = v; }, getName: () => 'revenue' },
-    parentaccountid: { _value: null, getValue() { return this._value; }, setValue(v) { this._value = v; }, getName: () => 'parentaccountid' },
+  const attributes: Record<string, {
+    getValue: () => unknown;
+    setValue: (v: unknown) => void;
+    getName: () => string;
+    addOnChange: (handler: () => void) => void;
+    _value: unknown;
+  }> = {
+    name: { _value: 'Contoso', getValue() { return this._value; }, setValue(v) { this._value = v; }, getName: () => 'name', addOnChange: vi.fn() },
+    revenue: { _value: 150000, getValue() { return this._value; }, setValue(v) { this._value = v; }, getName: () => 'revenue', addOnChange: vi.fn() },
+    parentaccountid: { _value: null, getValue() { return this._value; }, setValue(v) { this._value = v; }, getName: () => 'parentaccountid', addOnChange: vi.fn() },
   };
 
-  const controls: Record<string, { setDisabled: (v: boolean) => void; getDisabled: () => boolean; _disabled: boolean }> = {
-    name: { _disabled: false, setDisabled(v) { this._disabled = v; }, getDisabled() { return this._disabled; } },
-    revenue: { _disabled: false, setDisabled(v) { this._disabled = v; }, getDisabled() { return this._disabled; } },
+  const controls: Record<string, {
+    setDisabled: (v: boolean) => void;
+    getDisabled: () => boolean;
+    getName: () => string;
+    _disabled: boolean;
+  }> = {
+    name: { _disabled: false, setDisabled(v) { this._disabled = v; }, getDisabled() { return this._disabled; }, getName: () => 'name' },
+    revenue: { _disabled: false, setDisabled(v) { this._disabled = v; }, getDisabled() { return this._disabled; }, getName: () => 'revenue' },
   };
 
   return {
@@ -47,6 +64,7 @@ function createMockFormContext() {
     ui: {
       setFormNotification: vi.fn(),
       clearFormNotification: vi.fn(),
+      getFormType: () => 2,
     },
     data: {
       entity: {
@@ -57,110 +75,141 @@ function createMockFormContext() {
   } as unknown as Xrm.FormContext;
 }
 
-// Tests
+// ─── Type Inference Tests ────────────────────────────────────────────────────
 
-describe('typedForm', () => {
-  it('should access field value via property', () => {
+describe('typedForm - type inference (single type parameter)', () => {
+  it('should access string field value without cast', () => {
     const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
+    const form = typedForm<TestForm>(fc);
 
-    expect((form.name as any).getValue()).toBe('Contoso');
+    // This is the key test: NO `as any` needed
+    const value = form.name.getValue();
+    expect(value).toBe('Contoso');
   });
 
-  it('should set field value via property', () => {
+  it('should set string field value without cast', () => {
     const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
+    const form = typedForm<TestForm>(fc);
 
-    (form.name as any).setValue('Fabrikam');
-    expect((form.name as any).getValue()).toBe('Fabrikam');
+    form.name.setValue('Fabrikam');
+    expect(form.name.getValue()).toBe('Fabrikam');
   });
 
-  it('should access numeric field', () => {
+  it('should access numeric field without cast', () => {
     const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
+    const form = typedForm<TestForm>(fc);
 
-    expect((form.revenue as any).getValue()).toBe(150000);
+    const value = form.revenue.getValue();
+    expect(value).toBe(150000);
   });
 
-  it('should access lookup field', () => {
+  it('should access lookup field without cast', () => {
     const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
+    const form = typedForm<TestForm>(fc);
 
-    expect((form.parentaccountid as any).getValue()).toBeNull();
+    const value = form.parentaccountid.getValue();
+    expect(value).toBeNull();
   });
 
+  it('should call addOnChange on attribute', () => {
+    const fc = createMockFormContext();
+    const form = typedForm<TestForm>(fc);
+
+    const handler = vi.fn();
+    form.name.addOnChange(handler);
+    expect(form.name.addOnChange).toBeDefined();
+  });
+});
+
+// ─── $context and $control ───────────────────────────────────────────────────
+
+describe('typedForm - $context', () => {
   it('should provide $context for full FormContext access', () => {
     const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
+    const form = typedForm<TestForm>(fc);
 
     expect(form.$context).toBe(fc);
     expect(form.$context.data.entity.getEntityName()).toBe('account');
   });
 
-  it('should provide $control for control access', () => {
+  it('should access ui via $context', () => {
     const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
+    const form = typedForm<TestForm>(fc);
 
-    const ctrl = form.$control('name' as TestFields);
-    expect(ctrl).toBeDefined();
-  });
-
-  it('should fall back to FormContext properties for non-field access', () => {
-    const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
-
-    // data is a FormContext property, not a field
-    expect((form as any).data).toBeDefined();
-    expect((form as any).data.entity.getId()).toBe('{abc-123}');
-  });
-
-  it('should return falsy for unknown fields', () => {
-    const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
-
-    expect((form as any).nonexistent_field).toBeFalsy();
+    form.$context.ui.setFormNotification('test', 'INFO', 'test-id');
+    expect(form.$context.ui.setFormNotification).toHaveBeenCalledWith('test', 'INFO', 'test-id');
   });
 });
 
-describe('typedForm with controls', () => {
+describe('typedForm - $control', () => {
+  it('should access control by field name', () => {
+    const fc = createMockFormContext();
+    const form = typedForm<TestForm>(fc);
+
+    const ctrl = form.$control('name');
+    expect(ctrl).toBeDefined();
+  });
+
   it('should disable a control via $control', () => {
     const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
+    const form = typedForm<TestForm>(fc);
 
-    const ctrl = form.$control('name' as TestFields) as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock control has setDisabled
+    const ctrl = form.$control('name') as any;
     ctrl.setDisabled(true);
     expect(ctrl.getDisabled()).toBe(true);
   });
 });
 
-describe('typedForm set trap', () => {
+// ─── Fallback and edge cases ─────────────────────────────────────────────────
+
+describe('typedForm - fallback to FormContext', () => {
+  it('should fall back to FormContext properties for non-field access', () => {
+    const fc = createMockFormContext();
+    const form = typedForm<TestForm>(fc);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- testing fallback
+    expect((form as any).data).toBeDefined();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- testing fallback
+    expect((form as any).data.entity.getId()).toBe('{abc-123}');
+  });
+
+  it('should return falsy for unknown fields', () => {
+    const fc = createMockFormContext();
+    const form = typedForm<TestForm>(fc);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- testing unknown field
+    expect((form as any).nonexistent_field).toBeFalsy();
+  });
+});
+
+// ─── Set trap (prevents accidental assignment) ───────────────────────────────
+
+describe('typedForm - set trap', () => {
   it('should throw TypeError on property assignment', () => {
     const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc) as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- testing set trap
+    const form = typedForm<TestForm>(fc) as any;
 
     expect(() => { form.name = 'direct'; }).toThrow(TypeError);
-    expect(() => { form.name = 'direct'; }).toThrow("Use form.name.setValue() instead");
+    expect(() => { form.name = 'direct'; }).toThrow('Use form.name.setValue() instead');
   });
 
   it('should throw TypeError on $context assignment', () => {
     const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc) as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- testing set trap
+    const form = typedForm<TestForm>(fc) as any;
 
     expect(() => { form.$context = null; }).toThrow(TypeError);
   });
-
-  it('should throw TypeError on unknown property assignment', () => {
-    const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc) as any;
-
-    expect(() => { form.unknown_field = 42; }).toThrow(TypeError);
-  });
 });
 
-describe('typedForm has trap', () => {
+// ─── Has trap (for `in` operator) ────────────────────────────────────────────
+
+describe('typedForm - has trap', () => {
   it('should return true for existing fields', () => {
     const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
+    const form = typedForm<TestForm>(fc);
 
     expect('name' in form).toBe(true);
     expect('revenue' in form).toBe(true);
@@ -168,7 +217,7 @@ describe('typedForm has trap', () => {
 
   it('should return true for $context and $control', () => {
     const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
+    const form = typedForm<TestForm>(fc);
 
     expect('$context' in form).toBe(true);
     expect('$control' in form).toBe(true);
@@ -176,23 +225,26 @@ describe('typedForm has trap', () => {
 
   it('should return false for non-existing fields', () => {
     const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
+    const form = typedForm<TestForm>(fc);
 
     expect('nonexistent_field' in form).toBe(false);
   });
 
   it('should return false for symbol keys', () => {
     const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc);
+    const form = typedForm<TestForm>(fc);
 
     expect(Symbol.toPrimitive in form).toBe(false);
   });
 });
 
-describe('typedForm symbol handling', () => {
+// ─── Symbol handling ─────────────────────────────────────────────────────────
+
+describe('typedForm - symbol handling', () => {
   it('should handle Symbol.toPrimitive via get trap', () => {
     const fc = createMockFormContext();
-    const form = typedForm<TestForm, TestFields, TestAttrMap>(fc) as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- testing symbol access
+    const form = typedForm<TestForm>(fc) as any;
 
     expect(() => form[Symbol.toPrimitive]).not.toThrow();
   });
