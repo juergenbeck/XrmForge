@@ -129,28 +129,49 @@ Xrm.WebApi.retrieveRecord(EntityNames.Account, id, query);
 
 ```typescript
 import { formLookup, formLookupId, parseLookup } from '@xrmforge/helpers';
-// Form:
+// Form (via typedForm proxy):
 const customer = formLookup(form.parentaccountid);
 const customerId = formLookupId(form.parentaccountid);
-// Web API response:
+// Web API response (use NavigationProperties enum, NOT raw strings):
+import { AccountNavigationProperties as AccountNav } from '../../generated/entities/account.js';
 const parent = parseLookup(apiResponse, AccountNav.ParentAccountId);
 ```
 
-### 6. select() from @xrmforge/helpers with Fields Enums
+### 6. select(), $filter, $expand, $orderby with Fields Enums
+
+ALL OData query parts must use entity-level Fields Enums. No raw field name strings anywhere.
 
 ```typescript
-import { select } from '@xrmforge/helpers';
+import { select, selectExpand } from '@xrmforge/helpers';
 import { AccountFields } from '../../generated/fields/account.js';
 
-// Variadic:
+// $select:
 select(AccountFields.Name, AccountFields.Revenue)
 
-// Array (since v0.2.0):
-const fields = [AccountFields.Name, AccountFields.Revenue];
-select(fields)
+// $filter (field names via template literal):
+`${select(AccountFields.Name)}&$filter=${AccountFields.Statecode} eq 0`
 
-// Combined with $filter:
-`${select(AccountFields.Name)}&$filter=statecode eq 0`
+// $expand (navigation properties):
+selectExpand(
+  [AccountFields.Name, AccountFields.Revenue],
+  `primarycontactid($select=${ContactFields.Fullname})`,
+)
+
+// $orderby:
+`${select(AccountFields.Name)}&$orderby=${AccountFields.Name} asc`
+```
+
+### 6b. Web API response typing with generated Entity interfaces
+
+Always type Web API responses with generated Entity interfaces. Never access properties with `as string` casts.
+
+```typescript
+import type { Account } from '../../generated/entities/account.js';
+
+const result = await Xrm.WebApi.retrieveRecord(
+  EntityNames.Account, id, select(AccountFields.Name)
+) as Account;
+result.name  // typed as string | null, no cast needed
 ```
 
 ### 7. wrapHandler() around EVERY exported handler
@@ -203,7 +224,72 @@ const lang = pickLang(Xrm.Utility.getGlobalContext().userSettings.languageId, ME
 form.title.setValue(lang.titlePlaceholder);
 ```
 
-### 11. Module exports, Structured Logger, createFormMock
+### 11. Tabs, Sections, Subgrids via generated enums
+
+Never use raw strings for tab, section, or subgrid names:
+
+```typescript
+import { AccountLMFirmaFormTabs as Tabs } from '../../generated/forms/account.js';
+import { AccountLMFirmaFormSUMMARYTABSections as SummarySections } from '../../generated/forms/account.js';
+import { AccountLMFirmaFormSubgrids as Subgrids } from '../../generated/forms/account.js';
+
+form.$context.ui.tabs.get(Tabs.SUMMARYTAB).setVisible(true);
+form.$context.ui.tabs.get(Tabs.SUMMARYTAB).sections.get(SummarySections.General).setVisible(false);
+(form.$context.getControl(Subgrids.Orders) as Xrm.Controls.GridControl).refresh();
+```
+
+### 12. Notification IDs from NOTIFICATION_IDS
+
+All notification unique IDs must be in `constants.ts`, never inline raw strings:
+
+```typescript
+// constants.ts:
+export const NOTIFICATION_IDS = {
+  genericError: 'lmapp.notification.generic-error',
+  saveWarning: 'lmapp.notification.save-warning',
+  addressMissing: 'lmapp.notification.address-missing',
+} as const;
+
+// form script:
+form.$context.ui.setFormNotification(msg, FormNotificationLevel.Error, NOTIFICATION_IDS.genericError);
+```
+
+### 13. Xrm constants from @xrmforge/helpers for ALL Xrm enum values
+
+Never use raw strings or magic numbers for Xrm API constants:
+
+```typescript
+import { SaveMode, FormNotificationLevel, RequiredLevel, SubmitMode, DisplayState } from '@xrmforge/helpers';
+
+// Save mode:
+if (ctx.getEventArgs().getSaveMode() === SaveMode.AutoSave) { ... }  // not === 70
+
+// Form type (const enum from @types/xrm, works at runtime):
+if (form.$context.ui.getFormType() === XrmEnum.FormType.Create) { ... }  // not === 1
+
+// Display state:
+if (tab.getDisplayState() === DisplayState.Expanded) { ... }  // not === 'expanded'
+
+// Required level:
+form.$context.getAttribute(Fields.Name).setRequiredLevel(RequiredLevel.Required);  // not 'required'
+
+// Submit mode:
+form.$context.getAttribute(Fields.Name).setSubmitMode(SubmitMode.Always);  // not 'always'
+
+// Notification level:
+form.$context.ui.setFormNotification(msg, FormNotificationLevel.Error, id);  // not 'ERROR'
+```
+
+### 14. EntityNames in openForm and ALL entity references
+
+```typescript
+// openForm:
+Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // not "account"
+
+// openWebResource, openUrl, etc.: use EntityNames wherever an entity name appears
+```
+
+### 15. Module exports, Structured Logger, createFormMock
 
 - Module exports (not window/global assignments). esbuild globalName handles namespacing.
 - `createLogger()` instead of console.* (except in logger.ts itself)
@@ -211,42 +297,60 @@ form.title.setValue(lang.titlePlaceholder);
 
 ## Rules: NEVER (every occurrence is a bug)
 
-- Never raw strings in `getAttribute()`, `getControl()`, `select()`, or any function that takes a field name
-- Never magic numbers for OptionSet values, status codes, or FetchXML values
+**Field/Entity/Resource names:**
+- Never raw strings in `getAttribute()`, `getControl()`, `select()`, `$filter`, `$expand`, `$orderby`, `parseLookup()`, FetchXML `attribute=`, or any function that takes a field name
+- Never raw entity name strings in `Xrm.WebApi`, `Xrm.Navigation.openForm`, or anywhere an entity name appears (use `EntityNames`)
+- Never raw tab/section/subgrid names (use generated Tabs/Sections/Subgrids enums)
+- Never raw notification IDs (use `NOTIFICATION_IDS` from constants.ts)
+- Never create `SystemEntities` objects with raw strings (extend generation with `--entities`)
+
+**Magic values:**
+- Never magic numbers for OptionSet values, status codes, or FetchXML `<value>` (use OptionSet Enums)
 - Never magic numbers for time calculations (use named constants like `MS_PER_DAY`)
-- Never unlokalized UI strings (use `pickLang()` from constants.ts)
+- Never `getSaveMode() === 70` (use `SaveMode.AutoSave` from @xrmforge/helpers)
+- Never `getFormType() === 1` (use `XrmEnum.FormType.Create`)
+- Never `'expanded'`/`'collapsed'` (use `DisplayState` from @xrmforge/helpers)
+- Never `'ERROR'`/`'INFO'`/`'WARNING'` (use `FormNotificationLevel`)
+- Never `'none'`/`'required'`/`'recommended'` (use `RequiredLevel`)
+- Never `'always'`/`'dirty'` (use `SubmitMode`)
+
+**Web API responses:**
+- Never access WebApi response properties with `as string` casts (use generated Entity interfaces)
+- Never `.getValue()[0].id` for lookups (use `formLookup`/`formLookupId`)
+- Never raw strings in `parseLookup()` (use NavigationProperties enum)
+
+**Code quality:**
 - Never `Xrm.Page` (deprecated since D365 v9.0)
 - Never `eval()`, never synchronous XMLHttpRequest
 - Never `window.X = ...` (use module exports)
 - Never `console.log/warn/error` in form scripts (use shared logger)
 - Never export handlers without `wrapHandler()`
-- Never raw entity name strings in `Xrm.WebApi` calls (use `EntityNames`)
-- Never raw `"?$select=..."` strings (use `select()` with Fields Enums)
-- Never `.getValue()[0].id` for lookups (use `formLookup`/`formLookupId`)
-- Never build your own lookup/getValue/setFieldValue/setDisabled helpers when `typedForm` + native Xrm API covers the use case
-- Never create a local `SystemEntities` object with raw strings. Extend generation instead.
+- Never unlokalized UI strings (use `pickLang()` from constants.ts)
+- Never build your own getValue/setFieldValue/setDisabled/addOnChange helpers (use `typedForm` + native Xrm API)
 - Never `import ... from '@xrmforge/typegen'` in browser code (use `@xrmforge/helpers`)
 - Never `as any` without eslint-disable comment explaining why
 - Never untyped `catch (error)` (always `catch (error: unknown)`)
-- Never raw `'ERROR'`/`'INFO'`/`'WARNING'` strings (use `FormNotificationLevel` from `@xrmforge/helpers`)
-- Never raw `'none'`/`'required'`/`'recommended'` (use `RequiredLevel`)
-- Never raw `'always'`/`'dirty'` (use `SubmitMode`)
 
 ## Subagent Handoff (when delegating to sub-agents)
 
 Copy these MANDATORY rules into every sub-agent prompt:
 
 ```
-1. typedForm<FormType>(ctx.getFormContext()) for ALL field access (never getAttribute with raw strings)
-2. Entity-level Fields Enums in ALL select() calls (never raw strings in select)
-3. OptionSet Enum for ALL value comparisons AND FetchXML (never magic numbers)
-4. EntityNames for ALL Xrm.WebApi calls (never raw entity names, no exceptions)
+1. typedForm<FormType>(ctx.getFormContext()) for ALL field access
+2. Entity-level Fields Enums in ALL select(), $filter, $expand, $orderby, FetchXML attribute=
+3. OptionSet Enum for ALL value comparisons AND FetchXML <value> (never magic numbers)
+4. EntityNames for ALL Xrm.WebApi calls AND openForm (never raw entity names)
 5. formLookup/formLookupId for ALL lookup access (never .getValue()[0].id)
-6. wrapHandler() around EVERY exported handler
-7. createLogger() instead of console.* (except logger.ts)
-8. Custom API Executors from generated/actions/ (never build your own)
-9. Named constants for non-obvious values (never magic numbers like 86400000)
-10. pickLang() for all user-visible strings (never hardcoded German/English)
+6. parseLookup with NavigationProperties enum (never raw nav property strings)
+7. Generated Entity interfaces for ALL WebApi response typing (never as string casts)
+8. Tabs/Sections/Subgrids enums for ALL UI structure access (never raw strings)
+9. SaveMode/FormType/DisplayState/RequiredLevel/SubmitMode/FormNotificationLevel constants
+10. wrapHandler() around EVERY exported handler
+11. createLogger() instead of console.* (except logger.ts)
+12. Custom API Executors from generated/actions/ (never build your own)
+13. NOTIFICATION_IDS from constants.ts for all notification unique IDs
+14. Named constants for non-obvious values (never magic numbers like 86400000)
+15. pickLang() for all user-visible strings (never hardcoded German/English)
 ```
 
 ## Mandatory Shared Utilities
