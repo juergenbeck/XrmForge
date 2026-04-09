@@ -568,6 +568,29 @@ const customerId = formLookupId(form.customerid);  // already clean: "a1b2c3d4-.
 if (customerId === otherNormalizedId) { ... }       // simple ===
 ```
 
+### Typed repetition beats untyped loops
+
+When multiple fields need the same operation (e.g. 8 address fields), write
+8 typed lines instead of 1 loop with raw strings:
+
+```typescript
+// WRONG: DRY reflex, but raw strings bypass type safety
+for (const f of ['address1_name', 'address1_line1', 'address1_city']) {
+  form.$unsafe(f)?.addOnChange(handler);
+}
+
+// CORRECT: more lines, but every field is compile-time validated
+form.address1_name.addOnChange(handler);
+form.address1_line1.addOnChange(handler);
+form.address1_city.addOnChange(handler);
+form.address1_postalcode.addOnChange(handler);
+form.address1_country.addOnChange(handler);
+```
+
+8 typed lines are better than 1 loop with raw strings. The type system
+catches renamed/removed fields at compile time. A loop with raw strings
+only fails at runtime. DRY is a recommendation, type safety is mandatory.
+
 **Rule of thumb:** If a helper function just wraps a single Xrm API call with a
 string parameter, it MUST NOT exist. The typed API is shorter, safer, and provides
 IDE autocomplete. Only keep shared helpers that contain actual domain logic

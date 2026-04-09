@@ -87,9 +87,14 @@ function collectTsFiles(dir) {
 
 /**
  * Check a pattern rule against all files.
+ * @param {string} label - Description of the check
+ * @param {string[]} files - Files to check
+ * @param {RegExp} regex - Pattern to match (violation)
+ * @param {string[]} excludeFiles - File paths to exclude
+ * @param {RegExp[]} excludePatterns - Line patterns to exclude (not violations even if regex matches)
  * @returns Number of violations
  */
-function checkPattern(label, files, regex, excludeFiles = []) {
+function checkPattern(label, files, regex, excludeFiles = [], excludePatterns = []) {
   const violations = [];
   for (const file of files) {
     const relPath = relative(process.cwd(), file);
@@ -100,6 +105,7 @@ function checkPattern(label, files, regex, excludeFiles = []) {
       const line = lines[i];
       const trimmed = line.trim();
       if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) continue;
+      if (excludePatterns.some((ep) => ep.test(trimmed))) continue;
       if (regex.test(line)) {
         violations.push(`  ${relPath}:${i + 1}: ${trimmed}`);
       }
@@ -214,11 +220,16 @@ checkPattern(
 
 // ── Handler Pattern ──────────────────────────────────────────────────────────
 
-// 3l. Exported handlers without wrapHandler
+// 3l. Exported handlers without wrapHandler or wrapCommand
 checkPattern(
-  'Exported handlers without wrapHandler',
+  'Exported handlers without wrapHandler/wrapCommand',
   formFiles,
-  /^export\s+(const|async\s+function|function)\s+\w+(?!.*wrapHandler)/,
+  /^export\s+(const|async\s+function|function)\s+\w+(?!.*(?:wrapHandler|wrapCommand))/,
+  [],
+  [
+    // Re-exports: `export const form_OnLoad = onLoad;` (alias for a wrapped handler)
+    /^export\s+const\s+\w+\s*=\s*[a-zA-Z][a-zA-Z0-9]*\s*;/,
+  ],
 );
 
 // ── Raw $select ──────────────────────────────────────────────────────────────
