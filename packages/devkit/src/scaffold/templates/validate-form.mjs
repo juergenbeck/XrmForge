@@ -218,6 +218,27 @@ checkPattern(
   ['logger.ts'],
 );
 
+// ── Type Safety Bypass ───────────────────────────────────────────────────────
+
+// 3l2. Cast to Xrm.FormContext (bypasses typed form interface)
+checkPattern(
+  'Cast to Xrm.FormContext (use typedForm $unsafe() for off-form fields)',
+  formFiles,
+  /as\s+(?:unknown\s+as\s+)?Xrm\.FormContext/,
+);
+
+// 3l3. Raw strings in $filter (field names must use Fields Enum interpolation)
+checkPattern(
+  'Raw field names in $filter (use Fields Enum interpolation)',
+  allSrcFiles,
+  /\$filter=[^$]*\b(?:eq|ne|gt|lt|ge|le|contains|startswith)\b/,
+  ['generated/', 'validate-form'],
+  [
+    // Allow if the line contains template literal interpolation (${...})
+    /\$\{/,
+  ],
+);
+
 // ── Handler Pattern ──────────────────────────────────────────────────────────
 
 // 3l. Exported handlers without wrapHandler or wrapCommand
