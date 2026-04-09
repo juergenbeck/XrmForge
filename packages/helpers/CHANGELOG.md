@@ -1,5 +1,12 @@
 # @xrmforge/helpers
 
+## 0.5.0
+
+### Minor Changes
+
+- helpers: form.controls.fieldname proxy for typed control access (replaces $control)
+  devkit: AGENT.md addOnChange contradiction fixed, controls proxy documented, no control casts
+
 ## 0.4.3
 
 ### Patch Changes

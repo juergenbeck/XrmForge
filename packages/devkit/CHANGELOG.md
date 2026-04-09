@@ -1,5 +1,12 @@
 # @xrmforge/devkit
 
+## 0.7.6
+
+### Patch Changes
+
+- helpers: form.controls.fieldname proxy for typed control access (replaces $control)
+  devkit: AGENT.md addOnChange contradiction fixed, controls proxy documented, no control casts
+
 ## 0.7.5
 
 ### Patch Changes
