@@ -147,6 +147,33 @@ export type TypedForm<
 };
 
 /**
+ * Wraps an Xrm Attribute so that setValue() automatically calls setSubmitMode('always').
+ *
+ * D365 AutoSave only submits "dirty" fields. Programmatically set values via setValue()
+ * are NOT marked dirty by default, causing silent data loss on AutoSave. This proxy
+ * intercepts setValue() and automatically marks the field for submission.
+ *
+ * This is intentionally invisible to the developer: they write `form.name.setValue('X')`
+ * and the framework handles the rest. No more forgotten setSubmitMode calls.
+ */
+function wrapAttributeWithAutoSubmit(attr: Xrm.Attributes.Attribute): Xrm.Attributes.Attribute {
+  return new Proxy(attr, {
+    get(target, prop) {
+      if (prop === 'setValue') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Xrm.Attributes.Attribute.setValue has varying signatures per attribute type
+        return (value: any) => {
+          target.setValue(value);
+          target.setSubmitMode('always');
+        };
+      }
+      const val = (target as unknown as Record<string | symbol, unknown>)[prop];
+      if (typeof val === 'function') return val.bind(target);
+      return val;
+    },
+  });
+}
+
+/**
  * Create a typed form proxy around a FormContext.
  *
  * Accepts either a Form interface or a FormTypeInfo interface as type parameter.
@@ -186,7 +213,7 @@ export function typedForm<TForm>(
         return (name: string) => formContext.getAttribute(name);
       }
       const attr = formContext.getAttribute(prop);
-      if (attr) return attr;
+      if (attr) return wrapAttributeWithAutoSubmit(attr);
       return (formContext as unknown as Record<string, unknown>)[prop];
     },
 

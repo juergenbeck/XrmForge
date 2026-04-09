@@ -37,9 +37,9 @@ function createMockFormContext() {
     addOnChange: (handler: () => void) => void;
     _value: unknown;
   }> = {
-    name: { _value: 'Contoso', getValue() { return this._value; }, setValue(v) { this._value = v; }, getName: () => 'name', addOnChange: vi.fn() },
-    revenue: { _value: 150000, getValue() { return this._value; }, setValue(v) { this._value = v; }, getName: () => 'revenue', addOnChange: vi.fn() },
-    parentaccountid: { _value: null, getValue() { return this._value; }, setValue(v) { this._value = v; }, getName: () => 'parentaccountid', addOnChange: vi.fn() },
+    name: { _value: 'Contoso', getValue() { return this._value; }, setValue(v) { this._value = v; }, getName: () => 'name', addOnChange: vi.fn(), setSubmitMode: vi.fn() },
+    revenue: { _value: 150000, getValue() { return this._value; }, setValue(v) { this._value = v; }, getName: () => 'revenue', addOnChange: vi.fn(), setSubmitMode: vi.fn() },
+    parentaccountid: { _value: null, getValue() { return this._value; }, setValue(v) { this._value = v; }, getName: () => 'parentaccountid', addOnChange: vi.fn(), setSubmitMode: vi.fn() },
   };
 
   const controls: Record<string, {
@@ -93,6 +93,15 @@ describe('typedForm - type inference (single type parameter)', () => {
 
     form.name.setValue('Fabrikam');
     expect(form.name.getValue()).toBe('Fabrikam');
+  });
+
+  it('should automatically call setSubmitMode after setValue', () => {
+    const fc = createMockFormContext();
+    const form = typedForm<TestForm>(fc);
+
+    form.name.setValue('Fabrikam');
+    // setValue via typedForm proxy should auto-call setSubmitMode('always')
+    expect(fc.getAttribute('name').setSubmitMode).toHaveBeenCalledWith('always');
   });
 
   it('should access numeric field without cast', () => {
