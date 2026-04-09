@@ -58,7 +58,7 @@ describe('generateEntityInterface', () => {
     const result = generateEntityInterface(info);
 
     expect(result).toContain('export interface Account {');
-    expect(result).toContain('accountid: string | null;');
+    expect(result).toContain('accountid: string;'); // Primary ID is never null in a WebApi response
     expect(result).toContain('name: string | null;');
   });
 

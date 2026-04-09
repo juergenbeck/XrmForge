@@ -100,7 +100,9 @@ export function generateEntityInterface(info: EntityTypeInfo, options: EntityGen
       lines.push(`  /** ${jsdocParts.join(' - ')} */`);
     }
 
-    lines.push(`  ${propertyName}: ${tsType} | null;`);
+    // Primary ID is never null in a WebApi response (the record wouldn't exist without it)
+    const nullable = attr.IsPrimaryId ? '' : ' | null';
+    lines.push(`  ${propertyName}: ${tsType}${nullable};`);
   }
 
   // PartyList: single navigation property for the entity's ActivityParty collection.
