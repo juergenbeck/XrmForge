@@ -65,28 +65,38 @@ export const onLoad = wrapHandler('LM.Account.onLoad', logger, (ctx) => {
   const form = typedForm<AccountLMFirmaForm>(ctx.getFormContext());
 
   // Direct field access - fully typed, IDE autocomplete works
-  const name = form.name.getValue();              // string | null (non-nullable, field is on form)
+  const name = form.name.getValue();              // string | null
   form.revenue.setValue(150000);                   // NumberAttribute
   const parent = form.parentaccountid.getValue();  // LookupValue[] | null
 
-  // Control access
-  form.$control('name').setDisabled(true);
+  // addOnChange directly on the proxy (NOT via $context.getAttribute)
+  form.name.addOnChange(() => { logger.debug('Name changed'); });
+  form.revenue.addOnChange(() => { recalculate(form); });
 
-  // Full FormContext for ui, data, tabs, addOnChange
+  // Control access (typed from ControlMap)
+  form.$control(Fields.Name).setDisabled(true);
+
+  // Full FormContext for ui, data, tabs
   form.$context.ui.setFormNotification('OK', FormNotificationLevel.Info, 'id');
-  form.$context.getAttribute(Fields.Name).addOnChange(() => { ... });
 });
 ```
 
-**When to use `form.$context.getAttribute(Fields.X)` instead of `form.fieldname`:**
-- `addOnChange()`, `removeOnChange()` (event registration on the attribute)
-- `setRequiredLevel()`, `setSubmitMode()` (attribute-level settings)
-- `getControl()` with typed control access (use `form.$control(Fields.X)`)
-
-**When to use `form.fieldname` (the typedForm proxy):**
+**Use `form.fieldname` (the typedForm proxy) for EVERYTHING on the attribute:**
 - `getValue()`, `setValue()` (reading and writing values)
-- `addOnChange()` (event registration directly on the attribute)
-- Any read-only access to field values
+- `addOnChange()`, `removeOnChange()` (event registration)
+- `setRequiredLevel()`, `setSubmitMode()` (attribute-level settings)
+- Any attribute method: the proxy returns the full typed Attribute object
+
+**Use `form.$control(Fields.X)` for control-level operations:**
+- `setDisabled()`, `setVisible()`, `setLabel()`
+- `addPreSearch()` (on LookupControl)
+- `setNotification()`, `clearNotification()`
+
+**Use `form.$context` ONLY for FormContext-level operations:**
+- `form.$context.ui` (setFormNotification, tabs, close)
+- `form.$context.data` (save, entity, process)
+- `form.$context.ui.getFormType()`
+- NOT for getAttribute (use the proxy instead)
 
 **When to use `form.$unsafe(EntityFields.X)` (off-form fields):**
 
