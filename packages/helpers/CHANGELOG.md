@@ -1,5 +1,11 @@
 # @xrmforge/helpers
 
+## 0.4.2
+
+### Patch Changes
+
+- Fix: duck typing for FormTypeInfo extraction (replaces fragile structural matching)
+
 ## 0.4.1
 
 ### Patch Changes
