@@ -36,7 +36,7 @@ export interface FormTypeInfoProtocol {
   fields: string;
   attributes: Record<string, Xrm.Attributes.Attribute>;
   controls: Record<string, Xrm.Controls.Control>;
-  form: Xrm.FormContext;
+  form: object;
 }
 
 // ─── Type Extraction ─────────────────────────────────────────────────────────
