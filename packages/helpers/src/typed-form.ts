@@ -49,28 +49,37 @@ export interface FormTypeInfoProtocol {
  * to Conditional Type inference on getAttribute (works in same compilation
  * unit but may fail across package boundaries in TS 5.9+).
  */
+/**
+ * Type extraction uses duck typing: if TForm has a `fields` property,
+ * it's a TypeInfo interface (from typegen >= 0.10.0). Otherwise, fall
+ * back to Conditional Type inference on getAttribute overloads.
+ *
+ * Duck typing (`TForm extends { fields: infer F }`) is more robust than
+ * matching against FormTypeInfoProtocol because it doesn't require
+ * structural compatibility of attributes/controls/form across packages.
+ */
 type ExtractFields<TForm> =
-  TForm extends FormTypeInfoProtocol ? TForm['fields'] :
+  TForm extends { fields: infer F extends string } ? F :
   TForm extends { getAttribute<K extends infer F>(name: K): unknown }
     ? F extends string ? F : never
     : never;
 
 type ExtractAttributeMap<TForm, TFields extends string> =
-  TForm extends FormTypeInfoProtocol ? TForm['attributes'] :
+  TForm extends { attributes: infer A extends Record<string, Xrm.Attributes.Attribute> } ? A :
   { [K in TFields]: TForm extends { getAttribute(name: K): infer R }
     ? R extends Xrm.Attributes.Attribute ? R : Xrm.Attributes.Attribute
     : Xrm.Attributes.Attribute;
   };
 
 type ExtractControlMap<TForm, TFields extends string> =
-  TForm extends FormTypeInfoProtocol ? TForm['controls'] :
+  TForm extends { controls: infer C extends Record<string, Xrm.Controls.Control> } ? C :
   { [K in TFields]: TForm extends { getControl(name: K): infer R }
     ? R extends Xrm.Controls.Control ? R : Xrm.Controls.Control
     : Xrm.Controls.Control;
   };
 
 type ExtractFormContext<TForm> =
-  TForm extends FormTypeInfoProtocol ? TForm['form'] :
+  TForm extends { form: infer FC } ? FC :
   TForm extends Xrm.FormContext ? TForm :
   Xrm.FormContext;
 
