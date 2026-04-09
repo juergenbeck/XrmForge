@@ -101,21 +101,23 @@ export type TypedForm<
   TCtrlMap extends Record<string, Xrm.Controls.Control> = ExtractControlMap<TForm, TFields>,
 > = {
   /**
-   * Direct field access: form.fieldName returns the typed Attribute or null.
+   * Direct field access: form.fieldName returns the typed Attribute.
    *
-   * Nullable because D365 FormContext loads all entity attributes, but
-   * getAttribute() returns null if the field is not on the current form layout.
-   * The FormXml defines which fields are on the form, but admins can remove
-   * fields at any time. Always use optional chaining: form.name?.getValue()
+   * Non-nullable because the field is in the generated FormXml. If a field
+   * is NOT in the generated interface, it won't compile, forcing you to use
+   * $unsafe() which IS nullable. This is the compiler warning: a compile
+   * error that says "this field is not on the form, use $unsafe()".
    */
-  readonly [K in TFields]: (K extends keyof TAttrMap
+  readonly [K in TFields]: K extends keyof TAttrMap
     ? TAttrMap[K]
-    : Xrm.Attributes.Attribute) | null;
+    : Xrm.Attributes.Attribute;
 } & {
   /** Access the underlying FormContext for ui, data, tabs, addOnChange, etc. */
   readonly $context: ExtractFormContext<TForm>;
-  /** Access a typed control by field name */
+  /** Access a typed control by field name. Returns the specific control type from the generated ControlMap. */
   $control<K extends TFields>(name: K): K extends keyof TCtrlMap ? TCtrlMap[K] : Xrm.Controls.Control;
+  /** Access a control by arbitrary name (for subgrids, quick views, etc.) */
+  $control(name: string): Xrm.Controls.Control;
   /**
    * Access an off-form field (loaded by D365 but not on the current form layout).
    * Returns null if the attribute does not exist.

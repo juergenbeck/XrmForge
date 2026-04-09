@@ -41,23 +41,27 @@ declare const fc: Xrm.FormContext;
 const form = typedForm<AccountForm>(fc);
 
 // These must compile WITHOUT errors and WITHOUT `as any`:
-// All field accesses are nullable (field may not be on the form at runtime)
+// Fields in the generated interface ARE on the form (non-nullable).
+// Off-form fields require $unsafe() which IS nullable.
 
-// String field: nullable attribute, getValue returns string | null
-const nameValue: string | null | undefined = form.name?.getValue();
+// String field: getValue returns string | null
+const nameValue: string | null = form.name.getValue();
 
-// Number field: nullable attribute
-const revenueValue: number | null | undefined = form.revenue?.getValue();
+// Number field: getValue returns number | null
+const revenueValue: number | null = form.revenue.getValue();
 
-// Lookup field: nullable attribute
-const lookupValue: Xrm.LookupValue[] | null | undefined = form.parentaccountid?.getValue();
+// Lookup field: getValue returns LookupValue[] | null
+const lookupValue: Xrm.LookupValue[] | null = form.parentaccountid.getValue();
 
-// OptionSet field: nullable attribute
-const stateValue: number | null | undefined = form.statecode?.getValue();
+// OptionSet field: getValue returns number | null
+const stateValue: number | null = form.statecode.getValue();
 
-// setValue requires optional chaining (field may not exist on form)
-form.name?.setValue('Test');
-form.revenue?.setValue(42);
+// setValue is available and typed (non-nullable, field is on the form)
+form.name.setValue('Test');
+form.revenue.setValue(42);
+
+// $unsafe returns nullable (field may not be on the form)
+const unsafeAttr: Xrm.Attributes.Attribute | null = form.$unsafe('off_form_field');
 
 // $context provides full FormContext
 const _entityName: string = form.$context.data.entity.getEntityName();
