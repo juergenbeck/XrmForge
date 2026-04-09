@@ -239,6 +239,13 @@ checkPattern(
   ],
 );
 
+// 3l4. Raw strings in $unsafe() (must use Entity-level Fields Enum)
+checkPattern(
+  'Raw field strings in $unsafe() (use Entity-level Fields Enum)',
+  formFiles,
+  /\$unsafe\s*\(\s*['"][a-z]/,
+);
+
 // ── Handler Pattern ──────────────────────────────────────────────────────────
 
 // 3l. Exported handlers without wrapHandler or wrapCommand
@@ -279,6 +286,60 @@ checkPattern(
   allSrcFiles,
   /<value>\d{3,}<\/value>/,
   ['generated/'],
+);
+
+// ── WebApi Response Typing ────────────────────────────────────────────────────
+
+// 3p. Untyped WebApi responses (must use generated Entity interfaces)
+checkPattern(
+  'Untyped WebApi response cast (use generated Entity interface instead of Record<string, unknown>)',
+  allSrcFiles,
+  /as\s+Record\s*<\s*string\s*,\s*unknown\s*>/,
+  ['generated/'],
+);
+
+// 3q. Manual OData annotation access (use parseLookup instead)
+checkPattern(
+  'Manual OData annotation access (use parseLookup() from @xrmforge/helpers)',
+  allSrcFiles,
+  /@OData\.Community\.Display|@Microsoft\.Dynamics\.CRM\.lookuplogicalname|_value(?:@|\s*as\s)/,
+  ['generated/', 'node_modules'],
+);
+
+// ── Legacy Helper Wrappers ───────────────────────────────────────────────────
+
+// 3r. Forbidden legacy helper functions (must use typedForm + @xrmforge/helpers)
+checkPattern(
+  'Forbidden helper: getLookupId (use formLookupId from @xrmforge/helpers)',
+  allSrcFiles,
+  /\bgetLookupId\s*\(/,
+  ['generated/'],
+);
+
+checkPattern(
+  'Forbidden helper: setLookupValue (use form.field.setValue([{...}]))',
+  allSrcFiles,
+  /\bsetLookupValue\s*\(/,
+  ['generated/'],
+);
+
+// ── UI Localization ──────────────────────────────────────────────────────────
+
+// 3s. Hardcoded UI strings in dialogs/progress (must use pickLang from constants.ts)
+checkPattern(
+  'Hardcoded UI string in dialog/progress (use pickLang(MESSAGES) from constants.ts)',
+  allSrcFiles,
+  /(?:openAlertDialog|openConfirmDialog|openErrorDialog|showProgressIndicator)\s*\(\s*(?:\{\s*text\s*:\s*)?['"]/,
+  ['generated/', 'constants.ts'],
+);
+
+// ── Duplicate Framework Functions ────────────────────────────────────────────
+
+// 3t. Own normalizeGuid/compareGuid (use normalizeGuid from @xrmforge/helpers)
+checkPattern(
+  'Own normalizeGuid/compareGuid definition (use normalizeGuid from @xrmforge/helpers)',
+  allSrcFiles,
+  /(?:export\s+)?function\s+(?:normalizeGuid|compareGuid)\s*\(/,
 );
 
 // ============================================================

@@ -85,7 +85,28 @@ export const onLoad = wrapHandler('LM.Account.onLoad', logger, (ctx) => {
 
 **When to use `form.fieldname` (the typedForm proxy):**
 - `getValue()`, `setValue()` (reading and writing values)
+- `addOnChange()` (event registration directly on the attribute)
 - Any read-only access to field values
+
+**When to use `form.$unsafe(EntityFields.X)` (off-form fields):**
+
+D365 loads all entity attributes into the FormContext, not just those on the form.
+If a field is NOT in the generated form interface (compile error on `form.fieldname`),
+use `$unsafe()` with the **Entity-level Fields Enum** (never a raw string):
+
+```typescript
+import { OpportunityFields } from '../../generated/fields/opportunity.js';
+
+// Off-form field: not in the form interface, but loaded by D365
+form.$unsafe(OpportunityFields.VslBeauftragung)?.setValue(closeDate);
+
+// WRONG: raw string in $unsafe
+form.$unsafe('estimatedclosedate')?.setValue(closeDate);
+```
+
+`$unsafe()` returns `Attribute | null` (nullable, because the field may not exist).
+Always use optional chaining (`?.`). The Entity-level Fields Enum ensures the field
+name is valid even though it's not on the form.
 
 ### 2. Fields Enum for ALL getAttribute/getControl AND select() calls
 
@@ -334,6 +355,7 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 - Never access WebApi response properties with `as string` casts (use generated Entity interfaces)
 - Never `.getValue()[0].id` for lookups (use `formLookup`/`formLookupId`)
 - Never raw strings in `parseLookup()` (use NavigationProperties enum)
+- Never raw strings in `$unsafe()` (use Entity-level Fields Enum: `form.$unsafe(AccountFields.X)`)
 - Never manual OData annotation access (`_value`, `@OData.Community.Display.V1.FormattedValue`, `@Microsoft.Dynamics.CRM.lookuplogicalname`). Use `parseLookup()` which extracts all three.
 
 **Code quality:**

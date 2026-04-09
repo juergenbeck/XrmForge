@@ -1,5 +1,12 @@
 # @xrmforge/devkit
 
+## 0.7.5
+
+### Patch Changes
+
+- helpers: Non-nullable fields (revert), typed $control from ControlMap, $control(string) overload
+  devkit: AGENT.md parseLookup Before/After, NEVER manual OData annotations
+
 ## 0.7.4
 
 ### Patch Changes
