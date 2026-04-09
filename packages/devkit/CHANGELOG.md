@@ -1,5 +1,12 @@
 # @xrmforge/devkit
 
+## 0.7.3
+
+### Patch Changes
+
+- validate-form.mjs: recognize wrapCommand and re-exports (eliminates 39 false positives)
+  AGENT.md: typed repetition beats untyped loops (8 typed lines > 1 loop with raw strings)
+
 ## 0.7.2
 
 ### Patch Changes
