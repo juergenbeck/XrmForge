@@ -1,5 +1,14 @@
 # @xrmforge/helpers
 
+## 0.4.0
+
+### Minor Changes
+
+- Fix typedForm TS 5.9.3 compatibility via FormTypeInfo pattern.
+  typegen generates FormTypeInfo interface per form. typedForm uses it for
+  reliable type extraction across package boundaries. New: $unsafe() for
+  off-form fields, normalizeGuid() for getId()/WebApi GUIDs.
+
 ## 0.3.0
 
 ### Minor Changes
