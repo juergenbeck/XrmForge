@@ -1,5 +1,12 @@
 # @xrmforge/helpers
 
+## 0.4.1
+
+### Patch Changes
+
+- Fix FormTypeInfoProtocol: form property changed from Xrm.FormContext to object
+  (generated interfaces use Omit<FormContext> which is not assignable to FormContext)
+
 ## 0.4.0
 
 ### Minor Changes
