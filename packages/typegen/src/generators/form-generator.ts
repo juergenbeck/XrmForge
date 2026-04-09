@@ -429,6 +429,16 @@ export function generateFormInterface(
   lines.push('};');
   lines.push('');
 
+  // 8. FormTypeInfo for typedForm() (bundles Fields, AttrMap, CtrlMap for type-safe proxy)
+  lines.push(`/** Type info for typedForm<${interfaceName}>(). Bundles Fields, AttributeMap, ControlMap. */`);
+  lines.push(`export interface ${interfaceName}TypeInfo {`);
+  lines.push(`  fields: ${fieldsTypeName};`);
+  lines.push(`  attributes: ${attrMapName};`);
+  lines.push(`  controls: ${ctrlMapName};`);
+  lines.push(`  form: ${interfaceName};`);
+  lines.push('}');
+  lines.push('');
+
   return lines.join('\n');
 }
 

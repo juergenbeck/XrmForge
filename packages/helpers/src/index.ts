@@ -56,6 +56,6 @@ export type {
   BoundFunctionExecutor,
 } from './action-runtime.js';
 
-// TypedForm proxy
-export { typedForm } from './typed-form.js';
-export type { TypedForm, FormFields } from './typed-form.js';
+// TypedForm proxy + GUID utility
+export { typedForm, normalizeGuid } from './typed-form.js';
+export type { TypedForm, FormFields, FormTypeInfoProtocol } from './typed-form.js';
