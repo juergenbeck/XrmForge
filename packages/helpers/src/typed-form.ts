@@ -100,10 +100,17 @@ export type TypedForm<
   TAttrMap extends Record<string, Xrm.Attributes.Attribute> = ExtractAttributeMap<TForm, TFields>,
   TCtrlMap extends Record<string, Xrm.Controls.Control> = ExtractControlMap<TForm, TFields>,
 > = {
-  /** Direct field access: form.fieldName returns the typed Attribute */
-  readonly [K in TFields]: K extends keyof TAttrMap
+  /**
+   * Direct field access: form.fieldName returns the typed Attribute or null.
+   *
+   * Nullable because D365 FormContext loads all entity attributes, but
+   * getAttribute() returns null if the field is not on the current form layout.
+   * The FormXml defines which fields are on the form, but admins can remove
+   * fields at any time. Always use optional chaining: form.name?.getValue()
+   */
+  readonly [K in TFields]: (K extends keyof TAttrMap
     ? TAttrMap[K]
-    : Xrm.Attributes.Attribute;
+    : Xrm.Attributes.Attribute) | null;
 } & {
   /** Access the underlying FormContext for ui, data, tabs, addOnChange, etc. */
   readonly $context: ExtractFormContext<TForm>;

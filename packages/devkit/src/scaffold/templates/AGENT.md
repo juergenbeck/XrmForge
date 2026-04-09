@@ -65,9 +65,9 @@ export const onLoad = wrapHandler('LM.Account.onLoad', logger, (ctx) => {
   const form = typedForm<AccountLMFirmaForm>(ctx.getFormContext());
 
   // Direct field access - fully typed, IDE autocomplete works
-  const name = form.name.getValue();              // string | null
-  form.revenue.setValue(150000);                   // NumberAttribute
-  const parent = form.parentaccountid.getValue();  // LookupValue[] | null
+  const name = form.name?.getValue();              // string | null | undefined
+  form.revenue?.setValue(150000);                   // NumberAttribute | null
+  const parent = form.parentaccountid?.getValue();  // LookupValue[] | null | undefined
 
   // Control access
   form.$control('name').setDisabled(true);
@@ -404,7 +404,7 @@ formContext.getAttribute("name").getValue()
 form.getAttribute(Fields.Name).getValue()
 // AFTER (typedForm - preferred):
 const form = typedForm<AccountForm>(ctx.getFormContext());
-form.name.getValue()
+form.name?.getValue()
 ```
 
 ### Web API Query
@@ -422,7 +422,7 @@ Xrm.WebApi.retrieveRecord(EntityNames.Account, id,
 // BEFORE: if (status.getValue() === 595300002) { ... }
 // AFTER:
 import { StatusCode } from '../../generated/optionsets/invoice.js';
-if (form.statuscode.getValue() === StatusCode.Gebucht) { ... }
+if (form.statuscode?.getValue() === StatusCode.Gebucht) { ... }
 ```
 
 ### FetchXML
@@ -513,7 +513,7 @@ each attribute to its control. `mock.getControl(Fields.Name)` works out of the b
 | `value[0].id.replace("{","")` | `formLookupId(form.customerid)` |
 | `ExecuteFunctionCall("name", ...)` | `import { Name } from '../../generated/actions/global.js'` |
 | `setFormNotification(msg, 'ERROR', id)` | `setFormNotification(msg, FormNotificationLevel.Error, id)` |
-| `getValue() === 595300000` | `form.statuscode.getValue() === StatusCode.Active` |
+| `getValue() === 595300000` | `form.statuscode?.getValue() === StatusCode.Active` |
 | `86400000` | `const MS_PER_DAY = 24 * 60 * 60 * 1000` |
 | `'[Kurzbeschreibung]'` | `pickLang(languageId, MESSAGES).placeholder` |
 
@@ -524,7 +524,7 @@ Never recreate them. Use the typed API directly.
 
 | Legacy Helper | XrmForge Replacement |
 |---|---|
-| `GetValue(fieldName)` | `form.fieldname.getValue()` (typed via typedForm) |
+| `GetValue(fieldName)` | `form.fieldname?.getValue()` (typed via typedForm) |
 | `SetValue(fieldName, value)` | `form.fieldname.setValue(value)` (typed via typedForm) |
 | `SetDisabled(attributeName, disabled)` | `form.$control(Fields.X).setDisabled(disabled)` |
 | `SetVisible(attributeName, visible)` | `form.$control(Fields.X).setVisible(visible)` |
@@ -538,7 +538,7 @@ Never recreate them. Use the typed API directly.
 | `GetFormType()` | `form.$context.ui.getFormType()` |
 | `GetIsDirty()` | `form.$context.data.entity.getIsDirty()` |
 | `IsNullOrEmpty(value)` | `value == null \|\| value === ''` (inline) |
-| `IsAttributeNullOrEmpty(field)` | `form.fieldname.getValue() == null` |
+| `IsAttributeNullOrEmpty(field)` | `form.fieldname?.getValue() == null` |
 | `GetUserId()` | `Xrm.Utility.getGlobalContext().userSettings.userId` |
 | `GetUserLanguageId()` | `Xrm.Utility.getGlobalContext().userSettings.languageId` |
 | `OpenForm(entityName, id)` | `Xrm.Navigation.openForm({ entityName: EntityNames.X, entityId: id })` |
@@ -580,11 +580,11 @@ for (const f of ['address1_name', 'address1_line1', 'address1_city']) {
 }
 
 // CORRECT: more lines, but every field is compile-time validated
-form.address1_name.addOnChange(handler);
-form.address1_line1.addOnChange(handler);
-form.address1_city.addOnChange(handler);
-form.address1_postalcode.addOnChange(handler);
-form.address1_country.addOnChange(handler);
+form.address1_name?.addOnChange(handler);
+form.address1_line1?.addOnChange(handler);
+form.address1_city?.addOnChange(handler);
+form.address1_postalcode?.addOnChange(handler);
+form.address1_country?.addOnChange(handler);
 ```
 
 8 typed lines are better than 1 loop with raw strings. The type system
