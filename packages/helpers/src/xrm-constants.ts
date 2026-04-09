@@ -22,7 +22,22 @@ export const enum DisplayState {
   Collapsed = 'collapsed',
 }
 
-// FormType: use XrmEnum.FormType from @types/xrm (already defined as const enum there)
+/**
+ * Form type (formContext.ui.getFormType()).
+ *
+ * WARNING: XrmEnum.FormType from @types/xrm is a const enum that does NOT exist
+ * at runtime. esbuild does not resolve const enums from .d.ts files. Using
+ * XrmEnum.FormType.Create in code produces "XrmEnum is not defined" at runtime.
+ * Use this FormType enum instead (same values, zero runtime overhead).
+ */
+export const enum FormType {
+  Undefined = 0,
+  Create = 1,
+  Update = 2,
+  ReadOnly = 3,
+  Disabled = 4,
+  BulkEdit = 6,
+}
 
 /** Form notification level (formContext.ui.setFormNotification) */
 export const enum FormNotificationLevel {

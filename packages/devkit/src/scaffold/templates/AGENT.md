@@ -314,7 +314,7 @@ import { SaveMode, FormNotificationLevel, RequiredLevel, SubmitMode, DisplayStat
 if (ctx.getEventArgs().getSaveMode() === SaveMode.AutoSave) { ... }  // not === 70
 
 // Form type (const enum from @types/xrm, works at runtime):
-if (form.$context.ui.getFormType() === XrmEnum.FormType.Create) { ... }  // not === 1
+if (form.$context.ui.getFormType() === FormType.Create) { ... }  // not === 1
 
 // Display state:
 if (tab.getDisplayState() === DisplayState.Expanded) { ... }  // not === 'expanded'
@@ -357,7 +357,8 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 - Never magic numbers for OptionSet values, status codes, or FetchXML `<value>` (use OptionSet Enums)
 - Never magic numbers for time calculations (use named constants like `MS_PER_DAY`)
 - Never `getSaveMode() === 70` (use `SaveMode.AutoSave` from @xrmforge/helpers)
-- Never `getFormType() === 1` (use `XrmEnum.FormType.Create`)
+- Never `getFormType() === 1` (use `FormType.Create` from `@xrmforge/helpers`)
+- Never `XrmEnum.FormType` (does NOT exist at runtime, esbuild does not resolve const enums from .d.ts. Use `FormType` from `@xrmforge/helpers`)
 - Never `'expanded'`/`'collapsed'` (use `DisplayState` from @xrmforge/helpers)
 - Never `'ERROR'`/`'INFO'`/`'WARNING'` (use `FormNotificationLevel`)
 - Never `'none'`/`'required'`/`'recommended'` (use `RequiredLevel`)

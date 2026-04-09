@@ -24,6 +24,7 @@ export {
 // Xrm constants (const enums, zero runtime overhead)
 export {
   DisplayState,
+  FormType,
   FormNotificationLevel,
   RequiredLevel,
   SubmitMode,
