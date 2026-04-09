@@ -1,5 +1,12 @@
 # @xrmforge/cli
 
+## 0.4.19
+
+### Patch Changes
+
+- Updated dependencies
+  - @xrmforge/typegen@0.10.1
+
 ## 0.4.18
 
 ### Patch Changes

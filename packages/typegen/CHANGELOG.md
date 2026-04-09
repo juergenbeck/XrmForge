@@ -1,5 +1,12 @@
 # @xrmforge/typegen
 
+## 0.10.1
+
+### Patch Changes
+
+- helpers: typedForm auto-calls setSubmitMode('always') on every setValue (prevents AutoSave data loss)
+  typegen: PrimaryId non-nullable in generated Entity interfaces (string instead of string | null)
+
 ## 0.10.0
 
 ### Minor Changes
