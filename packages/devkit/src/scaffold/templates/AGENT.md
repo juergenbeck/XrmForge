@@ -73,8 +73,10 @@ export const onLoad = wrapHandler('LM.Account.onLoad', logger, (ctx) => {
   form.name.addOnChange(() => { logger.debug('Name changed'); });
   form.revenue.addOnChange(() => { recalculate(form); });
 
-  // Control access (typed from ControlMap)
+  // Control access (typed from ControlMap, no cast needed)
   form.$control(Fields.Name).setDisabled(true);
+  form.$control(Fields.CustomerId).setEntityTypes([EntityNames.Account]);  // LookupControl methods directly available
+  form.$control(Fields.Revenue).setVisible(false);  // NumberControl
 
   // Full FormContext for ui, data, tabs
   form.$context.ui.setFormNotification('OK', FormNotificationLevel.Info, 'id');
@@ -377,6 +379,7 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 - Never unlokalized UI strings (use `pickLang()` from constants.ts)
 - Never build your own getValue/setFieldValue/setDisabled/addOnChange helpers (use `typedForm` + native Xrm API)
 - Never `import ... from '@xrmforge/typegen'` in browser code (use `@xrmforge/helpers`)
+- Never `as Xrm.Controls.LookupControl` or similar control casts (`form.$control(Fields.X)` returns the typed control from ControlMap)
 - Never `as any` without eslint-disable comment explaining why
 - Never untyped `catch (error)` (always `catch (error: unknown)`)
 
