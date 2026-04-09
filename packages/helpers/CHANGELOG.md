@@ -1,5 +1,12 @@
 # @xrmforge/helpers
 
+## 0.6.1
+
+### Patch Changes
+
+- helpers: FormType const enum (XrmEnum.FormType does NOT exist at runtime with esbuild)
+  devkit: AGENT.md NEVER XrmEnum.FormType
+
 ## 0.6.0
 
 ### Minor Changes
