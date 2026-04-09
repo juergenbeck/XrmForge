@@ -66,8 +66,9 @@ const unsafeAttr: Xrm.Attributes.Attribute | null = form.$unsafe('off_form_field
 // $context provides full FormContext
 const _entityName: string = form.$context.data.entity.getEntityName();
 
-// $control provides control access
-const _ctrl: Xrm.Controls.Control = form.$control('name');
+// controls proxy provides typed control access
+const _ctrl: Xrm.Controls.StringControl = form.controls.name;
+const _lookupCtrl: Xrm.Controls.LookupControl = form.controls.parentaccountid;
 
 // Suppress unused variable warnings
 void nameValue;

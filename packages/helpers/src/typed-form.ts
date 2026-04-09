@@ -112,17 +112,36 @@ export type TypedForm<
     ? TAttrMap[K]
     : Xrm.Attributes.Attribute;
 } & {
-  /** Access the underlying FormContext for ui, data, tabs, addOnChange, etc. */
+  /** Access the underlying FormContext for ui, data, tabs, etc. */
   readonly $context: ExtractFormContext<TForm>;
-  /** Access a typed control by field name. Returns the specific control type from the generated ControlMap. */
-  $control<K extends TFields>(name: K): K extends keyof TCtrlMap ? TCtrlMap[K] : Xrm.Controls.Control;
-  /** Access a control by arbitrary name (for subgrids, quick views, etc.) */
-  $control(name: string): Xrm.Controls.Control;
+
+  /**
+   * Typed control access via form.controls.fieldname.
+   *
+   * Returns the specific control type from the generated ControlMap
+   * (LookupControl, NumberControl, etc.). No cast needed.
+   *
+   * @example
+   * ```typescript
+   * form.controls.customerid.setEntityTypes([EntityNames.Account]);
+   * form.controls.revenue.setVisible(false);
+   * form.controls.name.setDisabled(true);
+   * ```
+   */
+  readonly controls: {
+    readonly [K in TFields]: K extends keyof TCtrlMap
+      ? TCtrlMap[K]
+      : Xrm.Controls.Control;
+  };
+
   /**
    * Access an off-form field (loaded by D365 but not on the current form layout).
    * Returns null if the attribute does not exist.
-   * Use this for fields like 'lm_genehmigt' that are not in the form definition
-   * but are accessible at runtime via formContext.getAttribute().
+   *
+   * @example
+   * ```typescript
+   * form.$unsafe(OpportunityFields.VslBeauftragung)?.setValue(closeDate);
+   * ```
    */
   $unsafe(name: string): Xrm.Attributes.Attribute | null;
 };
@@ -155,8 +174,13 @@ export function typedForm<TForm>(
         return (formContext as unknown as Record<symbol, unknown>)[prop];
       }
       if (prop === '$context') return formContext;
-      if (prop === '$control') {
-        return (name: string) => formContext.getControl(name);
+      if (prop === 'controls') {
+        return new Proxy({} as Record<string, Xrm.Controls.Control>, {
+          get(_, controlName) {
+            if (typeof controlName !== 'string') return undefined;
+            return formContext.getControl(controlName);
+          },
+        });
       }
       if (prop === '$unsafe') {
         return (name: string) => formContext.getAttribute(name);
@@ -174,7 +198,7 @@ export function typedForm<TForm>(
 
     has(_target, prop) {
       if (typeof prop !== 'string') return false;
-      if (prop === '$context' || prop === '$control' || prop === '$unsafe') return true;
+      if (prop === '$context' || prop === 'controls' || prop === '$unsafe') return true;
       return formContext.getAttribute(prop) !== null;
     },
   });

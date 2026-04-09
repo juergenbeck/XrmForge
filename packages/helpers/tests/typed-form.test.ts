@@ -141,21 +141,21 @@ describe('typedForm - $context', () => {
   });
 });
 
-describe('typedForm - $control', () => {
-  it('should access control by field name', () => {
+describe('typedForm - controls proxy', () => {
+  it('should access control by field name via controls proxy', () => {
     const fc = createMockFormContext();
     const form = typedForm<TestForm>(fc);
 
-    const ctrl = form.$control('name');
+    const ctrl = form.controls.name;
     expect(ctrl).toBeDefined();
   });
 
-  it('should disable a control via $control', () => {
+  it('should disable a control via controls proxy', () => {
     const fc = createMockFormContext();
     const form = typedForm<TestForm>(fc);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock control has setDisabled
-    const ctrl = form.$control('name') as any;
+    const ctrl = form.controls.name as any;
     ctrl.setDisabled(true);
     expect(ctrl.getDisabled()).toBe(true);
   });
@@ -220,7 +220,7 @@ describe('typedForm - has trap', () => {
     const form = typedForm<TestForm>(fc);
 
     expect('$context' in form).toBe(true);
-    expect('$control' in form).toBe(true);
+    expect('controls' in form).toBe(true);
   });
 
   it('should return false for non-existing fields', () => {

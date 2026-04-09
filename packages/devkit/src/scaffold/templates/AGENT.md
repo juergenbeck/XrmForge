@@ -73,10 +73,10 @@ export const onLoad = wrapHandler('LM.Account.onLoad', logger, (ctx) => {
   form.name.addOnChange(() => { logger.debug('Name changed'); });
   form.revenue.addOnChange(() => { recalculate(form); });
 
-  // Control access (typed from ControlMap, no cast needed)
-  form.$control(Fields.Name).setDisabled(true);
-  form.$control(Fields.CustomerId).setEntityTypes([EntityNames.Account]);  // LookupControl methods directly available
-  form.$control(Fields.Revenue).setVisible(false);  // NumberControl
+  // Control access via controls proxy (typed from ControlMap, no cast needed)
+  form.controls.name.setDisabled(true);
+  form.controls.customerid.setEntityTypes([EntityNames.Account]);  // LookupControl
+  form.controls.revenue.setVisible(false);                          // NumberControl
 
   // Full FormContext for ui, data, tabs
   form.$context.ui.setFormNotification('OK', FormNotificationLevel.Info, 'id');
@@ -89,7 +89,7 @@ export const onLoad = wrapHandler('LM.Account.onLoad', logger, (ctx) => {
 - `setRequiredLevel()`, `setSubmitMode()` (attribute-level settings)
 - Any attribute method: the proxy returns the full typed Attribute object
 
-**Use `form.$control(Fields.X)` for control-level operations:**
+**Use `form.controls.fieldname` for control-level operations:**
 - `setDisabled()`, `setVisible()`, `setLabel()`
 - `addPreSearch()` (on LookupControl)
 - `setNotification()`, `clearNotification()`
@@ -379,7 +379,7 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 - Never unlokalized UI strings (use `pickLang()` from constants.ts)
 - Never build your own getValue/setFieldValue/setDisabled/addOnChange helpers (use `typedForm` + native Xrm API)
 - Never `import ... from '@xrmforge/typegen'` in browser code (use `@xrmforge/helpers`)
-- Never `as Xrm.Controls.LookupControl` or similar control casts (`form.$control(Fields.X)` returns the typed control from ControlMap)
+- Never `as Xrm.Controls.LookupControl` or similar control casts (`form.controls.fieldname` returns the typed control from ControlMap)
 - Never `as any` without eslint-disable comment explaining why
 - Never untyped `catch (error)` (always `catch (error: unknown)`)
 
@@ -559,7 +559,7 @@ each attribute to its control. `mock.getControl(Fields.Name)` works out of the b
 | Legacy Pattern | XrmForge Replacement |
 |---|---|
 | `getAttribute("name")` | `form.name` (via typedForm) |
-| `getControl("name")` | `form.$control(Fields.Name)` |
+| `getControl("name")` | `form.controls.name` |
 | `Xrm.Page.getAttribute(...)` | `form.fieldname` (via typedForm) |
 | `var formContext` (global) | `const form = typedForm<MyForm>(ctx.getFormContext())` |
 | `function form_OnLoad(ctx)` | `export const onLoad = wrapHandler(...)` |
@@ -581,11 +581,11 @@ Never recreate them. Use the typed API directly.
 |---|---|
 | `GetValue(fieldName)` | `form.fieldname.getValue()` (typed via typedForm) |
 | `SetValue(fieldName, value)` | `form.fieldname.setValue(value)` (typed via typedForm) |
-| `SetDisabled(attributeName, disabled)` | `form.$control(Fields.X).setDisabled(disabled)` |
-| `SetVisible(attributeName, visible)` | `form.$control(Fields.X).setVisible(visible)` |
+| `SetDisabled(attributeName, disabled)` | `form.controls.fieldname.setDisabled(disabled)` |
+| `SetVisible(attributeName, visible)` | `form.controls.fieldname.setVisible(visible)` |
 | `SetRequiredLevel(attributeName, level)` | `form.$context.getAttribute(Fields.X).setRequiredLevel(RequiredLevel.Required)` |
 | `AddOnChange(attributeName, callback)` | `form.$context.getAttribute(Fields.X).addOnChange(cb)` |
-| `AddPreSearch(controlName, callback)` | `(form.$control(Fields.X) as Xrm.Controls.LookupControl).addPreSearch(cb)` |
+| `AddPreSearch(controlName, callback)` | `form.controls.fieldname.addPreSearch(cb)` (typed as LookupControl from ControlMap) |
 | `GetLookupValueId(fieldName)` | `formLookupId(form.fieldname)` |
 | `SetLookupValue(field, id, type, name)` | `form.fieldname.setValue([{ id, entityType, name }])` |
 | `GetId()` | `form.$context.data.entity.getId()` |
