@@ -1,5 +1,11 @@
 # @xrmforge/devkit
 
+## 0.7.4
+
+### Patch Changes
+
+- validate-form.mjs: 17 checks (new: FormContext cast detection, raw $filter field names)
+
 ## 0.7.3
 
 ### Patch Changes
