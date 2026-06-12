@@ -157,4 +157,6 @@ export type {
   EntityGenerationResult,
   GeneratedFile,
   CacheStats,
+  CheckResult,
+  CheckFinding,
 } from './orchestrator/index.js';

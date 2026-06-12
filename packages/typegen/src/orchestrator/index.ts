@@ -5,4 +5,6 @@ export type {
   EntityGenerationResult,
   GeneratedFile,
   CacheStats,
+  CheckResult,
+  CheckFinding,
 } from './types.js';

@@ -25,13 +25,14 @@ import { generateEntityFieldsEnum, generateEntityNavigationProperties } from '..
 import { generateEntityNamesEnum } from '../generators/entity-names-generator.js';
 import { generateActivityPartyInterface } from '../generators/activity-party.js';
 import { isPartyListType } from '../generators/type-mapping.js';
-import { addGeneratedHeader, writeAllFiles, generateBarrelIndex, deleteOrphanedFiles } from './file-writer.js';
+import { addGeneratedHeader, writeAllFiles, generateBarrelIndex, deleteOrphanedFiles, checkAllFiles } from './file-writer.js';
 import type {
   GenerateConfig,
   GenerationResult,
   EntityGenerationResult,
   GeneratedFile,
   CacheStats,
+  CheckResult,
 } from './types.js';
 
 /**
@@ -72,6 +73,7 @@ export class TypeGenerationOrchestrator {
       useCache: config.useCache ?? false,
       cacheDir: config.cacheDir ?? '.xrmforge/cache',
       namespacePrefix: config.namespacePrefix ?? 'XrmForge',
+      checkOnly: config.checkOnly ?? false,
     };
   }
 
@@ -94,10 +96,18 @@ export class TypeGenerationOrchestrator {
       return { entities: [], totalFiles: 0, totalWarnings: 0, durationMs: 0 };
     }
 
-    this.logger.info('Starting type generation', {
+    // Check mode is strictly read-only and always runs against live metadata:
+    // a stale local cache would mask exactly the drift the check should find.
+    const checkOnly = this.config.checkOnly;
+    const useCache = this.config.useCache && !checkOnly;
+    if (this.config.useCache && checkOnly) {
+      this.logger.warn('Check mode ignores the metadata cache (drift check must run against live metadata)');
+    }
+
+    this.logger.info(checkOnly ? 'Starting drift check (read-only)' : 'Starting type generation', {
       entities: this.config.entities,
       outputDir: this.config.outputDir,
-      useCache: this.config.useCache,
+      useCache,
     });
 
     // 1. Create HTTP client and metadata client
@@ -136,7 +146,7 @@ export class TypeGenerationOrchestrator {
     let newVersionStamp: string | null = null;
     const deletedEntityNames: string[] = [];
 
-    if (this.config.useCache) {
+    if (useCache) {
       const cacheResult = await this.resolveCache(httpClient, entitiesToFetch);
       cache = cacheResult.cache;
       newVersionStamp = cacheResult.newVersionStamp;
@@ -260,20 +270,39 @@ export class TypeGenerationOrchestrator {
       allFiles.push(indexFile);
     }
 
-    // 5. Write all files to disk (non-fatal: file write errors become warnings)
-    const writeResult = await writeAllFiles(this.config.outputDir, allFiles);
+    // 5. Check mode: compare against disk (read-only). Otherwise: write to disk.
+    let checkResult: CheckResult | undefined;
+    let writeResult = { written: 0, unchanged: 0, warnings: [] as string[] };
 
-    // 5b. Delete orphaned .d.ts files for deleted entities
-    if (deletedEntityNames.length > 0) {
-      const deleted = await deleteOrphanedFiles(this.config.outputDir, deletedEntityNames);
-      if (deleted > 0) {
-        this.logger.info(`Deleted ${deleted} orphaned files for removed entities`);
+    if (checkOnly) {
+      // Only meaningful when the generation is complete: a partial run
+      // (fetch failures, abort) would report misleading missing/orphaned files.
+      if (failedEntities.size === 0 && !signal?.aborted) {
+        checkResult = await checkAllFiles(this.config.outputDir, allFiles);
+        this.logger.info(
+          checkResult.drift
+            ? `Drift detected: ${checkResult.findings.length} finding(s), ${checkResult.unchanged} files unchanged`
+            : `No drift: ${checkResult.unchanged} files unchanged`,
+        );
+      } else {
+        this.logger.warn('Drift check skipped: generation incomplete (fetch failures or abort)');
       }
-    }
+    } else {
+      // Write all files to disk (non-fatal: file write errors become warnings)
+      writeResult = await writeAllFiles(this.config.outputDir, allFiles);
 
-    // 6. Update cache with new data
-    if (this.config.useCache && cache) {
-      await this.updateCache(cache, cachedEntityInfos, deletedEntityNames, newVersionStamp);
+      // 5b. Delete orphaned .d.ts files for deleted entities
+      if (deletedEntityNames.length > 0) {
+        const deleted = await deleteOrphanedFiles(this.config.outputDir, deletedEntityNames);
+        if (deleted > 0) {
+          this.logger.info(`Deleted ${deleted} orphaned files for removed entities`);
+        }
+      }
+
+      // 6. Update cache with new data
+      if (useCache && cache) {
+        await this.updateCache(cache, cachedEntityInfos, deletedEntityNames, newVersionStamp);
+      }
     }
 
     const durationMs = Date.now() - startTime;
@@ -284,7 +313,7 @@ export class TypeGenerationOrchestrator {
       this.logger.warn(w);
     }
 
-    this.logger.info('Type generation complete', {
+    this.logger.info(checkOnly ? 'Drift check complete' : 'Type generation complete', {
       entities: entityResults.length,
       filesWritten: writeResult.written,
       filesUnchanged: writeResult.unchanged,
@@ -300,6 +329,7 @@ export class TypeGenerationOrchestrator {
       totalWarnings,
       durationMs,
       cacheStats,
+      checkResult,
     };
   }
 

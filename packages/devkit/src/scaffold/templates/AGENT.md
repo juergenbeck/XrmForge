@@ -668,6 +668,22 @@ npx xrmforge build               # IIFE bundles for D365
 npx xrmforge build --watch        # Watch mode (~10ms rebuilds)
 ```
 
+## Drift Check (generated/ vs. live environment)
+
+`generated/` is a snapshot of the Dataverse environment. When the environment
+changes after generation, the snapshot silently drifts (compiles fine, fails at
+runtime with cryptic OData errors). Use the drift check as a CI step:
+
+```bash
+npx xrmforge generate ... --check   # read-only, writes nothing
+# Exit 0 = up to date, 1 = error, 2 = drift detected (regenerate and commit)
+```
+
+NEVER edit files under `generated/` by hand and NEVER run formatters (Prettier)
+or lint autofixes on them: the drift check compares byte-by-byte and would stay
+permanently red. After a typegen/cli upgrade a drift report is expected:
+regenerate and commit.
+
 ## File Structure
 
 ```

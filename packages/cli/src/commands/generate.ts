@@ -30,7 +30,7 @@ import {
   ConfigError,
   ErrorCode,
 } from '@xrmforge/typegen';
-import type { AuthConfig } from '@xrmforge/typegen';
+import type { AuthConfig, CheckResult, CheckFinding } from '@xrmforge/typegen';
 
 /** CLI options for the generate command (parsed by Commander.js). */
 interface GenerateOptions {
@@ -68,6 +68,8 @@ interface GenerateOptions {
   cache: boolean;
   /** Directory for metadata cache files */
   cacheDir: string;
+  /** Drift check mode: compare against outputDir without writing (exit 0/1/2) */
+  check: boolean;
   /** Whether to enable verbose (debug) logging */
   verbose: boolean;
 }
@@ -116,6 +118,14 @@ export function registerGenerateCommand(program: Command): void {
     .option('--cache', 'Enable metadata cache for incremental generation', false)
     .option('--no-cache', 'Force full metadata refresh (disables cache)')
     .option('--cache-dir <dir>', 'Directory for metadata cache files', '.xrmforge/cache')
+
+    // Drift check
+    .option(
+      '--check',
+      'Drift check: generate in-memory and compare against the output directory without writing anything. ' +
+      'Exit code: 0 = up to date, 1 = error, 2 = drift detected. Intended as a CI step. Ignores --cache.',
+      false,
+    )
 
     // Verbosity
     .option('-v, --verbose', 'Enable verbose logging', false)
@@ -206,7 +216,12 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
   }
   console.log(`Output:      ${opts.output}`);
   console.log(`Languages:   ${primaryLanguage}${secondaryLanguage ? ` + ${secondaryLanguage}` : ''}`);
-  if (opts.cache) {
+  if (opts.check) {
+    console.log(`Mode:        drift check (read-only, nothing will be written)`);
+    if (opts.cache) {
+      console.warn(`Note:        --cache is ignored in check mode (the check must run against live metadata)`);
+    }
+  } else if (opts.cache) {
     console.log(`Cache:       enabled (${opts.cacheDir})`);
   }
   console.log('');
@@ -224,6 +239,7 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
     actionsFilter: opts.actionsFilter,
     useCache: opts.cache,
     cacheDir: opts.cacheDir,
+    checkOnly: opts.check,
   });
 
   // Support Ctrl+C and SIGTERM (R8-07: Docker/K8s sends SIGTERM)
@@ -271,7 +287,59 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
     return;
   }
 
+  // Drift check report (check mode never writes anything)
+  if (opts.check) {
+    if (!result.checkResult) {
+      // Defensive: without a complete generation there is no reliable comparison
+      console.error('\nDrift check could not be completed (generation incomplete).');
+      process.exitCode = 1;
+      return;
+    }
+    printCheckReport(result.checkResult);
+    if (result.checkResult.drift) {
+      process.exitCode = 2;
+    }
+    return;
+  }
+
   console.log(`\nTypes written to: ${opts.output}/`);
+}
+
+/** Display labels per file category, in report order */
+const CHECK_CATEGORY_LABELS: ReadonlyArray<readonly [CheckFinding['type'], string]> = [
+  ['entity', 'Entities'],
+  ['fields', 'Fields'],
+  ['form', 'Forms'],
+  ['optionset', 'OptionSets'],
+  ['action', 'Actions'],
+];
+
+/**
+ * Print the drift check report, grouped by file category.
+ *
+ * Drift classes per file: "changed" (differs from live metadata),
+ * "missing" (not on disk), "orphaned" (no longer generated).
+ */
+function printCheckReport(check: CheckResult): void {
+  console.log('');
+  if (!check.drift) {
+    console.log(`Drift check passed: ${check.unchanged} files up to date.`);
+    return;
+  }
+
+  console.log(`Drift detected: ${check.findings.length} finding(s), ${check.unchanged} files up to date.`);
+  for (const [type, label] of CHECK_CATEGORY_LABELS) {
+    const findings = check.findings.filter((f) => f.type === type);
+    if (findings.length === 0) continue;
+    console.log(`  ${label}:`);
+    for (const finding of findings) {
+      console.log(`    ${finding.status.padEnd(8)} ${finding.relativePath}`);
+    }
+  }
+  console.log('');
+  console.log('The checked-in generated files no longer match the live environment.');
+  console.log('Run "xrmforge generate" (same options, without --check) and commit the result.');
+  console.log('Note: a typegen/cli upgrade also reports drift (newer generator, different output).');
 }
 
 /**

@@ -16,9 +16,9 @@
  *   index.ts              (barrel re-export file)
  */
 
-import { mkdir, writeFile, readFile, unlink } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, unlink, readdir, access } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
-import type { GeneratedFile } from './types.js';
+import type { GeneratedFile, CheckFinding, CheckResult } from './types.js';
 
 /**
  * Write a generated file to disk, creating directories as needed.
@@ -116,6 +116,121 @@ export async function deleteOrphanedFiles(outputDir: string, deletedEntityNames:
   }
 
   return deleted;
+}
+
+// ─── Drift Check (read-only, no write access) ───────────────────────────────
+
+/** Subdirectories that contain generated files (orphan detection scope) */
+const GENERATED_SUBDIRS = ['entities', 'optionsets', 'forms', 'fields', 'actions', 'functions'];
+
+/** Root-level files the generator may produce (orphan detection scope) */
+const GENERATED_ROOT_FILES = ['entity-names.ts', 'form-mapping.json', 'index.ts'];
+
+/** Map a relative path to its GeneratedFile category (for orphaned files) */
+function typeFromRelativePath(relativePath: string): GeneratedFile['type'] {
+  if (relativePath.startsWith('optionsets/')) return 'optionset';
+  if (relativePath.startsWith('forms/')) return 'form';
+  if (relativePath.startsWith('fields/')) return 'fields';
+  if (relativePath.startsWith('actions/') || relativePath.startsWith('functions/')) return 'action';
+  return 'entity'; // entities/ and root files (entity-names.ts, form-mapping.json, index.ts)
+}
+
+/**
+ * Compare a generated file against the file on disk (byte comparison).
+ * Read-only: never writes.
+ *
+ * @returns "unchanged" (identical), "changed" (differs), or "missing" (not on disk)
+ * @throws on IO errors other than ENOENT (a check must not mask read errors)
+ */
+export async function checkGeneratedFile(
+  outputDir: string,
+  file: GeneratedFile,
+): Promise<'unchanged' | 'changed' | 'missing'> {
+  const absolutePath = join(outputDir, file.relativePath);
+  try {
+    const existing = await readFile(absolutePath, 'utf-8');
+    return existing === file.content ? 'unchanged' : 'changed';
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return 'missing';
+    }
+    throw error;
+  }
+}
+
+/**
+ * Find files on disk that the generator no longer produces (orphans).
+ * Scans only the known generated locations (entities/, optionsets/, forms/,
+ * fields/, actions/, functions/ plus the known root files), so user files
+ * outside these locations are never reported.
+ *
+ * @param outputDir - Base output directory
+ * @param expectedPaths - Relative paths the current generation produces
+ * @returns Sorted relative paths of orphaned files
+ */
+export async function findOrphanedFiles(
+  outputDir: string,
+  expectedPaths: ReadonlySet<string>,
+): Promise<string[]> {
+  const orphans: string[] = [];
+
+  for (const subdir of GENERATED_SUBDIRS) {
+    let entries;
+    try {
+      entries = await readdir(join(outputDir, subdir), { withFileTypes: true });
+    } catch (error: unknown) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+      throw error;
+    }
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
+      const relativePath = `${subdir}/${entry.name}`;
+      if (!expectedPaths.has(relativePath)) {
+        orphans.push(relativePath);
+      }
+    }
+  }
+
+  for (const rootFile of GENERATED_ROOT_FILES) {
+    if (expectedPaths.has(rootFile)) continue;
+    try {
+      await access(join(outputDir, rootFile));
+      orphans.push(rootFile);
+    } catch {
+      // Not on disk: nothing to report
+    }
+  }
+
+  return orphans.sort();
+}
+
+/**
+ * Run the full drift check: compare every generated file against disk and
+ * detect orphaned files. Read-only, never writes.
+ *
+ * @param outputDir - Base output directory (the checked-in generated files)
+ * @param files - Freshly generated files (in-memory)
+ */
+export async function checkAllFiles(outputDir: string, files: GeneratedFile[]): Promise<CheckResult> {
+  const findings: CheckFinding[] = [];
+  let unchanged = 0;
+
+  for (const file of files) {
+    const status = await checkGeneratedFile(outputDir, file);
+    if (status === 'unchanged') {
+      unchanged++;
+    } else {
+      findings.push({ relativePath: file.relativePath, type: file.type, status });
+    }
+  }
+
+  const expectedPaths = new Set(files.map((f) => f.relativePath));
+  const orphans = await findOrphanedFiles(outputDir, expectedPaths);
+  for (const relativePath of orphans) {
+    findings.push({ relativePath, type: typeFromRelativePath(relativePath), status: 'orphaned' });
+  }
+
+  return { drift: findings.length > 0, unchanged, findings };
 }
 
 /** File header for generated files */

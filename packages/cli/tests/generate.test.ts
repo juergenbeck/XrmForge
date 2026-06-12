@@ -47,6 +47,8 @@ describe('xrmforge CLI', () => {
     expect(result.stdout).toContain('--secondary-language');
     expect(result.stdout).toContain('--no-forms');
     expect(result.stdout).toContain('--no-optionsets');
+    expect(result.stdout).toContain('--check');
+    expect(result.stdout).toContain('Drift check');
   });
 });
 

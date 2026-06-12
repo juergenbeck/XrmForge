@@ -312,11 +312,41 @@ npx xrmforge generate [options]
 | `--cache` | Metadata-Caching aktivieren (inkrementelle Generierung per Delta-Erkennung) | Aus |
 | `--no-cache` | Metadata-Cache explizit deaktivieren (Full Refresh erzwingen) | -- |
 | `--cache-dir <dir>` | Verzeichnis für den Metadata-Cache | `.xrmforge-cache` |
+| `--check` | Drift-Check: Vergleich gegen das Ausgabeverzeichnis ohne zu schreiben. Exit 0 = aktuell, 1 = Fehler, 2 = Drift | Aus |
 | `--no-forms` | Formular-Interface-Generierung überspringen | Formulare aktiv |
 | `--no-optionsets` | OptionSet-Enum-Generierung überspringen | OptionSets aktiv |
 | `-v, --verbose` | Ausführliches/Debug-Logging aktivieren | Aus |
 
 Entweder `--entities` oder `--solutions` muss angegeben werden (oder beides). Bei `--solutions` findet XrmForge alle Entities in diesen Lösungen. Mehrere Lösungen werden zusammengeführt, Duplikate entfernt.
+
+### Drift-Erkennung (`--check`)
+
+Generierte Dateien sind ein Snapshot der Dataverse-Umgebung. Ändert sich die Umgebung danach (Custom-API-Parameter mit anderem Typ neu angelegt, Feld ergänzt, OptionSet-Wert geändert), driften die eingecheckten Dateien still: TypeScript kompiliert weiter, Tests gegen Mocks bleiben grün, und der Fehler erscheint erst zur Laufzeit als kryptischer OData-Fehler.
+
+`xrmforge generate --check` macht diesen Drift sichtbar: Die komplette Generierung läuft in den Speicher und wird Byte für Byte gegen das Ausgabeverzeichnis verglichen, **ohne irgendetwas zu schreiben** (weder Output noch Cache). Der Report ist nach Kategorien gruppiert (Entities, Fields, Forms, OptionSets, Actions) mit einer von drei Drift-Klassen pro Datei: `changed`, `missing` oder `orphaned` (Objekt wurde in Dataverse gelöscht). Auch Hand-Edits an generierten Dateien werden als `changed` erkannt.
+
+Exit-Codes folgen der Konvention von `terraform plan -detailed-exitcode` / `prisma migrate diff --exit-code`:
+
+| Exit-Code | Bedeutung |
+|---|---|
+| `0` | Generierte Dateien sind aktuell |
+| `1` | Fehler (Authentifizierung, Netzwerk, Konfiguration) |
+| `2` | Drift erkannt |
+
+Typischer CI-Schritt (nightly oder pro Pipeline-Lauf):
+
+```bash
+npx xrmforge generate \
+  --url "$XRMFORGE_URL" --auth client-credentials \
+  --tenant-id "$XRMFORGE_TENANT_ID" --client-id "$XRMFORGE_CLIENT_ID" --client-secret "$XRMFORGE_CLIENT_SECRET" \
+  --solutions MeineSolution --actions \
+  --output ./generated --check
+```
+
+Zwei bekannte Fehlalarm-Quellen (beides gewolltes Byte-Vergleichs-Verhalten):
+
+1. **Nach einem typegen/cli-Upgrade** kann der neuere Generator anderen Output erzeugen, ohne dass sich die Umgebung geändert hat. Erwartete Reaktion: regenerieren und committen.
+2. **`generated/` nicht nachbearbeiten**, weder mit Formattern (Prettier) noch mit Lint-Autofixes, und die Zeilenenden unverändert lassen (bei Bedarf `generated/** -text` oder `eol=lf` in `.gitattributes`). Sonst bleibt der Check dauerhaft rot.
 
 ### Authentifizierung
 

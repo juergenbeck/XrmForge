@@ -314,9 +314,39 @@ npx xrmforge generate [options]
 | `--cache` | Enable metadata caching for incremental generation (10x faster) | Off |
 | `--no-cache` | Force full metadata refresh (ignore cache) | -- |
 | `--cache-dir <dir>` | Directory for metadata cache files | `.xrmforge/cache` |
+| `--check` | Drift check: compare against the output directory without writing. Exit 0 = up to date, 1 = error, 2 = drift | Off |
 | `-v, --verbose` | Enable verbose/debug logging | Off |
 
 Either `--entities` or `--solutions` must be specified (or both). When using `--solutions`, XrmForge discovers all entities in those solutions. Multiple solutions are merged, duplicates removed.
+
+### Drift Detection (`--check`)
+
+Generated files are a snapshot of your Dataverse environment. When the environment changes afterwards (a Custom API parameter is recreated with a different type, a field is added, an option set value changes), the checked-in files silently drift: TypeScript still compiles, tests against mocks stay green, and the mismatch only surfaces at runtime as a cryptic OData error.
+
+`xrmforge generate --check` makes that drift visible: it runs the full generation in-memory and compares the result byte-by-byte against the output directory **without writing anything** (no output files, no cache). The report is grouped by category (Entities, Fields, Forms, OptionSets, Actions) with one of three drift classes per file: `changed`, `missing`, or `orphaned` (the object was deleted in Dataverse). Manual edits to generated files are detected as `changed` too.
+
+Exit codes follow the `terraform plan -detailed-exitcode` / `prisma migrate diff --exit-code` convention:
+
+| Exit code | Meaning |
+|---|---|
+| `0` | Generated files are up to date |
+| `1` | Error (authentication, network, configuration) |
+| `2` | Drift detected |
+
+Typical CI step (nightly or per pipeline run):
+
+```bash
+npx xrmforge generate \
+  --url "$XRMFORGE_URL" --auth client-credentials \
+  --tenant-id "$XRMFORGE_TENANT_ID" --client-id "$XRMFORGE_CLIENT_ID" --client-secret "$XRMFORGE_CLIENT_SECRET" \
+  --solutions MySolution --actions \
+  --output ./generated --check
+```
+
+Two known false-alarm sources (both intentional byte-comparison behavior):
+
+1. **After a typegen/cli upgrade**, the newer generator may produce different output without any environment change. Expected reaction: regenerate and commit.
+2. **Do not post-process `generated/`** with formatters (Prettier) or lint autofixes, and keep its line endings as generated (add `generated/** -text` or `eol=lf` to `.gitattributes` if needed). Otherwise the check stays permanently red.
 
 ### Authentication
 
