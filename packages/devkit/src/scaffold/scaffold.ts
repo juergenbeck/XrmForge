@@ -135,9 +135,12 @@ function generatePackageJson(projectName: string): string {
       '@types/xrm': '^9.0.90',
       '@typescript-eslint/eslint-plugin': '^8.0.0',
       '@typescript-eslint/parser': '^8.0.0',
-      '@xrmforge/cli': '^0.4.11',
+      // 0.x caret ranges only allow the same minor: keep these pins on the
+      // current minor of each package, otherwise scaffolded projects install
+      // outdated versions (e.g. helpers ^0.3.0 never resolves to 0.6.x).
+      '@xrmforge/cli': '^0.4.21',
       '@xrmforge/eslint-plugin': '^0.2.1',
-      '@xrmforge/helpers': '^0.3.0',
+      '@xrmforge/helpers': '^0.6.1',
       '@xrmforge/testing': '^0.2.4',
       eslint: '^9.0.0',
       typescript: '^5.7.0',

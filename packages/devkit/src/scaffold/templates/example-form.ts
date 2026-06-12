@@ -17,7 +17,8 @@
 import { createLogger } from '../shared/logger.js';
 import { wrapHandler } from '../shared/error-handler.js';
 import { MESSAGES, pickLang } from '../shared/constants.js';
-import { typedForm, FormNotificationLevel, select, formLookupId } from '@xrmforge/helpers';
+// For Web API queries and lookups also import: select, formLookupId
+import { typedForm, FormNotificationLevel } from '@xrmforge/helpers';
 // TODO: After 'xrmforge generate', replace with your actual imports:
 // import type { ExampleForm } from '../../generated/forms/example.js';
 // import { ExampleFormFieldsEnum as Fields } from '../../generated/forms/example.js';
