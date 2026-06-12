@@ -60,6 +60,19 @@ const FORM_TYPE_MAIN = 2;
 /** Dataverse SolutionComponent type code for Entity */
 const COMPONENT_TYPE_ENTITY = 1;
 
+// ─── Sorting ─────────────────────────────────────────────────────────────────
+
+/**
+ * Ordinal comparator for deterministic ordering by uniquename.
+ * OData returns rows in server order (no $orderby on customapi tables),
+ * which is not guaranteed to be stable. Deterministic output is a
+ * prerequisite for drift detection (generate --check) and keeps
+ * generate diffs free of reordering noise.
+ */
+function byUniqueName(a: { uniquename: string }, b: { uniquename: string }): number {
+  return a.uniquename < b.uniquename ? -1 : a.uniquename > b.uniquename ? 1 : 0;
+}
+
 // ─── Select Constants ────────────────────────────────────────────────────────
 
 const ENTITY_SELECT = 'LogicalName,SchemaName,EntitySetName,DisplayName,PrimaryIdAttribute,PrimaryNameAttribute,OwnershipType,IsCustomEntity,LogicalCollectionName,MetadataId';
@@ -408,6 +421,10 @@ export class MetadataClient {
    * Queries the customapi, customapirequestparameter, and customapiresponseproperty
    * tables and joins them into CustomApiTypeInfo objects.
    *
+   * APIs, request parameters, and response properties are sorted alphabetically
+   * by uniquename (ordinal) so the result is deterministic regardless of
+   * server row order.
+   *
    * @param solutionFilter - Optional: filter by solution unique name
    * @returns Array of complete Custom API definitions
    */
@@ -462,7 +479,7 @@ export class MetadataClient {
       });
     }
 
-    // 5. Build CustomApiTypeInfo objects
+    // 5. Build CustomApiTypeInfo objects (deterministic order, see byUniqueName)
     const result: CustomApiTypeInfo[] = [];
     for (const api of apis.value) {
       result.push({
@@ -474,10 +491,11 @@ export class MetadataClient {
           displayname: api.displayname,
           description: api.description,
         },
-        requestParameters: paramsByApi.get(api.customapiid) ?? [],
-        responseProperties: propsByApi.get(api.customapiid) ?? [],
+        requestParameters: (paramsByApi.get(api.customapiid) ?? []).sort(byUniqueName),
+        responseProperties: (propsByApi.get(api.customapiid) ?? []).sort(byUniqueName),
       });
     }
+    result.sort((a, b) => byUniqueName(a.api, b.api));
 
     log.info(`Loaded ${result.length} Custom APIs with parameters and response properties`);
     return result;

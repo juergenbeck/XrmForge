@@ -567,6 +567,55 @@ describe('MetadataClient.getCustomApis', () => {
     expect(apis[0]!.responseProperties[0]!.uniquename).toBe('Output');
   });
 
+  it('should sort APIs, parameters, and response properties by uniquename regardless of server order', async () => {
+    const mockFetch = vi.fn()
+      // Call 1: customapis (server returns reverse-alphabetical order)
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({
+          value: [
+            { customapiid: 'api-z', uniquename: 'lm_Zeta', bindingtype: 0, isfunction: false, boundentitylogicalname: null, displayname: 'Zeta', description: '' },
+            { customapiid: 'api-a', uniquename: 'lm_Alpha', bindingtype: 0, isfunction: false, boundentitylogicalname: null, displayname: 'Alpha', description: '' },
+          ],
+        }),
+        text: () => Promise.resolve('{}'),
+      })
+      // Call 2: customapirequestparameters (server order follows createdon, not name)
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({
+          value: [
+            { _customapiid_value: 'api-a', uniquename: 'StatusCode', type: 7, isoptional: false, logicalentityname: null, description: '' },
+            { _customapiid_value: 'api-a', uniquename: 'EntityName', type: 10, isoptional: false, logicalentityname: null, description: '' },
+            { _customapiid_value: 'api-a', uniquename: 'StateCode', type: 7, isoptional: false, logicalentityname: null, description: '' },
+          ],
+        }),
+        text: () => Promise.resolve('{}'),
+      })
+      // Call 3: customapiresponseproperties (unsorted server order)
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({
+          value: [
+            { _customapiid_value: 'api-z', uniquename: 'Result', type: 10, logicalentityname: null, description: '' },
+            { _customapiid_value: 'api-z', uniquename: 'IsValid', type: 0, logicalentityname: null, description: '' },
+          ],
+        }),
+        text: () => Promise.resolve('{}'),
+      });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const client = createClient();
+    const apis = await client.getCustomApis();
+
+    // APIs sorted by uniquename
+    expect(apis.map((a) => a.api.uniquename)).toEqual(['lm_Alpha', 'lm_Zeta']);
+    // Request parameters sorted by uniquename (not server/createdon order)
+    expect(apis[0]!.requestParameters.map((p) => p.uniquename)).toEqual(['EntityName', 'StateCode', 'StatusCode']);
+    // Response properties sorted by uniquename
+    expect(apis[1]!.responseProperties.map((p) => p.uniquename)).toEqual(['IsValid', 'Result']);
+  });
+
   it('should return empty array when no Custom APIs exist', async () => {
     const mockFetch = vi.fn()
       .mockResolvedValueOnce({
