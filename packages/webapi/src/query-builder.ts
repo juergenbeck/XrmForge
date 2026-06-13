@@ -7,7 +7,7 @@
  * @example
  * ```typescript
  * import { query } from '@xrmforge/webapi';
- * import AccountFields = XrmForge.Entities.AccountFields;
+ * import { AccountFields } from './generated/fields/account.js';
  *
  * const q = query
  *   .select(AccountFields.AccountName, AccountFields.City)

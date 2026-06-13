@@ -240,9 +240,11 @@ Never build your own ExecuteFunctionCall wrapper. Use the generated executors:
 import { CreateEMailFromInvoice } from '../../generated/actions/global.js';
 import { withProgress } from '@xrmforge/helpers';
 
+// withProgress(message, operation): the operation is a thunk (() => Promise),
+// NOT an already-started promise, and the first argument is the progress message.
 const result = await withProgress(
-  CreateEMailFromInvoice.execute({ InvoiceId: recordId }),
-  { title: 'E-Mail wird erstellt...' }
+  lang.creatingEmail,
+  () => CreateEMailFromInvoice.execute({ InvoiceId: recordId }),
 );
 // result.EmailId is typed as string
 ```
@@ -507,8 +509,8 @@ if (customer) {
 // AFTER:
 import { CancelInvoice } from '../../generated/actions/global.js';
 const result = await withProgress(
-  CancelInvoice.execute({ InvoiceId: id }),
-  { title: 'Rechnung wird storniert...' }
+  lang.cancellingInvoice,
+  () => CancelInvoice.execute({ InvoiceId: id }),
 );
 ```
 

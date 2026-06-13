@@ -8,17 +8,14 @@
  * Input: CustomApiTypeInfo[] (from fixture JSON or live Dataverse query)
  * Output: Grouped by entity (bound) or "global" (unbound)
  *
- * @example Generated output for markant_NormalizePhone (unbound action):
+ * @example Generated output for markant_NormalizePhone (unbound action) in actions/global.ts:
  * ```typescript
- * // global.d.ts
- * declare namespace XrmForge.Actions {
- *   interface NormalizePhoneParams { Input: string; AllowSuspicious?: boolean; }
- *   interface NormalizePhoneResult { Normalized: string; Status: number; Message: string; }
- * }
- *
- * // global.ts
  * import { createUnboundAction } from '@xrmforge/helpers';
- * export const NormalizePhone = createUnboundAction<...>('markant_NormalizePhone', { ... });
+ *
+ * export type NormalizePhoneParams = { Input: string; AllowSuspicious?: boolean; };
+ * export type NormalizePhoneResult = { Normalized: string; Status: number; Message: string; };
+ * export const NormalizePhone =
+ *   createUnboundAction<NormalizePhoneParams, NormalizePhoneResult>('markant_NormalizePhone', { ... });
  * ```
  */
 

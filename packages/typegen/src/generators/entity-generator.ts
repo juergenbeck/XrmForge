@@ -4,14 +4,12 @@
  * Generates TypeScript declaration files (.d.ts) for Dataverse entity interfaces.
  * These interfaces represent the data types returned by the Web API.
  *
- * Output pattern:
+ * Output pattern (flat ES module, one file per entity):
  * ```typescript
- * declare namespace XrmForge.Entities {
- *   interface Account {
- *     accountid: string | null;
- *     name: string | null;
- *     // ...
- *   }
+ * export interface Account {
+ *   accountid: string;
+ *   name: string | null;
+ *   // ...
  * }
  * ```
  */

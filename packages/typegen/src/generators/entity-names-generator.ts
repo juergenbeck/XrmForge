@@ -4,14 +4,12 @@
  * Generates a single const enum with all entity logical names.
  * Eliminates raw strings in Xrm.WebApi calls.
  *
- * Output pattern:
+ * Output pattern (flat ES module):
  * ```typescript
- * declare namespace XrmForge {
- *   const enum EntityNames {
- *     Account = 'account',
- *     Contact = 'contact',
- *     Lead = 'lead',
- *   }
+ * export const enum EntityNames {
+ *   Account = 'account',
+ *   Contact = 'contact',
+ *   Lead = 'lead',
  * }
  * ```
  */

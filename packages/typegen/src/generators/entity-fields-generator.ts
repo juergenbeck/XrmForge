@@ -4,15 +4,13 @@
  * Generates a const enum with ALL entity fields for use with Xrm.WebApi.
  * Unlike form-specific Fields enums, this contains every readable attribute.
  *
- * Output pattern:
+ * Output pattern (flat ES module):
  * ```typescript
- * declare namespace XrmForge.Entities {
- *   const enum AccountFields {
- *     /** Account Name | Firmenname *\/
- *     Name = 'name',
- *     /** Main Phone | Haupttelefon *\/
- *     Telephone1 = 'telephone1',
- *   }
+ * export const enum AccountFields {
+ *   /** Account Name | Firmenname *\/
+ *   Name = 'name',
+ *   /** Main Phone | Haupttelefon *\/
+ *   Telephone1 = 'telephone1',
  * }
  * ```
  */

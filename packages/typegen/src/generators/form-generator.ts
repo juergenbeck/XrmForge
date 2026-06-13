@@ -10,38 +10,37 @@
  * 4. Fields const enum: provides autocomplete with dual-language labels
  * 5. NO fallback getAttribute(name: string): unknown fields are compile errors
  *
- * Output pattern:
+ * Output pattern (flat ES module, one file per entity, all forms combined):
  * ```typescript
- * declare namespace XrmForge.Forms.Account {
- *   type AccountMainFormFields = "name" | "telephone1" | "revenue";
+ * export type AccountMainFormFields = "name" | "telephone1" | "revenue";
  *
- *   type AccountMainFormAttributeMap = {
- *     name: Xrm.Attributes.StringAttribute;
- *     telephone1: Xrm.Attributes.StringAttribute;
- *     revenue: Xrm.Attributes.NumberAttribute;
- *   };
+ * export type AccountMainFormAttributeMap = {
+ *   name: Xrm.Attributes.StringAttribute;
+ *   telephone1: Xrm.Attributes.StringAttribute;
+ *   revenue: Xrm.Attributes.NumberAttribute;
+ * };
  *
- *   type AccountMainFormControlMap = {
- *     name: Xrm.Controls.StringControl;
- *     telephone1: Xrm.Controls.StringControl;
- *     revenue: Xrm.Controls.NumberControl;
- *   };
+ * export type AccountMainFormControlMap = {
+ *   name: Xrm.Controls.StringControl;
+ *   telephone1: Xrm.Controls.StringControl;
+ *   revenue: Xrm.Controls.NumberControl;
+ * };
  *
- *   const enum AccountMainFormFields {
- *     Name = 'name',
- *     Telephone1 = 'telephone1',
- *     Revenue = 'revenue',
- *   }
- *
- *   interface AccountMainForm extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> {
- *     getAttribute<K extends AccountMainFormFields>(name: K): AccountMainFormAttributeMap[K];
- *     getAttribute(index: number): Xrm.Attributes.Attribute;
- *     getAttribute(): Xrm.Attributes.Attribute[];
- *     getControl<K extends AccountMainFormFields>(name: K): AccountMainFormControlMap[K];
- *     getControl(index: number): Xrm.Controls.Control;
- *     getControl(): Xrm.Controls.Control[];
- *   }
+ * export const enum AccountMainFormFieldsEnum {
+ *   Name = 'name',
+ *   Telephone1 = 'telephone1',
+ *   Revenue = 'revenue',
  * }
+ *
+ * export interface AccountMainForm extends Omit<Xrm.FormContext, 'getAttribute' | 'getControl'> {
+ *   getAttribute<K extends AccountMainFormFields>(name: K): AccountMainFormAttributeMap[K];
+ *   getAttribute(index: number): Xrm.Attributes.Attribute;
+ *   getAttribute(): Xrm.Attributes.Attribute[];
+ *   getControl<K extends AccountMainFormFields>(name: K): AccountMainFormControlMap[K];
+ *   getControl(index: number): Xrm.Controls.Control;
+ *   getControl(): Xrm.Controls.Control[];
+ * }
+ * // plus ...FormTabs/...Sections/...FormSubgrids enums, ...FormTypeInfo, ...FormMockValues
  * ```
  */
 

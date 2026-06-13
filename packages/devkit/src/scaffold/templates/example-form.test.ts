@@ -17,18 +17,17 @@ describe('{{namespace}}.Example', () => {
     expect(typeof mod.onSave).toBe('function');
   });
 
-  // TODO: After running 'xrmforge generate', add real form tests:
+  // TODO: After running 'xrmforge generate', add real form tests.
+  // createFormMock<TForm>() takes the generated FORM interface and returns a
+  // FormMock: use mock.asEventContext() for the handler and mock.ui /
+  // mock.getControl() for assertions (plain mocks, not vi.fn() spies).
   //
   // import { createFormMock } from '@xrmforge/testing';
-  // import type { ExampleFormMockValues } from '../../generated/entities/Example.js';
+  // import type { ExampleForm } from '../../generated/forms/example.js';
   //
   // it('should show notification on load', () => {
-  //   const { executionContext, formContext } = createFormMock<ExampleFormMockValues>({
-  //     name: 'Contoso Ltd',
-  //   });
-  //   onLoad(executionContext);
-  //   expect(formContext.ui.setFormNotification).toHaveBeenCalledWith(
-  //     'Form loaded successfully', 'INFO', 'example-load-notification'
-  //   );
+  //   const mock = createFormMock<ExampleForm>({ name: 'Contoso Ltd' });
+  //   onLoad(mock.asEventContext());
+  //   expect(mock.ui.getFormNotification('example-load')?.message).toBe('Form loaded');
   // });
 });

@@ -5,13 +5,11 @@
  * Uses const enum because D365 form scripts have no module system at runtime,
  * so enum values must be inlined at compile time.
  *
- * Output pattern:
+ * Output pattern (flat ES module, all OptionSets of an entity in one file):
  * ```typescript
- * declare namespace XrmForge.OptionSets {
- *   const enum AccountCategoryCode {
- *     PreferredCustomer = 1,
- *     Standard = 2,
- *   }
+ * export const enum AccountCategoryCode {
+ *   PreferredCustomer = 1,
+ *   Standard = 2,
  * }
  * ```
  */
