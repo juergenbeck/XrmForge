@@ -5,7 +5,7 @@
  *
  * This template demonstrates the correct patterns:
  * - typedForm() for direct typed field access
- * - Fields Enum for addOnChange and $control
+ * - Fields Enum for addOnChange via $context, controls proxy for control access
  * - Entity-level Fields for Web API select() queries
  * - wrapHandler for unified error handling
  * - Logger instead of console.log

@@ -130,7 +130,7 @@ describe('typedForm - type inference (single type parameter)', () => {
   });
 });
 
-// ─── $context and $control ───────────────────────────────────────────────────
+// ─── $context and controls proxy ─────────────────────────────────────────────
 
 describe('typedForm - $context', () => {
   it('should provide $context for full FormContext access', () => {
@@ -224,7 +224,7 @@ describe('typedForm - has trap', () => {
     expect('revenue' in form).toBe(true);
   });
 
-  it('should return true for $context and $control', () => {
+  it('should return true for $context and controls', () => {
     const fc = createMockFormContext();
     const form = typedForm<TestForm>(fc);
 

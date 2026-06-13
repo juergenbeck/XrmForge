@@ -139,7 +139,7 @@ function generatePackageJson(projectName: string): string {
       // 0.x caret ranges only allow the same minor: keep these pins on the
       // current minor of each package, otherwise scaffolded projects install
       // outdated versions (e.g. helpers ^0.3.0 never resolves to 0.6.x).
-      '@xrmforge/cli': '^0.5.0',
+      '@xrmforge/cli': '^0.6.0',
       '@xrmforge/eslint-plugin': '^0.3.0',
       '@xrmforge/helpers': '^0.6.1',
       '@xrmforge/testing': '^0.2.4',
