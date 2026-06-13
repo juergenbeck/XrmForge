@@ -1,82 +1,57 @@
 /**
  * Account Form - onLoad Event Handler
  *
- * Demonstrates XrmForge compile-time safety:
- * - Fields enum with autocomplete and dual-language labels
- * - getAttribute returns exact type (StringAttribute, NumberAttribute, etc.)
- * - Unknown field names are compile errors (no fallback signature)
- * - select() helper for type-safe Web API queries
+ * Demonstrates XrmForge compile-time safety with the typedForm() proxy:
+ * - `form.fieldname` returns the exact typed Attribute (no getAttribute chains)
+ * - `form.controls.fieldname` returns the exact typed Control (no casts)
+ * - Unknown field names are compile errors (no string fallback)
  */
 
-// Type alias and Fields enum for convenience
-type AccountForm = XrmForge.Forms.Account.AccountAccountForm;
-import Fields = XrmForge.Forms.Account.AccountAccountFormFieldsEnum;
+import { typedForm } from '@xrmforge/helpers';
+import type { AccountFormTypeInfo } from '../generated/forms/account.js';
 
 /**
  * onLoad handler for the Account main form.
  */
 export function onLoad(executionContext: Xrm.Events.EventContext): void {
-  const formContext = executionContext.getFormContext() as AccountForm;
+  // typedForm<...TypeInfo> uses the generated FormTypeInfo (fields + attribute/
+  // control maps) for reliable extraction. Passing the bare form interface
+  // relies on overload inference that breaks across package boundaries.
+  const form = typedForm<AccountFormTypeInfo>(executionContext.getFormContext());
 
-  // ─── Typed field access via Fields enum ─────────────────────────────
+  // ─── Typed field access via the proxy ───────────────────────────────
 
-  // Autocomplete shows: AccountName, Telephone1, Website, CreditLimit, ...
-  // Hover shows: /** Account Name | Firmenname */
-  const name = formContext.getAttribute(Fields.AccountName);
-  // TypeScript knows: Xrm.Attributes.StringAttribute
+  // Each property is the exact Attribute type, with IDE autocomplete and
+  // dual-language label hovers (from the generated Fields enum).
+  const name = form.name.getValue();                       // string | null            (StringAttribute)
+  const creditLimit = form.creditlimit.getValue();         // number | null            (NumberAttribute)
+  const onHold = form.creditonhold.getValue();             // boolean | null           (BooleanAttribute)
+  const primaryContact = form.primarycontactid.getValue(); // Xrm.LookupValue[] | null (LookupAttribute)
 
-  const phone = formContext.getAttribute(Fields.Telephone1);
-  // TypeScript knows: Xrm.Attributes.StringAttribute
-
-  const creditLimit = formContext.getAttribute(Fields.CreditLimit);
-  // TypeScript knows: Xrm.Attributes.NumberAttribute
-
-  const creditHold = formContext.getAttribute(Fields.CreditHold);
-  // TypeScript knows: Xrm.Attributes.BooleanAttribute
-
-  const primaryContact = formContext.getAttribute(Fields.PrimaryContact);
-  // TypeScript knows: Xrm.Attributes.LookupAttribute
-
-  const industry = formContext.getAttribute(Fields.ZzzNotusedIndustry);
-  // TypeScript knows: Xrm.Attributes.OptionSetAttribute
-
-  // ─── Compile errors for safety ──────────────────────────────────────
-
-  // COMPILE ERROR: "nonexistent_field" is not in AccountAccountFormFields
-  // formContext.getAttribute("nonexistent_field");
-
-  // COMPILE ERROR: "typo_telephon1" is not in AccountAccountFormFields
-  // formContext.getAttribute("typo_telephon1");
-
+  // COMPILE ERROR: "nonexistent" is not a field on AccountForm
+  // form.nonexistent.getValue();
   // COMPILE ERROR: number is not assignable to string | null
-  // name.setValue(123);
+  // form.name.setValue(123);
 
   // ─── Business logic with full type safety ───────────────────────────
 
-  if (creditHold.getValue() === true) {
-    // Lock the credit limit field
-    const creditControl = formContext.getControl(Fields.CreditLimit);
-    // TypeScript knows: Xrm.Controls.NumberControl
-    creditControl.setDisabled(true);
+  // Lock the credit limit field when the account is on hold or over a threshold.
+  if (onHold === true || (creditLimit !== null && creditLimit > 1_000_000)) {
+    // form.controls.creditlimit is typed as NumberControl - no cast needed.
+    form.controls.creditlimit.setDisabled(true);
+  }
 
-    const accountName: string | null = name.getValue();
-    if (accountName) {
-      console.log(`Account "${accountName}" is on credit hold`);
-    }
+  // A typed lookup is just LookupValue[] - no GUID string-munging needed.
+  if (primaryContact && primaryContact.length > 0) {
+    form.controls.primarycontactid.setVisible(true); // LookupControl
   }
 
   // ─── Typed controls ─────────────────────────────────────────────────
 
-  const nameControl = formContext.getControl(Fields.AccountName);
-  // TypeScript knows: Xrm.Controls.StringControl
-  nameControl.setVisible(true);
+  form.controls.name.setVisible(name !== null); // StringControl
 
-  const contactControl = formContext.getControl(Fields.PrimaryContact);
-  // TypeScript knows: Xrm.Controls.LookupControl
-  contactControl.setVisible(true);
+  // ─── Escape hatches ─────────────────────────────────────────────────
 
-  // ─── Escape hatch for dynamic access ────────────────────────────────
-
-  // If you need dynamic field access (rare), cast back to base FormContext:
-  // const dynamic = (formContext as Xrm.FormContext).getAttribute(someVariable);
+  // form.$context exposes the underlying FormContext (ui, data, tabs, ...).
+  // For a field NOT on this form, use form.$unsafe(EntityFields.X) (nullable).
 }

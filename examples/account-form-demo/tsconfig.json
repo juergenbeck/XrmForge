@@ -9,10 +9,14 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": false,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "@xrmforge/helpers": ["../../packages/helpers/src/index.ts"]
+    }
   },
   "include": [
     "src/**/*.ts",
-    "generated/**/*.d.ts"
+    "generated/**/*.ts"
   ]
 }
