@@ -343,10 +343,10 @@ npx xrmforge generate \
   --output ./generated --check
 ```
 
-Zwei bekannte Fehlalarm-Quellen (beides gewolltes Byte-Vergleichs-Verhalten):
+Hinweise zum Byte-Vergleich:
 
 1. **Nach einem typegen/cli-Upgrade** kann der neuere Generator anderen Output erzeugen, ohne dass sich die Umgebung geändert hat. Erwartete Reaktion: regenerieren und committen.
-2. **`generated/` nicht nachbearbeiten**, weder mit Formattern (Prettier) noch mit Lint-Autofixes, und die Zeilenenden unverändert lassen (bei Bedarf `generated/** -text` oder `eol=lf` in `.gitattributes`). Sonst bleibt der Check dauerhaft rot.
+2. **`generated/` nicht nachbearbeiten**, weder mit Formattern (Prettier) noch mit Lint-Autofixes — das ändert Inhalt und wird als echter Drift gemeldet. Zeilenenden sind *kein* Drift: `--check` vergleicht zeilenenden-normalisiert, eine CRLF-Working-Copy (git `core.autocrlf`, Windows-Default) färbt den Check also nicht rot. Gescaffoldete Projekte (`xrmforge init`) bringen zudem eine `.gitattributes` mit, die `generated/**` auf `eol=lf` pinnt (saubere Diffs).
 
 ### Authentifizierung
 

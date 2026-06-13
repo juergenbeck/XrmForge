@@ -343,10 +343,10 @@ npx xrmforge generate \
   --output ./generated --check
 ```
 
-Two known false-alarm sources (both intentional byte-comparison behavior):
+Notes on the byte comparison:
 
 1. **After a typegen/cli upgrade**, the newer generator may produce different output without any environment change. Expected reaction: regenerate and commit.
-2. **Do not post-process `generated/`** with formatters (Prettier) or lint autofixes, and keep its line endings as generated (add `generated/** -text` or `eol=lf` to `.gitattributes` if needed). Otherwise the check stays permanently red.
+2. **Do not post-process `generated/`** with formatters (Prettier) or lint autofixes — that changes content and is reported as real drift. Line endings are *not* drift: `--check` compares with line endings normalized, so a CRLF working copy (git `core.autocrlf`, the Windows default) does not turn the check red. Scaffolded projects (`xrmforge init`) also ship a `.gitattributes` pinning `generated/**` to `eol=lf` for clean diffs.
 
 ### Authentication
 

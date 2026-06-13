@@ -95,6 +95,7 @@ async function generateTemplates(config: ScaffoldConfig): Promise<Array<[string,
     ['xrmforge.config.json', generateXrmForgeConfig(lowerPrefix, namespace)],
     ['vitest.config.ts', await loadTemplate('vitest.config.ts')],
     ['.gitignore', await loadTemplate('gitignore')],
+    ['.gitattributes', generateGitAttributes()],
     ['AGENT.md', await loadTemplate('AGENT.md')],
     ['src/forms/example-form.ts', await loadTemplate('example-form.ts', namespaceVars)],
     ['typings/.gitkeep', ''],
@@ -148,6 +149,31 @@ function generatePackageJson(projectName: string): string {
     },
   };
   return JSON.stringify(pkg, null, 2) + '\n';
+}
+
+/**
+ * Generate .gitattributes content for a scaffolded project.
+ *
+ * Pins generated declarations (and source/config) to LF. typegen writes LF,
+ * but git with core.autocrlf=true (the Windows default) would otherwise check
+ * the files out as CRLF, and `xrmforge generate --check` would report false
+ * drift on every file. Forcing eol=lf keeps the drift gate green on Windows.
+ *
+ * @returns .gitattributes content
+ */
+function generateGitAttributes(): string {
+  return [
+    '# typegen writes LF. Pin generated files to LF so `xrmforge generate --check`',
+    '# stays stable on Windows (git core.autocrlf would otherwise serve CRLF',
+    '# working copies and the byte comparison would report false drift).',
+    'generated/** text eol=lf',
+    '',
+    '# Keep source and config line endings consistent across platforms.',
+    '*.ts   text eol=lf',
+    '*.mjs  text eol=lf',
+    '*.json text eol=lf',
+    '',
+  ].join('\n');
 }
 
 /**

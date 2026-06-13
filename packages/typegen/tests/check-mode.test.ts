@@ -246,6 +246,16 @@ describe('checkGeneratedFile', () => {
     await fs.writeFile(path.join(tmpDir, 'entities', 'account.ts'), 'content-b', 'utf-8');
     expect(await checkGeneratedFile(tmpDir, file)).toBe('changed');
   });
+
+  it('should treat a CRLF working copy as unchanged (Windows git autocrlf, no false drift)', async () => {
+    // typegen writes LF; a Windows checkout with core.autocrlf=true serves CRLF.
+    // A pure line-ending difference must NOT be reported as drift.
+    const file = { relativePath: 'entities/account.ts', content: 'line one\nline two\n', type: 'entity' as const };
+    await fs.mkdir(path.join(tmpDir, 'entities'), { recursive: true });
+    await fs.writeFile(path.join(tmpDir, 'entities', 'account.ts'), 'line one\r\nline two\r\n', 'utf-8');
+
+    expect(await checkGeneratedFile(tmpDir, file)).toBe('unchanged');
+  });
 });
 
 describe('findOrphanedFiles', () => {

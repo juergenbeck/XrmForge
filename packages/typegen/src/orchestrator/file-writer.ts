@@ -21,6 +21,22 @@ import { join, dirname } from 'node:path';
 import type { GeneratedFile, CheckFinding, CheckResult } from './types.js';
 
 /**
+ * Normalize line endings to LF before comparing file content.
+ *
+ * typegen always writes LF, but a checked-in generated file often has CRLF in
+ * the working copy: git with `core.autocrlf=true` (the Windows default) checks
+ * a LF-stored blob out as CRLF unless a `.gitattributes` forces `eol=lf`.
+ * A pure CRLF-vs-LF difference is not drift, so both the write-skip check and
+ * `generate --check` normalize line endings first. Without this, `--check`
+ * reports every file as `changed` on a normal Windows checkout (false red CI),
+ * which would make the drift gate unusable there. Genuine content changes
+ * (added/removed lines, reordering, formatter runs) are still detected.
+ */
+function normalizeLineEndings(content: string): string {
+  return content.replace(/\r\n?/g, '\n');
+}
+
+/**
  * Write a generated file to disk, creating directories as needed.
  *
  * @param outputDir - Base output directory
@@ -33,8 +49,8 @@ export async function writeGeneratedFile(outputDir: string, file: GeneratedFile)
   // Check if file already exists with same content (avoid unnecessary writes)
   try {
     const existing = await readFile(absolutePath, 'utf-8');
-    if (existing === file.content) {
-      return false; // No change
+    if (normalizeLineEndings(existing) === normalizeLineEndings(file.content)) {
+      return false; // No change (CRLF-only differences are not a change)
     }
   } catch {
     // File doesn't exist yet, proceed with write
@@ -149,7 +165,9 @@ export async function checkGeneratedFile(
   const absolutePath = join(outputDir, file.relativePath);
   try {
     const existing = await readFile(absolutePath, 'utf-8');
-    return existing === file.content ? 'unchanged' : 'changed';
+    return normalizeLineEndings(existing) === normalizeLineEndings(file.content)
+      ? 'unchanged'
+      : 'changed';
   } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return 'missing';
