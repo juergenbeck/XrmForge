@@ -53,16 +53,19 @@ not the logical field name. Always read the generated files to get correct names
 
 ### 1. typedForm() for ALL field access (primary pattern)
 
-Use `typedForm<FormInterface>(formContext)` from `@xrmforge/helpers` to create a
-typed proxy. Access fields as direct properties instead of getAttribute chains.
+Use `typedForm<FormTypeInfo>(formContext)` from `@xrmforge/helpers` to create a
+typed proxy. **Pass the generated `<Form>TypeInfo` type, not the bare form interface:** the
+TypeInfo bundles the field/attribute/control maps so type extraction stays reliable across
+package boundaries (the bare interface resolves to `never` in consumer projects). Access
+fields as direct properties instead of getAttribute chains.
 
 ```typescript
 import { typedForm } from '@xrmforge/helpers';
-import type { AccountLMFirmaForm } from '../../generated/forms/account.js';
+import type { AccountLMFirmaFormTypeInfo } from '../../generated/forms/account.js';
 import { AccountLMFirmaFormFieldsEnum as Fields } from '../../generated/forms/account.js';
 
 export const onLoad = wrapHandler('LM.Account.onLoad', logger, (ctx) => {
-  const form = typedForm<AccountLMFirmaForm>(ctx.getFormContext());
+  const form = typedForm<AccountLMFirmaFormTypeInfo>(ctx.getFormContext());
 
   // Direct field access - fully typed, IDE autocomplete works
   const name = form.name.getValue();              // string | null
@@ -227,7 +230,7 @@ result.name  // typed as string | null, no cast needed
 
 ```typescript
 export const onLoad = wrapHandler('Namespace.Entity.onLoad', logger, async (ctx) => {
-  const form = typedForm<MyForm>(ctx.getFormContext());
+  const form = typedForm<MyFormTypeInfo>(ctx.getFormContext());
   // ...
 });
 ```
@@ -391,7 +394,7 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 Copy these MANDATORY rules into every sub-agent prompt:
 
 ```
-1. typedForm<FormType>(ctx.getFormContext()) for ALL field access
+1. typedForm<MyFormTypeInfo>(ctx.getFormContext()) for ALL field access (generated TypeInfo, NOT the bare form interface)
 2. Entity-level Fields Enums in ALL select(), $filter, $expand, $orderby, FetchXML attribute=
 3. OptionSet Enum for ALL value comparisons AND FetchXML <value> (never magic numbers)
 4. EntityNames for ALL Xrm.WebApi calls AND openForm (never raw entity names)
@@ -442,7 +445,7 @@ formContext.getAttribute("name").getValue()
 // BEFORE (getAttribute + Fields):
 form.getAttribute(Fields.Name).getValue()
 // AFTER (typedForm - preferred):
-const form = typedForm<AccountForm>(ctx.getFormContext());
+const form = typedForm<AccountFormTypeInfo>(ctx.getFormContext());
 form.name.getValue()
 ```
 
@@ -564,7 +567,7 @@ each attribute to its control. `mock.getControl(Fields.Name)` works out of the b
 | `getAttribute("name")` | `form.name` (via typedForm) |
 | `getControl("name")` | `form.controls.name` |
 | `Xrm.Page.getAttribute(...)` | `form.fieldname` (via typedForm) |
-| `var formContext` (global) | `const form = typedForm<MyForm>(ctx.getFormContext())` |
+| `var formContext` (global) | `const form = typedForm<MyFormTypeInfo>(ctx.getFormContext())` |
 | `function form_OnLoad(ctx)` | `export const onLoad = wrapHandler(...)` |
 | `Xrm.WebApi.retrieveRecord("account", id)` | `Xrm.WebApi.retrieveRecord(EntityNames.Account, id)` |
 | `"?$select=name,revenue"` | `select(AccountFields.Name, AccountFields.Revenue)` |
