@@ -23,11 +23,14 @@ import noSyncWebapi from './rules/no-sync-webapi.js';
 import requireErrorHandling from './rules/require-error-handling.js';
 import requireNamespace from './rules/require-namespace.js';
 import noTypegenImport from './rules/no-typegen-import.js';
+import noRawFieldStrings from './rules/no-raw-field-strings.js';
+import noRawEntityNames from './rules/no-raw-entity-names.js';
+import noRawSelect from './rules/no-raw-select.js';
 
 const plugin = {
   meta: {
     name: '@xrmforge/eslint-plugin',
-    version: '0.2.1',
+    version: '0.3.0',
   },
 
   rules: {
@@ -37,6 +40,9 @@ const plugin = {
     'require-error-handling': requireErrorHandling,
     'require-namespace': requireNamespace,
     'no-typegen-import': noTypegenImport,
+    'no-raw-field-strings': noRawFieldStrings,
+    'no-raw-entity-names': noRawEntityNames,
+    'no-raw-select': noRawSelect,
   },
 
   configs: {} as Record<string, unknown>,
@@ -54,8 +60,21 @@ plugin.configs['recommended'] = {
     '@xrmforge/require-error-handling': 'warn',
     '@xrmforge/require-namespace': 'warn',
     '@xrmforge/no-typegen-import': 'error',
+    '@xrmforge/no-raw-field-strings': 'error',
+    '@xrmforge/no-raw-entity-names': 'error',
+    '@xrmforge/no-raw-select': 'error',
   },
 };
 
 export default plugin;
-export { noXrmPage, noMagicOptionSet, noSyncWebapi, requireErrorHandling, requireNamespace, noTypegenImport };
+export {
+  noXrmPage,
+  noMagicOptionSet,
+  noSyncWebapi,
+  requireErrorHandling,
+  requireNamespace,
+  noTypegenImport,
+  noRawFieldStrings,
+  noRawEntityNames,
+  noRawSelect,
+};

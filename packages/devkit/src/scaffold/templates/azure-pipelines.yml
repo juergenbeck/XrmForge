@@ -15,12 +15,22 @@ steps:
   - script: npm ci
     displayName: 'Install dependencies'
 
-  - script: npx xrmforge generate --from-config
+  # Connection + auth come from the pipeline variables below. Entity scope
+  # (--entities or --solutions) and --output belong in xrmforge.config.json.
+  # See "npx xrmforge generate --help" for all options (--actions, labels, ...).
+  - script: >
+      npx xrmforge generate
+      --url "$XRMFORGE_URL"
+      --auth client-credentials
+      --tenant-id "$XRMFORGE_TENANT_ID"
+      --client-id "$XRMFORGE_CLIENT_ID"
+      --client-secret "$XRMFORGE_CLIENT_SECRET"
     displayName: 'Generate types from Dataverse'
     env:
+      XRMFORGE_URL: $(XRMFORGE_URL)
+      XRMFORGE_TENANT_ID: $(XRMFORGE_TENANT_ID)
       XRMFORGE_CLIENT_ID: $(XRMFORGE_CLIENT_ID)
       XRMFORGE_CLIENT_SECRET: $(XRMFORGE_CLIENT_SECRET)
-      XRMFORGE_TENANT_ID: $(XRMFORGE_TENANT_ID)
 
   - script: npx tsc --noEmit
     displayName: 'Type check'

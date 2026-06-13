@@ -140,7 +140,7 @@ function generatePackageJson(projectName: string): string {
       // current minor of each package, otherwise scaffolded projects install
       // outdated versions (e.g. helpers ^0.3.0 never resolves to 0.6.x).
       '@xrmforge/cli': '^0.5.0',
-      '@xrmforge/eslint-plugin': '^0.2.1',
+      '@xrmforge/eslint-plugin': '^0.3.0',
       '@xrmforge/helpers': '^0.6.1',
       '@xrmforge/testing': '^0.2.4',
       eslint: '^9.0.0',

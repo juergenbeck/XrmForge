@@ -208,15 +208,123 @@ describe('plugin', () => {
     expect(plugin.rules['require-error-handling']).toBeDefined();
     expect(plugin.rules['require-namespace']).toBeDefined();
     expect(plugin.rules['no-typegen-import']).toBeDefined();
+    expect(plugin.rules['no-raw-field-strings']).toBeDefined();
+    expect(plugin.rules['no-raw-entity-names']).toBeDefined();
+    expect(plugin.rules['no-raw-select']).toBeDefined();
   });
 
   it('should export recommended config', () => {
     expect(plugin.configs['recommended']).toBeDefined();
   });
 
+  it('should include the no-raw rules in recommended as error', () => {
+    const recommended = plugin.configs['recommended'] as { rules: Record<string, string> };
+    expect(recommended.rules['@xrmforge/no-raw-field-strings']).toBe('error');
+    expect(recommended.rules['@xrmforge/no-raw-entity-names']).toBe('error');
+    expect(recommended.rules['@xrmforge/no-raw-select']).toBe('error');
+  });
+
   it('should have meta with name and version', () => {
     expect(plugin.meta.name).toBe('@xrmforge/eslint-plugin');
-    expect(plugin.meta.version).toBe('0.2.1');
+    expect(plugin.meta.version).toBe('0.3.0');
+  });
+});
+
+// ─── no-raw-field-strings ───────────────────────────────────────────────────
+
+describe('no-raw-field-strings', () => {
+  const rules = { '@xrmforge/no-raw-field-strings': 'error' as const };
+
+  it('should report raw string in getAttribute()', () => {
+    const messages = lint('form.getAttribute("name");', rules);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]!.messageId).toBe('noRawField');
+  });
+
+  it('should report raw string in getControl()', () => {
+    const messages = lint('formContext.getControl("revenue");', rules);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]!.messageId).toBe('noRawField');
+  });
+
+  it('should not report Fields enum in getAttribute()', () => {
+    const messages = lint('form.getAttribute(Fields.Name);', rules);
+    expect(messages).toHaveLength(0);
+  });
+
+  it('should not report a variable in getControl()', () => {
+    const messages = lint('form.getControl(fieldName);', rules);
+    expect(messages).toHaveLength(0);
+  });
+
+  it('should not report getAttribute() with no argument (collection overload)', () => {
+    const messages = lint('const all = form.getAttribute();', rules);
+    expect(messages).toHaveLength(0);
+  });
+});
+
+// ─── no-raw-entity-names ────────────────────────────────────────────────────
+
+describe('no-raw-entity-names', () => {
+  const rules = { '@xrmforge/no-raw-entity-names': 'error' as const };
+
+  it('should report raw entity name in retrieveRecord()', () => {
+    const messages = lint('Xrm.WebApi.retrieveRecord("account", id);', rules);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]!.messageId).toBe('noRawEntity');
+  });
+
+  it('should report raw entity name in retrieveMultipleRecords()', () => {
+    const messages = lint('Xrm.WebApi.retrieveMultipleRecords("contact", query);', rules);
+    expect(messages).toHaveLength(1);
+  });
+
+  it('should report raw entity name in openForm({ entityName })', () => {
+    const messages = lint('Xrm.Navigation.openForm({ entityName: "account", entityId: id });', rules);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]!.messageId).toBe('noRawEntity');
+  });
+
+  it('should not report EntityNames enum in retrieveRecord()', () => {
+    const messages = lint('Xrm.WebApi.retrieveRecord(EntityNames.Account, id);', rules);
+    expect(messages).toHaveLength(0);
+  });
+
+  it('should not report EntityNames enum in openForm()', () => {
+    const messages = lint('Xrm.Navigation.openForm({ entityName: EntityNames.Account });', rules);
+    expect(messages).toHaveLength(0);
+  });
+});
+
+// ─── no-raw-select ──────────────────────────────────────────────────────────
+
+describe('no-raw-select', () => {
+  const rules = { '@xrmforge/no-raw-select': 'error' as const };
+
+  it('should report raw strings in variadic select()', () => {
+    const messages = lint('select("name", "revenue");', rules);
+    expect(messages).toHaveLength(2);
+    expect(messages[0]!.messageId).toBe('noRawSelect');
+  });
+
+  it('should report raw strings in array select()', () => {
+    const messages = lint('select(["name", "revenue"]);', rules);
+    expect(messages).toHaveLength(2);
+  });
+
+  it('should report raw field array in selectExpand()', () => {
+    const messages = lint('selectExpand(["name"], "primarycontactid($select=fullname)");', rules);
+    expect(messages).toHaveLength(1);
+  });
+
+  it('should not report Fields enum in select()', () => {
+    const messages = lint('select(AccountFields.Name, AccountFields.Revenue);', rules);
+    expect(messages).toHaveLength(0);
+  });
+
+  it('should not report the expand clause (second selectExpand arg)', () => {
+    const messages = lint('selectExpand([AccountFields.Name], "primarycontactid($select=fullname)");', rules);
+    expect(messages).toHaveLength(0);
   });
 });
 

@@ -47,8 +47,8 @@ check "Raw entity names in WebApi calls (must use EntityNames)" \
 check "Raw \$select strings (must use select() from @xrmforge/helpers)" \
   bash -c 'grep -rn '"'"'\$select'"'"' src/ --include="*.ts" | grep -v "select(" | grep -v "generated/"'
 
-check "Missing FormContext cast in onLoad (must have 'as <Generated>Form')" \
-  bash -c 'grep -rn "getFormContext()" src/forms/ --include="*.ts" | grep -v " as "'
+check "FormContext base cast (use typedForm<Form>() instead of 'as Xrm.FormContext')" \
+  bash -c 'grep -rnE "as (unknown as )?Xrm\.FormContext" src/forms/ --include="*.ts"'
 
 check "Exported handlers without wrapHandler" \
   bash -c 'grep -rn "^export const\|^export async function\|^export function" src/forms/ --include="*.ts" | grep -v "wrapHandler"'
