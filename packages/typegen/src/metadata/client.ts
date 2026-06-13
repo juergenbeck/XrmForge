@@ -186,29 +186,28 @@ export class MetadataClient {
   // ─── Form Metadata ────────────────────────────────────────────────────
 
   /**
-   * Get and parse the form types relevant for type generation:
-   * - Main forms (type=2): all of them
-   * - Quick Create forms (type=7): only ACTIVE ones (formactivationstate=1),
-   *   because inactive quick-create forms are common leftovers that no app uses.
+   * Get and parse the form types relevant for type generation (Main type=2 and
+   * Quick Create type=7), restricted to ACTIVE forms (formactivationstate=1).
+   * Inactive forms are leftovers that no app surfaces, so they get no interface -
+   * this applies to both Main and Quick Create forms.
    *
    * Returns parsed form structures with tabs, sections, controls, and the form type.
-   * Main forms are intentionally NOT filtered by activation state (unchanged behavior).
    */
   async getForms(logicalName: string): Promise<ParsedForm[]> {
     const safeName = DataverseHttpClient.sanitizeIdentifier(logicalName);
 
-    log.info(`Fetching Main + Quick Create forms for: ${safeName}`);
+    log.info(`Fetching active Main + Quick Create forms for: ${safeName}`);
 
     const forms = await this.http.getAll<SystemFormMetadata>(
       `/systemforms?$filter=objecttypecode eq '${safeName}' and ` +
-        `(type eq ${FORM_TYPE_MAIN} or ` +
-        `(type eq ${FORM_TYPE_QUICK_CREATE} and formactivationstate eq ${FORM_ACTIVATION_ACTIVE}))` +
+        `(type eq ${FORM_TYPE_MAIN} or type eq ${FORM_TYPE_QUICK_CREATE}) and ` +
+        `formactivationstate eq ${FORM_ACTIVATION_ACTIVE}` +
         `&$select=${FORM_SELECT}`,
     );
 
     const mainCount = forms.filter((f) => f.type === FORM_TYPE_MAIN).length;
     const qcCount = forms.filter((f) => f.type === FORM_TYPE_QUICK_CREATE).length;
-    log.info(`Found ${mainCount} Main + ${qcCount} active Quick Create form(s) for "${safeName}"`);
+    log.info(`Found ${mainCount} Main + ${qcCount} Quick Create active form(s) for "${safeName}"`);
 
     return forms.map((form) => {
       try {

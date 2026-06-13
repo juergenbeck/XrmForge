@@ -239,7 +239,7 @@ describe('MetadataClient.getForms', () => {
     expect(quickCreate!.allControls[0]!.datafieldname).toBe('name');
   });
 
-  it('should query main forms plus only ACTIVE Quick Create forms', async () => {
+  it('should query active Main and Quick Create forms (activation filter applies to both)', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true, status: 200, statusText: 'OK', headers: new Headers(),
       json: () => Promise.resolve({ value: [] }),
@@ -253,7 +253,8 @@ describe('MetadataClient.getForms', () => {
     const url = mockFetch.mock.calls[0]![0] as string;
     expect(url).toContain('type eq 2');
     expect(url).toContain('type eq 7');
-    expect(url).toContain('formactivationstate eq 1');
+    // formactivationstate filter sits outside the type group, so it applies to both
+    expect(url).toContain('(type eq 2 or type eq 7) and formactivationstate eq 1');
   });
 
   it('should handle malformed formxml gracefully', async () => {
