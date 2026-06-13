@@ -55,6 +55,10 @@ export interface XrmForgeConfig {
   forms?: boolean;
   /** Generate OptionSet enums */
   optionsets?: boolean;
+  /** Generate Custom API Action/Function executors */
+  actions?: boolean;
+  /** Only generate Custom APIs whose uniquename starts with this prefix (e.g. "markant_") */
+  actionsFilter?: string;
   /** Enable metadata cache for incremental generation */
   cache?: boolean;
   /** Directory for metadata cache files */
@@ -153,6 +157,14 @@ export function mergeWithCliOptions(
   }
   if (merged['optionsets'] === undefined && config.optionsets !== undefined) {
     merged['optionsets'] = config.optionsets;
+  }
+  if (merged['actions'] === undefined && config.actions !== undefined) {
+    merged['actions'] = config.actions;
+  }
+
+  // Custom API filter (string): CLI takes precedence over config
+  if (!merged['actionsFilter'] && config.actionsFilter) {
+    merged['actionsFilter'] = config.actionsFilter;
   }
 
   // Cache options

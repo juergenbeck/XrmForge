@@ -111,7 +111,10 @@ export function registerGenerateCommand(program: Command): void {
     // Feature toggles
     .option('--no-forms', 'Skip form interface generation')
     .option('--no-optionsets', 'Skip OptionSet enum generation')
-    .option('--actions', 'Generate Custom API Action/Function executors', false)
+    // No Commander default for --actions: it must stay `undefined` when not passed
+    // so a value from xrmforge.config.json can take effect (mergeWithCliOptions).
+    // The orchestrator defaults generateActions to false, so CLI-only behavior is unchanged.
+    .option('--actions', 'Generate Custom API Action/Function executors')
     .option('--actions-filter <prefix>', 'Only generate Custom APIs whose uniquename starts with this prefix (e.g. "markant_")')
 
     // Cache
