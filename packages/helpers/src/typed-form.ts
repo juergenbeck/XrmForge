@@ -18,7 +18,7 @@
  * form.name.getValue();           // string | null (typed)
  * form.revenue.setValue(150000);   // NumberAttribute (typed)
  * form.$context.ui.tabs.get(...); // Full FormContext access
- * form.$control('name');           // Control access
+ * form.controls.name;             // Control access (typed)
  * form.$unsafe('off_form_field');  // Access fields not on the form
  * ```
  */
@@ -91,7 +91,7 @@ type ExtractFormContext<TForm> =
  * Provides direct property access to form fields (e.g. `form.name` returns
  * the StringAttribute), plus:
  * - `$context` for full FormContext access (ui, data, tabs, getAttribute with addOnChange)
- * - `$control(name)` for typed control access
+ * - `controls.fieldName` for typed control access
  * - `$unsafe(name)` for off-form field access (fields loaded by D365 but not on the form)
  */
 export type TypedForm<
