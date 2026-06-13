@@ -196,30 +196,64 @@ describe('MetadataClient.getLookupAttributes', () => {
 
 // ─── Forms ───────────────────────────────────────────────────────────────────
 
-describe('MetadataClient.getMainForms', () => {
-  it('should fetch and parse main forms', async () => {
+describe('MetadataClient.getForms', () => {
+  const ACCOUNT_FORMXML = '<form><tabs><tab name="TAB1" id="{guid}"><columns><column><sections><section name="SEC1" id="{guid}"><rows><row><cell id="{c}"><control id="name" classid="{4273EDBD-AC1D-40D3-9FB2-095C621B552D}" datafieldname="name" /></cell></row></rows></section></sections></column></columns></tab></tabs></form>';
+
+  it('should fetch and parse main forms with their form type', async () => {
     mockFetchSequence({
       status: 200,
       body: {
         value: [
-          {
-            name: 'Account',
-            formid: 'form-1',
-            formxml: '<form><tabs><tab name="TAB1" id="{guid}"><columns><column><sections><section name="SEC1" id="{guid}"><rows><row><cell id="{c}"><control id="name" classid="{4273EDBD-AC1D-40D3-9FB2-095C621B552D}" datafieldname="name" /></cell></row></rows></section></sections></column></columns></tab></tabs></form>',
-            description: null,
-            isdefault: true,
-          },
+          { name: 'Account', formid: 'form-1', formxml: ACCOUNT_FORMXML, description: null, isdefault: true, type: 2, formactivationstate: 1 },
         ],
       },
     });
 
     const client = createClient();
-    const forms = await client.getMainForms('account');
+    const forms = await client.getForms('account');
 
     expect(forms).toHaveLength(1);
     expect(forms[0]!.name).toBe('Account');
+    expect(forms[0]!.type).toBe(2);
     expect(forms[0]!.allControls).toHaveLength(1);
     expect(forms[0]!.allControls[0]!.datafieldname).toBe('name');
+  });
+
+  it('should include active Quick Create forms (type 7) and carry the type through', async () => {
+    mockFetchSequence({
+      status: 200,
+      body: {
+        value: [
+          { name: 'Account', formid: 'form-1', formxml: ACCOUNT_FORMXML, description: null, isdefault: true, type: 2, formactivationstate: 1 },
+          { name: 'Account', formid: 'form-qc', formxml: ACCOUNT_FORMXML, description: null, isdefault: false, type: 7, formactivationstate: 1 },
+        ],
+      },
+    });
+
+    const client = createClient();
+    const forms = await client.getForms('account');
+
+    expect(forms).toHaveLength(2);
+    const quickCreate = forms.find((f) => f.type === 7);
+    expect(quickCreate).toBeDefined();
+    expect(quickCreate!.allControls[0]!.datafieldname).toBe('name');
+  });
+
+  it('should query main forms plus only ACTIVE Quick Create forms', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, statusText: 'OK', headers: new Headers(),
+      json: () => Promise.resolve({ value: [] }),
+      text: () => Promise.resolve('{"value":[]}'),
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const client = createClient();
+    await client.getForms('account');
+
+    const url = mockFetch.mock.calls[0]![0] as string;
+    expect(url).toContain('type eq 2');
+    expect(url).toContain('type eq 7');
+    expect(url).toContain('formactivationstate eq 1');
   });
 
   it('should handle malformed formxml gracefully', async () => {
@@ -227,23 +261,18 @@ describe('MetadataClient.getMainForms', () => {
       status: 200,
       body: {
         value: [
-          {
-            name: 'Broken Form',
-            formid: 'form-bad',
-            formxml: '<form><this-is-not-valid>',
-            description: null,
-            isdefault: false,
-          },
+          { name: 'Broken Form', formid: 'form-bad', formxml: '<form><this-is-not-valid>', description: null, isdefault: false, type: 2, formactivationstate: 1 },
         ],
       },
     });
 
     const client = createClient();
-    const forms = await client.getMainForms('account');
+    const forms = await client.getForms('account');
 
-    // Should not throw, returns form with empty controls
+    // Should not throw, returns form with empty controls but keeps the type
     expect(forms).toHaveLength(1);
     expect(forms[0]!.allControls).toHaveLength(0);
+    expect(forms[0]!.type).toBe(2);
   });
 });
 
@@ -481,7 +510,7 @@ describe('MetadataClient.getEntityTypeInfo', () => {
         json: () => Promise.resolve({ value: [{ LogicalName: 'statecode', MetadataId: 'st-1' }] }),
         text: () => Promise.resolve('{}'),
       })
-      // Call 6: getMainForms
+      // Call 6: getForms (Main + active Quick Create)
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [] }),

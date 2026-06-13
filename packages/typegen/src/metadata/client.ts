@@ -57,6 +57,12 @@ interface SolutionRecord {
 /** Dataverse SystemForm type code for Main forms */
 const FORM_TYPE_MAIN = 2;
 
+/** Dataverse SystemForm type code for Quick Create forms */
+const FORM_TYPE_QUICK_CREATE = 7;
+
+/** Dataverse SystemForm activation state (systemform_formactivationstate): Active */
+const FORM_ACTIVATION_ACTIVE = 1;
+
 /** Dataverse SolutionComponent type code for Entity */
 const COMPONENT_TYPE_ENTITY = 1;
 
@@ -77,7 +83,7 @@ function byUniqueName(a: { uniquename: string }, b: { uniquename: string }): num
 
 const ENTITY_SELECT = 'LogicalName,SchemaName,EntitySetName,DisplayName,PrimaryIdAttribute,PrimaryNameAttribute,OwnershipType,IsCustomEntity,LogicalCollectionName,MetadataId';
 const ATTRIBUTE_SELECT = 'LogicalName,SchemaName,AttributeType,AttributeTypeName,DisplayName,IsPrimaryId,IsPrimaryName,RequiredLevel,IsValidForRead,IsValidForCreate,IsValidForUpdate,MetadataId';
-const FORM_SELECT = 'name,formid,formxml,description,isdefault';
+const FORM_SELECT = 'name,formid,formxml,description,isdefault,type,formactivationstate';
 
 // ─── Client ──────────────────────────────────────────────────────────────────
 
@@ -180,19 +186,29 @@ export class MetadataClient {
   // ─── Form Metadata ────────────────────────────────────────────────────
 
   /**
-   * Get and parse Main forms (type=2) for an entity.
-   * Returns parsed form structures with tabs, sections, and controls.
+   * Get and parse the form types relevant for type generation:
+   * - Main forms (type=2): all of them
+   * - Quick Create forms (type=7): only ACTIVE ones (formactivationstate=1),
+   *   because inactive quick-create forms are common leftovers that no app uses.
+   *
+   * Returns parsed form structures with tabs, sections, controls, and the form type.
+   * Main forms are intentionally NOT filtered by activation state (unchanged behavior).
    */
-  async getMainForms(logicalName: string): Promise<ParsedForm[]> {
+  async getForms(logicalName: string): Promise<ParsedForm[]> {
     const safeName = DataverseHttpClient.sanitizeIdentifier(logicalName);
 
-    log.info(`Fetching Main forms for: ${safeName}`);
+    log.info(`Fetching Main + Quick Create forms for: ${safeName}`);
 
     const forms = await this.http.getAll<SystemFormMetadata>(
-      `/systemforms?$filter=objecttypecode eq '${safeName}' and type eq ${FORM_TYPE_MAIN}&$select=${FORM_SELECT}`,
+      `/systemforms?$filter=objecttypecode eq '${safeName}' and ` +
+        `(type eq ${FORM_TYPE_MAIN} or ` +
+        `(type eq ${FORM_TYPE_QUICK_CREATE} and formactivationstate eq ${FORM_ACTIVATION_ACTIVE}))` +
+        `&$select=${FORM_SELECT}`,
     );
 
-    log.info(`Found ${forms.length} Main form(s) for "${safeName}"`);
+    const mainCount = forms.filter((f) => f.type === FORM_TYPE_MAIN).length;
+    const qcCount = forms.filter((f) => f.type === FORM_TYPE_QUICK_CREATE).length;
+    log.info(`Found ${mainCount} Main + ${qcCount} active Quick Create form(s) for "${safeName}"`);
 
     return forms.map((form) => {
       try {
@@ -208,6 +224,7 @@ export class MetadataClient {
           name: form.name,
           formId: form.formid,
           isDefault: form.isdefault,
+          type: form.type,
           tabs: [],
           allControls: [],
           allSpecialControls: [],
@@ -378,7 +395,7 @@ export class MetadataClient {
         this.getLookupAttributes(safeName),
         this.getStatusAttributes(safeName),
         this.getStateAttributes(safeName),
-        this.getMainForms(safeName),
+        this.getForms(safeName),
         this.getRelationships(safeName),
       ]);
 

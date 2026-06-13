@@ -125,6 +125,10 @@ export interface SystemFormMetadata {
   formxml: string;
   description: string | null;
   isdefault: boolean;
+  /** Form type (systemform_type): 2 = Main, 7 = Quick Create, ... */
+  type: number;
+  /** Activation state (systemform_formactivationstate): 0 = Inactive, 1 = Active */
+  formactivationstate: number;
 }
 
 /** Parsed data-bound control from FormXml (bound to an attribute) */
@@ -183,6 +187,8 @@ export interface ParsedForm {
   name: string;
   formId: string;
   isDefault: boolean;
+  /** Form type (systemform_type): 2 = Main, 7 = Quick Create */
+  type: number;
   tabs: FormTab[];
   /** All data-bound controls across all tabs/sections (flattened) */
   allControls: FormControl[];

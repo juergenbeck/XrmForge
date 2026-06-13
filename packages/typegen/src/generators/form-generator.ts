@@ -53,6 +53,9 @@ import {
 } from './type-mapping.js';
 import { transliterateUmlauts, formatDualLabel, getPrimaryLabel, type LabelConfig, DEFAULT_LABEL_CONFIG } from './label-utils.js';
 
+/** Dataverse SystemForm type code for Quick Create forms (systemform_type) */
+const FORM_TYPE_QUICK_CREATE = 7;
+
 /** Map special control types to @types/xrm control interfaces */
 function specialControlToXrmType(controlType: SpecialControlType): string | null {
   switch (controlType) {
@@ -464,11 +467,15 @@ export function generateEntityForms(
 
   const entityPascal = toPascalCase(entityLogicalName);
 
-  // Pre-compute base names for all valid forms
+  // Pre-compute base names for all valid forms. Quick Create forms (type 7) get a
+  // "QuickCreate" suffix so they never collide with the same-named Main form
+  // (Main "Account" -> AccountForm, Quick Create "Account" -> AccountQuickCreateForm).
+  // The suffix is applied BEFORE duplicate disambiguation, so two same-named Quick
+  // Create forms still get the numeric suffix (AccountQuickCreate, AccountQuickCreate2).
   const validForms = forms.filter((f) => f.allControls.length > 0);
   const baseNames = validForms.map((form) => {
-    const safeFormName = toSafeFormName(form.name);
-    return buildFormBaseName(entityPascal, safeFormName);
+    const base = buildFormBaseName(entityPascal, toSafeFormName(form.name));
+    return form.type === FORM_TYPE_QUICK_CREATE ? `${base}QuickCreate` : base;
   });
 
   // Count occurrences to detect duplicates

@@ -22,11 +22,12 @@ function createAttr(logicalName: string, attributeType: string, label: string = 
   };
 }
 
-function createForm(name: string, fields: string[]): ParsedForm {
+function createForm(name: string, fields: string[], type: number = 2): ParsedForm {
   return {
     name,
     formId: 'form-1',
     isDefault: true,
+    type,
     tabs: [{
       name: 'General',
       sections: [{
@@ -326,6 +327,39 @@ describe('generateEntityForms', () => {
 
     expect(results[0].interfaceName).toBe('AccountMainForm');
     expect(results[1].interfaceName).toBe('AccountQuickCreateForm');
+  });
+
+  it('should suffix Quick Create forms (type 7) so they do not collide with the same-named Main form', () => {
+    const forms = [
+      createForm('Account', ['name'], 2),
+      createForm('Account', ['name', 'telephone1'], 7),
+    ];
+    const attributes = [
+      createAttr('name', 'String', 'Account Name'),
+      createAttr('telephone1', 'String', 'Main Phone'),
+    ];
+
+    const results = generateEntityForms(forms, 'account', attributes);
+
+    expect(results).toHaveLength(2);
+    expect(results[0].interfaceName).toBe('AccountForm');
+    expect(results[1].interfaceName).toBe('AccountQuickCreateForm');
+    // The Quick Create interface has its own distinct field set
+    expect(results[1].content).toContain('type AccountQuickCreateFormFields =');
+  });
+
+  it('should disambiguate two same-named Quick Create forms with a numeric suffix', () => {
+    const forms = [
+      createForm('Account', ['name'], 7),
+      createForm('Account', ['name'], 7),
+    ];
+    const attributes = [createAttr('name', 'String', 'Account Name')];
+
+    const results = generateEntityForms(forms, 'account', attributes);
+
+    expect(results).toHaveLength(2);
+    expect(results[0].interfaceName).toBe('AccountQuickCreateForm');
+    expect(results[1].interfaceName).toBe('AccountQuickCreate2Form');
   });
 });
 

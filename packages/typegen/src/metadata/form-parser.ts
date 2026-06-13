@@ -55,6 +55,7 @@ export function parseForm(form: SystemFormMetadata, parser: XmlParser = defaultX
     name: form.name,
     formId: form.formid,
     isDefault: form.isdefault,
+    type: form.type,
     tabs,
     allControls,
     allSpecialControls,
