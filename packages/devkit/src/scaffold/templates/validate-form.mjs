@@ -19,6 +19,7 @@ import { join, relative } from 'node:path';
 
 const RED = '\x1b[31m';
 const GREEN = '\x1b[32m';
+const YELLOW = '\x1b[33m';
 const NC = '\x1b[0m';
 
 let totalErrors = 0;
@@ -341,6 +342,42 @@ checkPattern(
   allSrcFiles,
   /(?:export\s+)?function\s+(?:normalizeGuid|compareGuid)\s*\(/,
 );
+
+// ── Legacy Code Smells ───────────────────────────────────────────────────────
+
+// 3u. var declarations (use const/let)
+checkPattern(
+  'var declarations (use const or let)',
+  allSrcFiles,
+  /^\s*var\s/,
+);
+
+// 3v. Synchronous XMLHttpRequest (use fetch or Xrm.WebApi)
+checkPattern(
+  'XMLHttpRequest (use fetch or Xrm.WebApi)',
+  allSrcFiles,
+  /\bXMLHttpRequest\b/,
+);
+
+// ============================================================
+// Test Completeness (warning only, does not fail the gate)
+// ============================================================
+
+console.log('\n--- Test Completeness ---');
+
+let missingTests = 0;
+for (const formFile of formFiles) {
+  const base = formFile.replace(/.*[\\/]/, '').replace(/\.ts$/, '');
+  try {
+    readFileSync(join('tests', 'forms', `${base}.test.ts`));
+  } catch {
+    console.log(`${YELLOW}WARN${NC} No test file for ${relative(process.cwd(), formFile)}`);
+    missingTests++;
+  }
+}
+if (missingTests === 0) {
+  console.log(`${GREEN}OK${NC}   [0] All form scripts have test files`);
+}
 
 // ============================================================
 // Result

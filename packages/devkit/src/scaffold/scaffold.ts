@@ -106,7 +106,6 @@ async function generateTemplates(config: ScaffoldConfig): Promise<Array<[string,
     ['eslint.config.js', await loadTemplate('eslint.config.js')],
     ['.github/workflows/ci.yml', await loadTemplate('github-actions-ci.yml')],
     ['azure-pipelines.yml', await loadTemplate('azure-pipelines.yml')],
-    ['scripts/self-check.sh', await loadTemplate('self-check.sh')],
     ['scripts/validate-form.mjs', await loadTemplate('validate-form.mjs')],
   ];
 }
