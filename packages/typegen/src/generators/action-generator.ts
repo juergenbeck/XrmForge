@@ -1,9 +1,8 @@
 /**
  * @xrmforge/typegen - Action/Function Generator
  *
- * Generates TypeScript files for type-safe Custom API execution:
- * - .d.ts: Parameter/Response interfaces and executor types
- * - .ts: Runtime modules that import factory functions from @xrmforge/helpers
+ * Generates a flat ES module (.ts) per Custom API group: exported Param/Result
+ * interfaces plus runtime executors that import factory functions from @xrmforge/helpers.
  *
  * Input: CustomApiTypeInfo[] (from fixture JSON or live Dataverse query)
  * Output: Grouped by entity (bound) or "global" (unbound)
@@ -99,7 +98,7 @@ function generateResultInterface(
   return lines.join('\n');
 }
 
-// ─── Declaration (.d.ts) Generation ─────────────────────────────────────────
+// ─── Interface Declaration Generation ───────────────────────────────────────
 
 /**
  * Generate declarations (interfaces only) for a group of Custom APIs.
@@ -149,7 +148,7 @@ export function generateActionDeclarations(
 
 /**
  * Generate a single .ts file with both interfaces and runtime executors for a group of Custom APIs.
- * Combines what was previously split into .d.ts (interfaces) and .ts (executors).
+ * Emits the Param/Result interfaces and the runtime executors together in one .ts file.
  *
  * @param apis - Custom APIs to generate
  * @param isFunction - true for functions, false for actions

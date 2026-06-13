@@ -291,7 +291,7 @@ export class TypeGenerationOrchestrator {
       // Write all files to disk (non-fatal: file write errors become warnings)
       writeResult = await writeAllFiles(this.config.outputDir, allFiles);
 
-      // 5b. Delete orphaned .d.ts files for deleted entities
+      // 5b. Delete orphaned .ts files for deleted entities
       if (deletedEntityNames.length > 0) {
         const deleted = await deleteOrphanedFiles(this.config.outputDir, deletedEntityNames);
         if (deleted > 0) {

@@ -17,7 +17,7 @@ export interface GenerateConfig {
   /** Solution unique names to discover entities automatically (merged with entities, deduplicated) */
   solutionNames?: string[];
 
-  /** Output directory for generated .d.ts files */
+  /** Output directory for generated .ts files */
   outputDir: string;
 
   /** Label language configuration */

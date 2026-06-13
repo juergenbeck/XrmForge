@@ -105,7 +105,7 @@ export async function writeAllFiles(outputDir: string, files: GeneratedFile[]): 
 }
 
 /**
- * Delete orphaned .d.ts files for entities that were removed from Dataverse.
+ * Delete orphaned .ts files for entities that were removed from Dataverse.
  * Removes entity, optionset, and form files for the given entity names.
  *
  * @param outputDir - Base output directory

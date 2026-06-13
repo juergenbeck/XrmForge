@@ -1,7 +1,7 @@
 /**
  * @xrmforge/typegen - Entity Interface Generator
  *
- * Generates TypeScript declaration files (.d.ts) for Dataverse entity interfaces.
+ * Generates Dataverse entity interfaces as a flat ES module (.ts file).
  * These interfaces represent the data types returned by the Web API.
  *
  * Output pattern (flat ES module, one file per entity):
@@ -36,7 +36,7 @@ export interface EntityGeneratorOptions {
  *
  * @param info - Complete entity metadata (from MetadataClient.getEntityTypeInfo)
  * @param options - Generator options
- * @returns TypeScript declaration string (.d.ts content)
+ * @returns TypeScript source string (flat ES module)
  */
 export function generateEntityInterface(info: EntityTypeInfo, options: EntityGeneratorOptions = {}): string {
   const labelConfig = options.labelConfig || DEFAULT_LABEL_CONFIG;
