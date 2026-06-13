@@ -35,3 +35,9 @@ coverage/
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Claude-interne Wegwerf-Artefakte nicht versionieren (Auto-Sync-Schutz).
+__pycache__/
+.claude/scheduled_tasks.lock
+.claude/worktrees/
+.claude/settings.local.json

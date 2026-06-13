@@ -1,0 +1,58 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "command -v python3 >/dev/null 2>&1 && PYBIN=python3 || PYBIN=python; \"$PYBIN\" -B \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/check-kontextlast.py\""
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "command -v python3 >/dev/null 2>&1 && PYBIN=python3 || PYBIN=python; \"$PYBIN\" -B \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/check-wissens-persistenz.py\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "command -v python3 >/dev/null 2>&1 && PYBIN=python3 || PYBIN=python; \"$PYBIN\" -B \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/check-umlaute.py\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" && git config core.hooksPath .githooks && BRANCH=$(git rev-parse --abbrev-ref HEAD) && git pull --rebase --autostash origin \"$BRANCH\" -q && git push origin \"$BRANCH\" -q 2>&1",
+            "timeout": 30,
+            "statusMessage": "Git-Sync läuft"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" && BRANCH=$(git rev-parse --abbrev-ref HEAD) && git push origin \"$BRANCH\" -q 2>&1 # auto-sync: nur bereits committete Commits pushen, kein git add -A (parallele Sessions)",
+            "timeout": 60,
+            "statusMessage": "Auto-Sync läuft"
+          }
+        ]
+      }
+    ]
+  }
+}
