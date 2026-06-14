@@ -531,16 +531,16 @@ export function onLoad(executionContext: Xrm.Events.EventContext): void {
 
   // getAttribute gibt den exakten Typ basierend auf dem Feld zurück:
   const name = formContext.getAttribute(Fields.AccountName);
-  // TypeScript weiss: Xrm.Attributes.StringAttribute
+  // TypeScript weiß: Xrm.Attributes.StringAttribute
 
   const creditLimit = formContext.getAttribute(Fields.CreditLimit);
-  // TypeScript weiss: Xrm.Attributes.NumberAttribute
+  // TypeScript weiß: Xrm.Attributes.NumberAttribute
 
   const creditHold = formContext.getAttribute(Fields.CreditHold);
-  // TypeScript weiss: Xrm.Attributes.BooleanAttribute
+  // TypeScript weiß: Xrm.Attributes.BooleanAttribute
 
   const primaryContact = formContext.getAttribute(Fields.PrimaryContact);
-  // TypeScript weiss: Xrm.Attributes.LookupAttribute
+  // TypeScript weiß: Xrm.Attributes.LookupAttribute
 
   // Kompilierfehler fangen Fehler ab:
   // name.setValue(123);                   // Fehler: number ist nicht string zuweisbar
@@ -549,7 +549,7 @@ export function onLoad(executionContext: Xrm.Events.EventContext): void {
   // Geschäftslogik mit vollständiger Typsicherheit
   if (creditHold.getValue() === true) {
     const creditControl = formContext.getControl(Fields.CreditLimit);
-    // TypeScript weiss: Xrm.Controls.NumberControl
+    // TypeScript weiß: Xrm.Controls.NumberControl
     creditControl.setDisabled(true);
   }
 }
@@ -884,7 +884,7 @@ import { WinQuote } from '../generated/actions/quote';
 await withProgress("Angebot wird verarbeitet...", () =>
   WinQuote.execute(quoteId),
 );
-// Spinner schliesst automatisch. Bei Fehler wird ein Fehlerdialog angezeigt.
+// Spinner schließt automatisch. Bei Fehler wird ein Fehlerdialog angezeigt.
 ```
 
 ### Pflichtfeldstatus
@@ -918,7 +918,7 @@ export function onSave(executionContext: Xrm.Events.SaveEventContext): void {
   const saveMode = executionContext.getEventArgs().getSaveMode();
 
   if (saveMode === SaveMode.SaveAndClose) {
-    // Benutzerdefinierte Validierung vor dem Speichern und Schliessen
+    // Benutzerdefinierte Validierung vor dem Speichern und Schließen
   }
 }
 ```
@@ -964,7 +964,7 @@ describe('Account onLoad', () => {
     expect(mock.getControl('markant_ismpk').getDisabled()).toBe(true);
   });
 
-  it('sollte EventContext fuer onLoad-Handler bereitstellen', () => {
+  it('sollte EventContext für onLoad-Handler bereitstellen', () => {
     const mock = createFormMock<AccountForm>(
       { name: 'Contoso' } satisfies MockValues,
       { entityName: 'account', entityId: 'abc-123' },
