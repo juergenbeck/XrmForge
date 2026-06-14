@@ -1,5 +1,21 @@
 # @xrmforge/helpers
 
+## 0.6.3
+
+### Patch Changes
+
+- typed-form.ts: both `@example` blocks use `typedForm<...FormTypeInfo>` instead of the bare form
+  interface (the second block had mislabeled the bare interface as "Recommended"; the bare form
+  resolves to `never` across package boundaries in TS 5.9+; F28-01).
+
+## 0.6.2
+
+### Patch Changes
+
+- typed-form.ts: JSDoc republish - `$control` -> `controls` proxy (the published 0.6.1 tarball still
+  carried the pre-fix JSDoc); test comment/name `$context and $control` -> `$context and controls`
+  (K25-03 remnant).
+
 ## 0.6.1
 
 ### Patch Changes

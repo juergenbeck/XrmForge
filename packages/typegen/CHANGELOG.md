@@ -1,5 +1,41 @@
 # @xrmforge/typegen
 
+## 0.12.0
+
+### Minor Changes
+
+- Quick Create forms: typegen now generates interfaces, Fields enums and typedForm support for
+  Quick Create forms (systemform type=7), filtered to active forms only (`formactivationstate eq 1`,
+  applied to all form types so inactive Main forms also drop out). Quick Create interfaces get a
+  `QuickCreate` suffix (`AccountQuickCreateForm`). `getMainForms` -> `getForms` (Main + active QC in
+  one query). Data-driven, no opt-in flag (Backlog B).
+
+## 0.11.1
+
+### Patch Changes
+
+- file-writer.ts: `normalizeLineEndings()` so `generate --check` compares LF-normalized and is no
+  longer fooled by CRLF working copies on Windows (F23-LMA-01).
+
+## 0.11.0
+
+### Minor Changes
+
+- `xrmforge generate --check`: full in-memory generation run, byte-compare against `generated/` with
+  zero writes, tri-state exit codes (0 = up to date, 1 = error, 2 = drift) and a categorized report
+  (changed / missing / orphaned) per category (Entities, Fields, Forms, OptionSets, Actions). New
+  API: `GenerateConfig.checkOnly`, `GenerationResult.checkResult` (OE-11 release 2).
+- Includes the deterministic `getCustomApis()` sorting from 0.10.2.
+
+## 0.10.2
+
+### Patch Changes
+
+- Not published to npm (git-only interim, commit 313e6e6; folded into 0.11.0).
+- getCustomApis(): deterministic ordinal sort by uniquename for the APIs, their request parameters
+  and response properties (previously server order, causing diff noise when a parameter was added).
+  Determinism audit test added (OE-11 release 1).
+
 ## 0.10.1
 
 ### Patch Changes

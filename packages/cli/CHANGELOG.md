@@ -1,5 +1,54 @@
 # @xrmforge/cli
 
+## 0.6.2
+
+### Patch Changes
+
+- Propagation bump: pulls devkit 0.7.13 + typegen 0.12.0 via workspace:* (no cli source change).
+
+## 0.6.1
+
+### Patch Changes
+
+- Propagation bump: pulls devkit 0.7.12 + typegen 0.12.0 via workspace:* (no cli source change).
+
+## 0.6.0
+
+### Minor Changes
+
+- config: `XrmForgeConfig` gains `actions` / `actionsFilter` so the Custom API scope is checkable and
+  `generate --check` runs without reconstructed CLI options (Backlog D / F23-LMA-02). The `--actions`
+  Commander default was removed so a `config.actions` value is no longer shadowed (CLI behavior
+  unchanged via `?? false` in the orchestrator).
+
+## 0.5.2
+
+### Patch Changes
+
+- Not published to npm (git-only interim; folded into 0.6.0). Pulled devkit 0.7.11 (Backlog A
+  eslint-plugin 0.3.0 + CI/self-check template fixes) via workspace:*.
+
+## 0.5.1
+
+### Patch Changes
+
+- Propagation bump: pulls typegen 0.11.1 + devkit 0.7.10 via workspace:* (CRLF-robust `--check`,
+  F23-LMA-01).
+
+## 0.5.0
+
+### Minor Changes
+
+- `xrmforge generate --check` CLI flag: read-only drift check with tri-state exit codes (OE-11
+  release 2).
+
+## 0.4.21
+
+### Patch Changes
+
+- Not published to npm (git-only interim, commit 313e6e6; folded into 0.5.0). Companion to the OE-11
+  release-1 typegen 0.10.2 (deterministic-sorting prep).
+
 ## 0.4.20
 
 ### Patch Changes
