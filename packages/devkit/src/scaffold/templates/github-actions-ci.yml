@@ -36,8 +36,8 @@ jobs:
           XRMFORGE_CLIENT_ID: ${{ secrets.XRMFORGE_CLIENT_ID }}
           XRMFORGE_CLIENT_SECRET: ${{ secrets.XRMFORGE_CLIENT_SECRET }}
 
-      - name: Type check
-        run: npx tsc --noEmit
+      - name: Validate (typecheck, lint, pattern gates)
+        run: npm run validate
 
       - name: Test
         run: npx vitest run

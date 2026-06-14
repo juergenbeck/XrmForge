@@ -171,7 +171,7 @@ describe('scaffoldProject', () => {
     expect(ci).toContain('xrmforge generate');
     expect(ci).toContain('xrmforge build');
     expect(ci).toContain('vitest run');
-    expect(ci).toContain('tsc --noEmit');
+    expect(ci).toContain('npm run validate');
     expect(ci).toContain('XRMFORGE_CLIENT_ID');
   });
 

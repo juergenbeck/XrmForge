@@ -32,8 +32,8 @@ steps:
       XRMFORGE_CLIENT_ID: $(XRMFORGE_CLIENT_ID)
       XRMFORGE_CLIENT_SECRET: $(XRMFORGE_CLIENT_SECRET)
 
-  - script: npx tsc --noEmit
-    displayName: 'Type check'
+  - script: npm run validate
+    displayName: 'Validate (typecheck, lint, pattern gates)'
 
   - script: npx vitest run
     displayName: 'Test'
