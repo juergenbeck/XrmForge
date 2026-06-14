@@ -27,7 +27,7 @@ import { select, parseLookup, typedForm } from '@xrmforge/helpers';
 
 **typedForm()-Proxy:**
 - `typedForm<TForm>(formContext)` - Gibt einen Proxy zurück, bei dem `form.name` an `getAttribute('name')` delegiert
-- GET-Trap: Property-Zugriff delegiert an getAttribute(); `$context` gibt den rohen FormContext zurück; `$control(name)` gibt getControl() zurück
+- GET-Trap: Property-Zugriff delegiert an getAttribute(); `$context` gibt den rohen FormContext zurück; `controls.fieldName` gibt das typisierte Control zurück (getControl())
 - SET-Trap: Wirft TypeError und erzwingt die Verwendung von `.setValue()`
 - HAS-Trap: Prüft, ob ein Attribut auf dem Formular existiert
 

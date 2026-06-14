@@ -27,7 +27,7 @@ import { select, parseLookup, typedForm } from '@xrmforge/helpers';
 
 **typedForm() Proxy:**
 - `typedForm<TForm>(formContext)` - Returns a proxy where `form.name` delegates to `getAttribute('name')`
-- GET trap: Property access delegates to getAttribute(); `$context` returns raw FormContext; `$control(name)` returns getControl()
+- GET trap: Property access delegates to getAttribute(); `$context` returns raw FormContext; `controls.fieldName` returns the typed control (getControl())
 - SET trap: Throws TypeError forcing `.setValue()` usage
 - HAS trap: Checks if attribute exists on the form
 
