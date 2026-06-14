@@ -20,7 +20,7 @@ import { MESSAGES, pickLang } from '../shared/constants.js';
 // For Web API queries and lookups also import: select, formLookupId
 import { typedForm, FormNotificationLevel } from '@xrmforge/helpers';
 // TODO: After 'xrmforge generate', replace with your actual imports:
-// import type { ExampleForm } from '../../generated/forms/example.js';
+// import type { ExampleFormTypeInfo } from '../../generated/forms/example.js';
 // import { ExampleFormFieldsEnum as Fields } from '../../generated/forms/example.js';
 // import { ExampleFields } from '../../generated/fields/example.js';
 // import { EntityNames } from '../../generated/entity-names.js';
@@ -31,8 +31,8 @@ const logger = createLogger('{{namespace}}.Example');
  * Called when the form loads.
  */
 export const onLoad = wrapHandler('{{namespace}}.Example.onLoad', logger, async (ctx) => {
-  // TODO: Replace 'Xrm.FormContext' with your generated form type:
-  // const form = typedForm<ExampleForm>(ctx.getFormContext());
+  // TODO: Replace 'Xrm.FormContext' with your generated <Form>TypeInfo type:
+  // const form = typedForm<ExampleFormTypeInfo>(ctx.getFormContext());
   const form = typedForm<Xrm.FormContext>(ctx.getFormContext());
 
   // Direct field access via typedForm proxy (fully typed):

@@ -74,7 +74,7 @@ name.setValue(123);                                          // Kompilierfehler!
 formContext.getAttribute("naem");                             // Kompilierfehler!
 
 // Ebene 2: TypedForm mit direktem Memberzugriff (kein Boilerplate)
-const form = typedForm<AccountFields, AccountAttrMap>(formContext);
+const form = typedForm<AccountFormTypeInfo>(formContext);
 form.name.setValue("Contoso Ltd");                // Direkter Property-Zugriff
 form.revenue.setValue(1000000);                   // NumberAttribute, typisiert
 form.industrycode.setValue(IndustryCode.Finance); // OptionSet-Enum, keine magische Zahl
@@ -875,7 +875,7 @@ if (summaryTab.getDisplayState() === DisplayState.Collapsed) {
 
 ### Fortschrittsanzeige
 
-Asynchrone Operationen mit einem Fortschrittsspinner und automatischem Fehlerdialog umschliessen:
+Asynchrone Operationen mit einem Fortschrittsspinner und automatischem Fehlerdialog umschließen:
 
 ```typescript
 import { withProgress } from '@xrmforge/helpers';

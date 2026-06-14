@@ -74,7 +74,7 @@ name.setValue(123);                                          // Compile error!
 formContext.getAttribute("naem");                             // Compile error!
 
 // Level 2: TypedForm with direct member access (zero boilerplate)
-const form = typedForm<AccountFields, AccountAttrMap>(formContext);
+const form = typedForm<AccountFormTypeInfo>(formContext);
 form.name.setValue("Contoso Ltd");                // Direct property access
 form.revenue.setValue(1000000);                   // NumberAttribute, typed
 form.industrycode.setValue(IndustryCode.Finance); // OptionSet enum, not magic number
