@@ -1,5 +1,62 @@
 # @xrmforge/devkit
 
+## 0.7.13
+
+### Patch Changes
+
+- Gate consolidation: scaffold no longer emits `scripts/self-check.sh`; `validate-form.mjs`
+  is the single quality gate (3 checks ported from self-check.sh: var declarations,
+  XMLHttpRequest, test-completeness warning). Scaffold file count 18 -> 17.
+- AGENT.md: use `typedForm<...FormTypeInfo>` throughout instead of the fragile bare
+  `typedForm<FormInterface>` (resolves to `never` across package boundaries in TS 5.9+; F28-01).
+- example-form.ts template: import/usage TODO uses `typedForm<ExampleFormTypeInfo>` (K29-01).
+- CI templates (github-actions-ci.yml, azure-pipelines.yml): run `npm run validate`
+  (tsc + eslint + pattern checks) instead of bare `tsc --noEmit`.
+
+## 0.7.12
+
+### Patch Changes
+
+- scaffold.ts: `@xrmforge/cli` dependency pin `^0.5.0` -> `^0.6.0` (a 0.x caret never crosses
+  the 0.5/0.6 minor boundary, so fresh `init` projects pulled stale cli; K26-01).
+- example-form.ts template: header comment `$control` -> `controls` proxy (K25-03 remnant).
+
+## 0.7.11
+
+### Patch Changes
+
+- Scaffold CI templates (github-actions-ci.yml, azure-pipelines.yml): replaced the
+  non-existent `xrmforge generate --from-config` with explicit auth flags fed from repo
+  secrets (K25-01).
+- self-check.sh: flag `as Xrm.FormContext` instead of demanding a FormContext cast, consistent
+  with validate-form.mjs (the typedForm primary path needs no cast; K25-02).
+- scaffold.ts: `@xrmforge/eslint-plugin` pin `^0.2.1` -> `^0.3.0`.
+- AGENT.md: corrected `withProgress` signature to `withProgress(message, () => op)` plus
+  pickLang (K24-01); scaffold test template uses `createFormMock` (K23-02).
+
+## 0.7.10
+
+### Patch Changes
+
+- scaffold.ts: `xrmforge init` emits `.gitattributes` (`generated/** eol=lf` plus
+  `*.ts`/`*.mjs`/`*.json` eol=lf) so `generate --check` is not fooled by CRLF line endings on
+  Windows (F23-LMA-01). Scaffold file count 17 -> 18.
+
+## 0.7.9
+
+### Patch Changes
+
+- AGENT.md template: drift-check section for `xrmforge generate --check` (OE-11 release 2).
+
+## 0.7.8
+
+### Patch Changes
+
+- Not published to npm (git-only interim, commit 313e6e6; folded into 0.7.9 at publish time).
+- Scaffold templates: removed unused imports (fresh scaffolds no longer start with lint errors)
+  and pulled stale version pins up to current minors (a 0.x caret would not resolve
+  `helpers ^0.3.0` to 0.6.x; K21-01).
+
 ## 0.7.7
 
 ### Patch Changes
