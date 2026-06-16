@@ -107,7 +107,7 @@ Jedes Feld, jedes Formular, jede Custom API wird zu einem Vertrag zur Kompilierz
 - **Fields-Enums** -- `const enum` mit allen Entity-Feldern für typsichere `$select`-Abfragen über die Web API.
 - **Navigationseigenschaften** -- `const enum` für Lookup-Feld-Navigationseigenschaftsnamen, verwendet mit `parseLookup()` und `$expand`.
 - **Action/Function-Executors** -- Aus Custom-API-Metadaten generiert. Typsichere Parameter und Antworten, mit `execute()` und `request()` (für `executeMultiple`-Batching).
-- **Web-API-Hilfsfunktionen** -- `select()`, `parseLookup()`, `parseFormattedValue()`, `withProgress()` und mehr.
+- **Web-API-Hilfsfunktionen** -- `select()`, `parseLookup()`, `parseFormattedValue()`, `withProgress()`, `callCloudFlow()` und mehr.
 - **Xrm-Konstanten** -- `DisplayState`, `FormNotificationLevel`, `RequiredLevel`, `SubmitMode`, `SaveMode`, `ClientType`, `OperationType` und andere als `const enum`. Keine rohen Strings mehr.
 - **Zweisprachige Labels** -- JSDoc-Kommentare zeigen beide Sprachen: `/** Account Name | Firmenname */`. Autovervollständigung in VS Code zeigt beide.
 - **Formular-Tests** -- `@xrmforge/testing`-Paket: Typsicherer Mock-Builder für D365-Formulare. `createFormMock<AccountForm>({ name: 'Contoso' })` erzeugt ein zur Kompilierzeit validiertes Mock-Objekt mit `getAttribute()`, `getControl()`, `ui.setFormNotification()` und Event-Context-Unterstützung. Kein `as any` mehr.
@@ -664,6 +664,22 @@ async function winQuote(quoteId: string): Promise<void> {
     WinQuote.execute(quoteId),
   );
 }
+```
+
+### Einen Power-Automate-Cloud-Flow aufrufen
+
+`callCloudFlow()` ist ein typisierter Wrapper für einen Cloud-Flow mit HTTP-Request-Trigger. Der Body wird als JSON gesendet, die Antwort geparst zurückgegeben, und bei Nicht-2xx-Status wird geworfen. Die Trigger-URL enthält eine SAS-Signatur, also als Parameter aus der Konfiguration übergeben, nicht hardcoden. Für einen Spinner mit `withProgress` kombinieren. (Für einen über eine Custom Action erreichten Flow stattdessen `createUnboundAction` verwenden.)
+
+```typescript
+import { callCloudFlow, withProgress } from '@xrmforge/helpers';
+
+interface PriceRequest { quoteId: string; }
+interface PriceResponse { total: number; currency: string; }
+
+const price = await withProgress('Preis wird berechnet...', () =>
+  callCloudFlow<PriceRequest, PriceResponse>(FLOW_URL, { quoteId }),
+);
+console.log(price.total, price.currency);
 ```
 
 ---

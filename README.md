@@ -107,7 +107,7 @@ Every field, every form, every Custom API becomes a compile-time contract. Typos
 - **Fields Enums** -- `const enum` with all entity fields for type-safe `$select` queries via the Web API.
 - **Navigation Properties** -- `const enum` for lookup field navigation property names, used with `parseLookup()` and `$expand`.
 - **Action/Function Executors** -- Generated from Custom API metadata. Type-safe parameters and responses, with `execute()` and `request()` (for `executeMultiple` batching).
-- **Web API Helpers** -- `select()`, `parseLookup()`, `parseFormattedValue()`, `withProgress()`, and more.
+- **Web API Helpers** -- `select()`, `parseLookup()`, `parseFormattedValue()`, `withProgress()`, `callCloudFlow()`, and more.
 - **Xrm Constants** -- `DisplayState`, `FormNotificationLevel`, `RequiredLevel`, `SubmitMode`, `SaveMode`, `ClientType`, `OperationType`, and others as `const enum`. No more raw strings.
 - **Dual-Language Labels** -- JSDoc comments show both languages: `/** Account Name | Firmenname */`. Autocomplete in VS Code shows both.
 - **Form Testing** -- `@xrmforge/testing` package: type-safe mock builder for D365 form scripts. `createFormMock<AccountForm>({ name: 'Contoso' })` creates a compile-time validated mock with `getAttribute()`, `getControl()`, `ui.setFormNotification()`, and event context support. No more `as any` casts.
@@ -664,6 +664,22 @@ async function winQuote(quoteId: string): Promise<void> {
     WinQuote.execute(quoteId),
   );
 }
+```
+
+### Calling a Power Automate cloud flow
+
+`callCloudFlow()` is a typed wrapper for a cloud flow with an HTTP request trigger. It sends the body as JSON, returns the parsed response, and throws on a non-2xx status. The trigger URL carries a SAS signature, so pass it in from configuration rather than hard-coding it. Compose with `withProgress` for a spinner. (For a flow reached through a Custom API, use `createUnboundAction` instead.)
+
+```typescript
+import { callCloudFlow, withProgress } from '@xrmforge/helpers';
+
+interface PriceRequest { quoteId: string; }
+interface PriceResponse { total: number; currency: string; }
+
+const price = await withProgress('Calculating price...', () =>
+  callCloudFlow<PriceRequest, PriceResponse>(FLOW_URL, { quoteId }),
+);
+console.log(price.total, price.currency);
 ```
 
 ---

@@ -1,5 +1,16 @@
 # @xrmforge/helpers
 
+## 0.7.0
+
+### Minor Changes
+
+- New `callCloudFlow<TReq, TRes>(triggerUrl, body?, options?)`: a browser-safe, typed wrapper for
+  calling a Power Automate cloud flow via its HTTP request trigger URL. Sends the body as JSON,
+  returns parsed JSON / raw text / `undefined` (204), and throws on a non-2xx status (with the status
+  and response body in the message). Covers the direct HTTP-trigger case (Custom API / proxied calls
+  stay with `createUnboundAction`). The trigger URL is passed in as a parameter (it carries a SAS
+  signature; never hard-code it). Compose with `withProgress` for a spinner. Zero Node dependencies.
+
 ## 0.6.3
 
 ### Patch Changes

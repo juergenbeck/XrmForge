@@ -60,3 +60,7 @@ export type {
 // TypedForm proxy + GUID utility
 export { typedForm, normalizeGuid } from './typed-form.js';
 export type { TypedForm, FormFields, FormTypeInfoProtocol } from './typed-form.js';
+
+// Power Automate cloud flow caller
+export { callCloudFlow } from './cloud-flow.js';
+export type { CloudFlowOptions } from './cloud-flow.js';
