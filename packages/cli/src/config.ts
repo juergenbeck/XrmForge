@@ -177,3 +177,57 @@ export function mergeWithCliOptions(
 
   return merged;
 }
+
+/**
+ * Connection/credential options that can be supplied via XRMFORGE_* environment
+ * variables, mapped from the option name to its environment variable.
+ *
+ * Generalizes the long-standing XRMFORGE_TOKEN fallback to the remaining
+ * connection and credential values, so CI pipelines (and local shells) can supply
+ * them via the environment instead of as command-line flags. That keeps secrets
+ * out of the shell history and the process list (a flagged --client-secret is
+ * visible in both).
+ */
+const ENV_VAR_MAP: ReadonlyArray<readonly [string, string]> = [
+  ['url', 'XRMFORGE_URL'],
+  ['tenantId', 'XRMFORGE_TENANT_ID'],
+  ['clientId', 'XRMFORGE_CLIENT_ID'],
+  ['clientSecret', 'XRMFORGE_CLIENT_SECRET'],
+  ['token', 'XRMFORGE_TOKEN'],
+];
+
+/**
+ * Fill connection/credential options from XRMFORGE_* environment variables where
+ * no CLI flag set them.
+ *
+ * Resolution precedence is: explicit CLI flag > environment variable >
+ * xrmforge.config.json. To realize that, apply this BEFORE
+ * {@link mergeWithCliOptions}: the environment value then out-ranks the config
+ * file but still yields to an explicit flag. An empty-string environment variable
+ * is treated as unset (an exported-but-empty XRMFORGE_CLIENT_SECRET= must not mask
+ * a config-file value).
+ *
+ * The input is not mutated; a shallow copy is returned. The `env` parameter is
+ * injectable for testing and defaults to {@link process.env}.
+ *
+ * @param cliOpts - CLI options parsed by Commander.js (an unset flag is `undefined`)
+ * @param env - Environment lookup (defaults to process.env)
+ * @returns A copy of cliOpts with environment-variable fallbacks applied
+ */
+export function applyEnvDefaults(
+  cliOpts: Record<string, unknown>,
+  env: Record<string, string | undefined> = process.env,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...cliOpts };
+
+  for (const [optionKey, envVar] of ENV_VAR_MAP) {
+    if (merged[optionKey] === undefined || merged[optionKey] === null) {
+      const value = env[envVar];
+      if (value !== undefined && value !== '') {
+        merged[optionKey] = value;
+      }
+    }
+  }
+
+  return merged;
+}

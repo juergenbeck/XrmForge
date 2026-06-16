@@ -296,11 +296,11 @@ npx xrmforge generate [options]
 
 | Flag | Beschreibung | Standard |
 |------|-------------|---------|
-| `--url <url>` | Dataverse-Umgebungs-URL (z.B. `https://myorg.crm4.dynamics.com`) | Pflichtfeld |
+| `--url <url>` | Dataverse-Umgebungs-URL (z.B. `https://myorg.crm4.dynamics.com`). Fällt auf `XRMFORGE_URL` zurück | Pflichtfeld |
 | `--auth <method>` | Authentifizierungsmethode: `interactive`, `client-credentials`, `device-code`, `token` | Pflichtfeld |
-| `--tenant-id <id>` | Azure-AD-Mandanten-ID | Pflichtfeld für die meisten Methoden |
-| `--client-id <id>` | Azure-AD-Anwendungs-(Client-)ID | Pflichtfeld für die meisten Methoden |
-| `--client-secret <secret>` | Client Secret (nur für `client-credentials`) | -- |
+| `--tenant-id <id>` | Azure-AD-Mandanten-ID. Fällt auf `XRMFORGE_TENANT_ID` zurück | Pflichtfeld für die meisten Methoden |
+| `--client-id <id>` | Azure-AD-Anwendungs-(Client-)ID. Fällt auf `XRMFORGE_CLIENT_ID` zurück | Pflichtfeld für die meisten Methoden |
+| `--client-secret <secret>` | Client Secret (nur für `client-credentials`). Umgebungsvariable `XRMFORGE_CLIENT_SECRET` gegenüber diesem Flag bevorzugen | -- |
 | `--token <token>` | Vorab abgerufener Bearer-Token (für `token`-Auth). Umgebungsvariable `XRMFORGE_TOKEN` bevorzugen | -- |
 | `--entities <list>` | Kommagetrennte logische Entity-Namen (z.B. `account,contact,opportunity`) | -- |
 | `--solutions <list>` | Komma-getrennte Lösungsnamen (findet alle Entities in diesen Lösungen) | -- |
@@ -333,12 +333,14 @@ Exit-Codes folgen der Konvention von `terraform plan -detailed-exitcode` / `pris
 | `1` | Fehler (Authentifizierung, Netzwerk, Konfiguration) |
 | `2` | Drift erkannt |
 
-Typischer CI-Schritt (nightly oder pro Pipeline-Lauf):
+Typischer CI-Schritt (nightly oder pro Pipeline-Lauf). Verbindung und Credentials kommen aus
+`XRMFORGE_*`-Umgebungsvariablen (siehe [Authentifizierung](#authentifizierung)), sodass kein
+Secret auf der Kommandozeile erscheint:
 
 ```bash
+# env: XRMFORGE_URL, XRMFORGE_TENANT_ID, XRMFORGE_CLIENT_ID, XRMFORGE_CLIENT_SECRET
 npx xrmforge generate \
-  --url "$XRMFORGE_URL" --auth client-credentials \
-  --tenant-id "$XRMFORGE_TENANT_ID" --client-id "$XRMFORGE_CLIENT_ID" --client-secret "$XRMFORGE_CLIENT_SECRET" \
+  --auth client-credentials \
   --solutions MeineSolution --actions \
   --output ./generated --check
 ```
@@ -385,7 +387,14 @@ npx xrmforge generate \
   --output ./generated
 ```
 
-In CI/CD das Secret über eine Umgebungsvariable übergeben, nicht als Kommandozeilenargument.
+In CI/CD das Secret (und die übrige Verbindung) über `XRMFORGE_*`-Umgebungsvariablen statt als
+Kommandozeilen-Flags übergeben, damit das Secret weder im Shell-Verlauf noch in der Prozessliste
+auftaucht:
+
+```bash
+# env: XRMFORGE_URL, XRMFORGE_TENANT_ID, XRMFORGE_CLIENT_ID, XRMFORGE_CLIENT_SECRET
+npx xrmforge generate --auth client-credentials --entities account,contact --output ./generated
+```
 
 **Device Code (headless-Terminal, SSH-Sitzungen)**
 
@@ -421,6 +430,24 @@ npx xrmforge generate \
 | `client-credentials` | CI/CD-Pipelines (Service Principal) | `--tenant-id`, `--client-id`, `--client-secret` |
 | `device-code` | Headless-Terminals | `--tenant-id`, `--client-id` |
 | `token` | Externer Token-Anbieter | Umgebungsvariable `XRMFORGE_TOKEN` oder `--token` |
+
+#### Umgebungsvariablen
+
+Verbindung und Credentials werden auch aus Umgebungsvariablen aufgelöst, damit CI-Pipelines
+(und lokale Shells) keine Secrets auf der Kommandozeile übergeben müssen:
+
+| Variable | Ersetzt Flag |
+|----------|--------------|
+| `XRMFORGE_URL` | `--url` |
+| `XRMFORGE_TENANT_ID` | `--tenant-id` |
+| `XRMFORGE_CLIENT_ID` | `--client-id` |
+| `XRMFORGE_CLIENT_SECRET` | `--client-secret` |
+| `XRMFORGE_TOKEN` | `--token` |
+
+Auflösungs-Vorrang pro Wert: erst das explizite CLI-Flag, dann die Umgebungsvariable, dann
+`xrmforge.config.json`. Nicht-geheime Verbindungsdefaults (URL, Tenant, Client, Label-Sprachen,
+Scope) gehören in `xrmforge.config.json`; das Client Secret bleibt aus dem Repo heraus und kommt
+nur über `XRMFORGE_CLIENT_SECRET` (das Secret wird nie aus der Config-Datei gelesen).
 
 ### Azure App-Registrierung
 

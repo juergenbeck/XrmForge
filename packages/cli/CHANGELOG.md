@@ -1,5 +1,18 @@
 # @xrmforge/cli
 
+## 0.7.0
+
+### Minor Changes
+
+- generate: connection and credentials now resolve from XRMFORGE_* environment variables
+  (`XRMFORGE_URL`, `XRMFORGE_TENANT_ID`, `XRMFORGE_CLIENT_ID`, `XRMFORGE_CLIENT_SECRET`;
+  `XRMFORGE_TOKEN` was already supported). Precedence per value: explicit CLI flag > env var >
+  `xrmforge.config.json` (env is resolved before the config merge). Fixes K30-05: the CLI advised
+  `XRMFORGE_CLIENT_SECRET` in two places but never read it. `buildAuthConfig` is now pure (no env
+  reads, no warnings); the insecure-flag warnings for `--client-secret` / `--token` fire only for
+  actual CLI flags, never for env-sourced values. Pulls devkit 0.7.14 (env-based CI scaffold
+  templates) via workspace:*.
+
 ## 0.6.2
 
 ### Patch Changes

@@ -20,16 +20,12 @@ jobs:
       - run: npm ci
 
       - name: Generate types from Dataverse
-        # Connection + auth come from the repository secrets below. Entity scope
-        # (--entities or --solutions) and --output belong in xrmforge.config.json.
+        # Connection + credentials come from the XRMFORGE_* environment below; the CLI
+        # reads them directly, so the secret never appears as a command-line argument
+        # (and stays out of the process list). Entity scope (--entities or --solutions)
+        # and --output belong in xrmforge.config.json.
         # See "npx xrmforge generate --help" for all options (--actions, labels, ...).
-        run: >
-          npx xrmforge generate
-          --url "$XRMFORGE_URL"
-          --auth client-credentials
-          --tenant-id "$XRMFORGE_TENANT_ID"
-          --client-id "$XRMFORGE_CLIENT_ID"
-          --client-secret "$XRMFORGE_CLIENT_SECRET"
+        run: npx xrmforge generate --auth client-credentials
         env:
           XRMFORGE_URL: ${{ secrets.XRMFORGE_URL }}
           XRMFORGE_TENANT_ID: ${{ secrets.XRMFORGE_TENANT_ID }}

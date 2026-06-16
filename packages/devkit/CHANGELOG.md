@@ -1,5 +1,17 @@
 # @xrmforge/devkit
 
+## 0.7.14
+
+### Patch Changes
+
+- Scaffold CI templates (github-actions-ci.yml, azure-pipelines.yml): drop the
+  `--url` / `--tenant-id` / `--client-id` / `--client-secret` flags. `xrmforge generate
+  --auth client-credentials` now reads the `XRMFORGE_*` env block directly, so the secret never
+  appears as a command-line argument (kept out of the runner's process list). Requires cli >= 0.7.0.
+- scaffold.ts: `@xrmforge/cli` dependency pin `^0.6.0` -> `^0.7.0` (the env-var CI template needs
+  the cli env-reading feature; a 0.x caret never crosses the 0.6/0.7 minor boundary, so fresh
+  `init` projects would otherwise pull a cli without env reads; K26-01 class).
+
 ## 0.7.13
 
 ### Patch Changes

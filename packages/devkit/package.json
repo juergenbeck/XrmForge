@@ -1,6 +1,6 @@
 {
   "name": "@xrmforge/devkit",
-  "version": "0.7.13",
+  "version": "0.7.14",
   "description": "Build orchestration and project tooling for Dynamics 365 WebResources",
   "keywords": [
     "dynamics-365",

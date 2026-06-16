@@ -296,11 +296,11 @@ npx xrmforge generate [options]
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--url <url>` | Dataverse environment URL (e.g. `https://myorg.crm4.dynamics.com`) | Required |
+| `--url <url>` | Dataverse environment URL (e.g. `https://myorg.crm4.dynamics.com`). Falls back to `XRMFORGE_URL` | Required |
 | `--auth <method>` | Authentication method: `interactive`, `client-credentials`, `device-code`, `token` | Required |
-| `--tenant-id <id>` | Azure AD tenant ID | Required for most auth methods |
-| `--client-id <id>` | Azure AD application (client) ID | Required for most auth methods |
-| `--client-secret <secret>` | Client secret (for `client-credentials` only) | -- |
+| `--tenant-id <id>` | Azure AD tenant ID. Falls back to `XRMFORGE_TENANT_ID` | Required for most auth methods |
+| `--client-id <id>` | Azure AD application (client) ID. Falls back to `XRMFORGE_CLIENT_ID` | Required for most auth methods |
+| `--client-secret <secret>` | Client secret (for `client-credentials` only). Prefer the `XRMFORGE_CLIENT_SECRET` env var | -- |
 | `--token <token>` | Pre-acquired Bearer token (for `token` auth). Prefer `XRMFORGE_TOKEN` env var | -- |
 | `--entities <list>` | Comma-separated entity logical names (e.g. `account,contact,opportunity`) | -- |
 | `--solutions <list>` | Comma-separated solution unique names (discovers all entities in those solutions) | -- |
@@ -333,12 +333,14 @@ Exit codes follow the `terraform plan -detailed-exitcode` / `prisma migrate diff
 | `1` | Error (authentication, network, configuration) |
 | `2` | Drift detected |
 
-Typical CI step (nightly or per pipeline run):
+Typical CI step (nightly or per pipeline run). Connection and credentials come from
+`XRMFORGE_*` environment variables (see [Authentication](#authentication)), so no secret
+appears on the command line:
 
 ```bash
+# env: XRMFORGE_URL, XRMFORGE_TENANT_ID, XRMFORGE_CLIENT_ID, XRMFORGE_CLIENT_SECRET
 npx xrmforge generate \
-  --url "$XRMFORGE_URL" --auth client-credentials \
-  --tenant-id "$XRMFORGE_TENANT_ID" --client-id "$XRMFORGE_CLIENT_ID" --client-secret "$XRMFORGE_CLIENT_SECRET" \
+  --auth client-credentials \
   --solutions MySolution --actions \
   --output ./generated --check
 ```
@@ -385,7 +387,14 @@ npx xrmforge generate \
   --output ./generated
 ```
 
-In CI/CD, pass the secret via environment variable rather than command-line argument.
+In CI/CD, supply the secret (and the rest of the connection) via `XRMFORGE_*` environment
+variables instead of command-line flags, so the secret never reaches the shell history or
+the process list:
+
+```bash
+# env: XRMFORGE_URL, XRMFORGE_TENANT_ID, XRMFORGE_CLIENT_ID, XRMFORGE_CLIENT_SECRET
+npx xrmforge generate --auth client-credentials --entities account,contact --output ./generated
+```
 
 **Device Code (headless terminal, SSH sessions)**
 
@@ -421,6 +430,24 @@ npx xrmforge generate \
 | `client-credentials` | CI/CD pipelines (Service Principal) | `--tenant-id`, `--client-id`, `--client-secret` |
 | `device-code` | Headless terminals | `--tenant-id`, `--client-id` |
 | `token` | External token provider | `XRMFORGE_TOKEN` env var or `--token` |
+
+#### Environment variables
+
+Connection and credentials also resolve from environment variables, so CI pipelines (and
+local shells) can avoid putting secrets on the command line:
+
+| Variable | Replaces flag |
+|----------|---------------|
+| `XRMFORGE_URL` | `--url` |
+| `XRMFORGE_TENANT_ID` | `--tenant-id` |
+| `XRMFORGE_CLIENT_ID` | `--client-id` |
+| `XRMFORGE_CLIENT_SECRET` | `--client-secret` |
+| `XRMFORGE_TOKEN` | `--token` |
+
+Resolution precedence per value is: explicit CLI flag, then the environment variable, then
+`xrmforge.config.json`. Put non-secret connection defaults (URL, tenant, client, label
+languages, scope) in `xrmforge.config.json`; keep the client secret out of the repo and
+supply it only via `XRMFORGE_CLIENT_SECRET` (the secret is never read from the config file).
 
 ### Azure App Registration
 

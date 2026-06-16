@@ -6,11 +6,29 @@ import { join } from 'node:path';
 const CLI_PATH = join(__dirname, '..', 'dist', 'index.js');
 const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
 
-function runCli(args: string[]): { stdout: string; stderr: string; exitCode: number } {
+/** XRMFORGE_* env vars the CLI reads. Cleared per-run so a developer's shell
+ *  cannot leak into the validation tests; opt in explicitly via `extraEnv`. */
+const XRMFORGE_ENV_KEYS = [
+  'XRMFORGE_URL',
+  'XRMFORGE_TENANT_ID',
+  'XRMFORGE_CLIENT_ID',
+  'XRMFORGE_CLIENT_SECRET',
+  'XRMFORGE_TOKEN',
+];
+
+function runCli(
+  args: string[],
+  extraEnv: Record<string, string> = {},
+): { stdout: string; stderr: string; exitCode: number } {
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  for (const key of XRMFORGE_ENV_KEYS) delete env[key];
+  Object.assign(env, extraEnv);
+
   try {
     const stdout = execFileSync('node', [CLI_PATH, ...args], {
       encoding: 'utf-8',
       timeout: 10000,
+      env,
     });
     return { stdout, stderr: '', exitCode: 0 };
   } catch (error: any) {
@@ -133,5 +151,34 @@ describe('xrmforge generate validation', () => {
     ]);
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('--tenant-id');
+  });
+});
+
+describe('xrmforge generate env-var fallbacks (OE-12 Stufe 1)', () => {
+  it('reads the environment URL from XRMFORGE_URL (no --url flag)', () => {
+    // No --url anywhere; it must come from the environment. The command then gets
+    // past the "--url is required" check and fails later at the missing tenant-id,
+    // which deterministically proves XRMFORGE_URL was read (no network needed).
+    const result = runCli(
+      ['generate', '--auth', 'client-credentials', '--entities', 'account'],
+      { XRMFORGE_URL: 'https://env.crm4.dynamics.com' },
+    );
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).not.toContain('--url is required');
+    expect(result.stderr).toContain('--tenant-id');
+  });
+
+  it('reads tenant-id and client-id from the environment (fails next at the missing secret)', () => {
+    // tenant-id + client-id come from the environment; only the secret is missing.
+    // The auth validation order is tenant -> client -> secret, so failing on the
+    // secret proves both XRMFORGE_TENANT_ID and XRMFORGE_CLIENT_ID were read.
+    const result = runCli(
+      ['generate', '--url', 'https://test.crm4.dynamics.com', '--auth', 'client-credentials', '--entities', 'account'],
+      { XRMFORGE_TENANT_ID: 'env-tid', XRMFORGE_CLIENT_ID: 'env-cid' },
+    );
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).not.toContain('--tenant-id');
+    expect(result.stderr).not.toContain('--client-id is required');
+    expect(result.stderr).toContain('--client-secret');
   });
 });

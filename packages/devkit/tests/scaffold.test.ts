@@ -173,6 +173,9 @@ describe('scaffoldProject', () => {
     expect(ci).toContain('vitest run');
     expect(ci).toContain('npm run validate');
     expect(ci).toContain('XRMFORGE_CLIENT_ID');
+    // Credentials come from the XRMFORGE_* env block, never as a CLI flag (no secret
+    // in the runner's process list). See OE-12 Stufe 1.
+    expect(ci).not.toContain('--client-secret');
   });
 
   it('should generate Azure DevOps pipeline', async () => {
@@ -190,6 +193,8 @@ describe('scaffoldProject', () => {
     expect(pipeline).toContain('xrmforge build');
     expect(pipeline).toContain('ubuntu-latest');
     expect(pipeline).toContain('XRMFORGE_TENANT_ID');
+    // Credentials come from the XRMFORGE_* env block, never as a CLI flag. OE-12 Stufe 1.
+    expect(pipeline).not.toContain('--client-secret');
   });
 
   it('should throw when directory is not empty', async () => {

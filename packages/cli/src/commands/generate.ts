@@ -16,10 +16,20 @@
  *     --entities account,contact,opportunity \
  *     --output ./generated \
  *     --label-language 1033 --secondary-language 1031
+ *
+ * Connection and credentials also resolve from XRMFORGE_* environment variables
+ * (XRMFORGE_URL, XRMFORGE_TENANT_ID, XRMFORGE_CLIENT_ID, XRMFORGE_CLIENT_SECRET,
+ * XRMFORGE_TOKEN). Precedence per value: explicit CLI flag > environment variable
+ * > xrmforge.config.json. In CI, inject the secret as an env var rather than via
+ * --client-secret (which would expose it in the process list):
+ *
+ *   XRMFORGE_URL=... XRMFORGE_TENANT_ID=... XRMFORGE_CLIENT_ID=... \
+ *   XRMFORGE_CLIENT_SECRET=... \
+ *     xrmforge generate --auth client-credentials   # scope/output from xrmforge.config.json
  */
 
 import type { Command } from 'commander';
-import { loadConfig, mergeWithCliOptions } from '../config.js';
+import { loadConfig, mergeWithCliOptions, applyEnvDefaults } from '../config.js';
 import {
   TypeGenerationOrchestrator,
   createCredential,
@@ -87,14 +97,14 @@ export function registerGenerateCommand(program: Command): void {
     .command('generate')
     .description('Generate TypeScript declarations from a Dataverse environment')
 
-    // Connection (can come from xrmforge.config.json)
-    .option('--url <url>', 'Dataverse environment URL (e.g. https://myorg.crm4.dynamics.com)')
+    // Connection (can come from xrmforge.config.json or XRMFORGE_* env vars)
+    .option('--url <url>', 'Dataverse environment URL (e.g. https://myorg.crm4.dynamics.com). Falls back to XRMFORGE_URL.')
     .option('--auth <method>', 'Authentication method: client-credentials, interactive, device-code, token')
 
-    // Auth credentials
-    .option('--tenant-id <id>', 'Azure AD tenant ID')
-    .option('--client-id <id>', 'Azure AD application (client) ID')
-    .option('--client-secret <secret>', 'Client secret (for client-credentials auth)')
+    // Auth credentials (each falls back to an XRMFORGE_* env var; precedence: flag > env > config file)
+    .option('--tenant-id <id>', 'Azure AD tenant ID. Falls back to XRMFORGE_TENANT_ID.')
+    .option('--client-id <id>', 'Azure AD application (client) ID. Falls back to XRMFORGE_CLIENT_ID.')
+    .option('--client-secret <secret>', 'Client secret (for client-credentials auth). Prefer the XRMFORGE_CLIENT_SECRET env var over this flag.')
     .option('--token <token>', 'Pre-acquired Bearer token (for --auth token). Prefer XRMFORGE_TOKEN env var for security.')
 
     // Scope
@@ -157,10 +167,25 @@ export function registerGenerateCommand(program: Command): void {
  * @param cliOpts - Parsed CLI options merged with config file values
  */
 async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
-  // Load config file and merge with CLI options (CLI takes precedence)
+  // Resolve options in three layers. Precedence: CLI flag > environment variable >
+  // xrmforge.config.json. applyEnvDefaults runs BEFORE the config merge so an
+  // XRMFORGE_* value out-ranks the config file but still yields to an explicit flag.
   const fileConfig = loadConfig();
-  const merged = mergeWithCliOptions(fileConfig, cliOpts as unknown as Record<string, unknown>);
+  const cliWithEnv = applyEnvDefaults(cliOpts as unknown as Record<string, unknown>);
+  const merged = mergeWithCliOptions(fileConfig, cliWithEnv);
   const opts = merged as unknown as GenerateOptions;
+
+  // Warn when a secret/token was passed as a CLI flag: it is then exposed in the
+  // shell history and the process list. Values resolved from the environment are
+  // the preferred path and intentionally do not trigger this warning, so we key it
+  // on the original cliOpts (before env resolution).
+  if (cliOpts.clientSecret) {
+    console.warn('WARNING: Passing --client-secret via CLI exposes it in shell history and the process list. Use the XRMFORGE_CLIENT_SECRET environment variable instead.');
+  }
+  if (cliOpts.token) {
+    console.warn('WARNING: Using --token on the command line exposes the token in the process list and shell history.');
+    console.warn('         Prefer setting the XRMFORGE_TOKEN environment variable instead.\n');
+  }
 
   // Configure logging
   configureLogging({
@@ -346,12 +371,16 @@ function printCheckReport(check: CheckResult): void {
 }
 
 /**
- * Build an {@link AuthConfig} from parsed CLI options.
+ * Build an {@link AuthConfig} from already-resolved options.
  *
- * Maps the --auth method to the appropriate credential configuration
- * and validates that required fields are present for each method.
+ * Maps the --auth method to the appropriate credential configuration and
+ * validates that the required fields are present for each method. Pure: it does
+ * not read environment variables or emit warnings - connection/credential values
+ * (including XRMFORGE_* fallbacks) are resolved upstream by
+ * {@link applyEnvDefaults}, and the insecure-flag warnings are emitted in
+ * runGenerate against the original CLI options.
  *
- * @param opts - Parsed CLI options containing auth method and credentials
+ * @param opts - Resolved options containing auth method and credentials
  * @returns Validated authentication configuration
  * @throws {AuthenticationError} If required credentials are missing for the chosen method
  * @throws {ConfigError} If the auth method is unrecognized
@@ -361,12 +390,9 @@ function buildAuthConfig(opts: GenerateOptions): AuthConfig {
 
   switch (method) {
     case 'client-credentials':
-      if (!opts.tenantId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--tenant-id is required for client-credentials auth.', { method: 'client-credentials', missing: 'tenantId' });
-      if (!opts.clientId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--client-id is required for client-credentials auth.', { method: 'client-credentials', missing: 'clientId' });
-      if (!opts.clientSecret) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--client-secret is required for client-credentials auth.', { method: 'client-credentials', missing: 'clientSecret' });
-      if (opts.clientSecret) {
-        console.warn('WARNING: Passing --client-secret via CLI exposes it in shell history. Use XRMFORGE_CLIENT_SECRET environment variable instead.');
-      }
+      if (!opts.tenantId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--tenant-id is required for client-credentials auth (or set XRMFORGE_TENANT_ID).', { method: 'client-credentials', missing: 'tenantId' });
+      if (!opts.clientId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--client-id is required for client-credentials auth (or set XRMFORGE_CLIENT_ID).', { method: 'client-credentials', missing: 'clientId' });
+      if (!opts.clientSecret) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--client-secret is required for client-credentials auth (or set XRMFORGE_CLIENT_SECRET).', { method: 'client-credentials', missing: 'clientSecret' });
       return {
         method: 'client-credentials',
         tenantId: opts.tenantId,
@@ -375,8 +401,8 @@ function buildAuthConfig(opts: GenerateOptions): AuthConfig {
       };
 
     case 'interactive':
-      if (!opts.tenantId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--tenant-id is required for interactive auth.', { method: 'interactive', missing: 'tenantId' });
-      if (!opts.clientId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--client-id is required for interactive auth.', { method: 'interactive', missing: 'clientId' });
+      if (!opts.tenantId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--tenant-id is required for interactive auth (or set XRMFORGE_TENANT_ID).', { method: 'interactive', missing: 'tenantId' });
+      if (!opts.clientId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--client-id is required for interactive auth (or set XRMFORGE_CLIENT_ID).', { method: 'interactive', missing: 'clientId' });
       return {
         method: 'interactive',
         tenantId: opts.tenantId,
@@ -384,8 +410,8 @@ function buildAuthConfig(opts: GenerateOptions): AuthConfig {
       };
 
     case 'device-code':
-      if (!opts.tenantId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--tenant-id is required for device-code auth.', { method: 'device-code', missing: 'tenantId' });
-      if (!opts.clientId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--client-id is required for device-code auth.', { method: 'device-code', missing: 'clientId' });
+      if (!opts.tenantId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--tenant-id is required for device-code auth (or set XRMFORGE_TENANT_ID).', { method: 'device-code', missing: 'tenantId' });
+      if (!opts.clientId) throw new AuthenticationError(ErrorCode.AUTH_MISSING_CONFIG, '--client-id is required for device-code auth (or set XRMFORGE_CLIENT_ID).', { method: 'device-code', missing: 'clientId' });
       return {
         method: 'device-code',
         tenantId: opts.tenantId,
@@ -393,21 +419,17 @@ function buildAuthConfig(opts: GenerateOptions): AuthConfig {
       };
 
     case 'token': {
-      // Token from --token flag or XRMFORGE_TOKEN environment variable
-      const token = opts.token || process.env['XRMFORGE_TOKEN'];
-      if (!token) {
+      // Token comes from --token or XRMFORGE_TOKEN; both are resolved upstream by
+      // applyEnvDefaults, so buildAuthConfig only validates the resolved value.
+      if (!opts.token) {
         throw new AuthenticationError(
           ErrorCode.AUTH_MISSING_CONFIG,
           'Token authentication requires a token. ' +
-          'Set XRMFORGE_TOKEN environment variable or use --token flag.',
+          'Set the XRMFORGE_TOKEN environment variable or use the --token flag.',
           { method: 'token', missing: 'token' },
         );
       }
-      if (opts.token) {
-        console.warn('WARNING: Using --token on the command line exposes the token in process list and shell history.');
-        console.warn('         Prefer setting XRMFORGE_TOKEN environment variable instead.\n');
-      }
-      return { method: 'token', token };
+      return { method: 'token', token: opts.token };
     }
 
     default:
