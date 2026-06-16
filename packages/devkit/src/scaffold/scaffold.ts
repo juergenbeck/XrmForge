@@ -144,7 +144,7 @@ function generatePackageJson(projectName: string): string {
       // would hand fresh projects a cli without these features.
       '@xrmforge/cli': '^0.8.0',
       '@xrmforge/eslint-plugin': '^0.3.0',
-      '@xrmforge/helpers': '^0.6.1',
+      '@xrmforge/helpers': '^0.7.0',
       '@xrmforge/testing': '^0.2.4',
       eslint: '^9.0.0',
       typescript: '^5.7.0',

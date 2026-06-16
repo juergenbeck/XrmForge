@@ -1,5 +1,12 @@
 # @xrmforge/cli
 
+## 0.8.1
+
+### Patch Changes
+
+- Propagation bump: pulls devkit 0.7.16 (scaffold helpers pin `^0.7.0`) via workspace:* so
+  `npx xrmforge init` scaffolds projects on the current helpers minor. No cli source change.
+
 ## 0.8.0
 
 ### Minor Changes

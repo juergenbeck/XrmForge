@@ -1,5 +1,13 @@
 # @xrmforge/devkit
 
+## 0.7.16
+
+### Patch Changes
+
+- scaffold.ts: `@xrmforge/helpers` dependency pin `^0.6.1` -> `^0.7.0` so fresh `init` projects get
+  the current helpers minor (which adds `callCloudFlow`); a 0.x caret never crosses the 0.6/0.7
+  boundary, so the old pin would install 0.6.x (K26-01 class).
+
 ## 0.7.15
 
 ### Patch Changes
