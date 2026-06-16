@@ -1,5 +1,14 @@
 # @xrmforge/devkit
 
+## 0.7.15
+
+### Patch Changes
+
+- Scaffold `.gitignore` now ignores `.env` / `.env.local`. `xrmforge generate` (cli >= 0.8.0) can
+  write entered credentials to a local `./.env`, so fresh projects must never track it.
+- scaffold.ts: `@xrmforge/cli` dependency pin `^0.7.0` -> `^0.8.0` (the `.env` auto-load and
+  interactive credential prompt land in cli 0.8.0; a 0.x caret never crosses the minor boundary).
+
 ## 0.7.14
 
 ### Patch Changes

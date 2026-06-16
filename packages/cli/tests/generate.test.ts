@@ -25,10 +25,14 @@ function runCli(
   Object.assign(env, extraEnv);
 
   try {
+    // `input: ''` forces stdin to a non-TTY pipe so the interactive credential
+    // prompt (OE-12 Stufe 2) never triggers here - the validation tests below rely
+    // on the missing-field error firing instead of a prompt that would hang.
     const stdout = execFileSync('node', [CLI_PATH, ...args], {
       encoding: 'utf-8',
       timeout: 10000,
       env,
+      input: '',
     });
     return { stdout, stderr: '', exitCode: 0 };
   } catch (error: any) {

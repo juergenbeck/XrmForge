@@ -260,6 +260,8 @@ describe('loadTemplate', () => {
     const content = await loadTemplate('gitignore');
     expect(content).toContain('node_modules/');
     expect(content).toContain('dist/');
+    // `.env` must be ignored: the generate prompt can write secrets there (OE-12 Stufe 2).
+    expect(content).toContain('.env');
   });
 
   it('should substitute variables in templates', async () => {

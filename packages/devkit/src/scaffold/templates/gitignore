@@ -7,6 +7,10 @@ dist/
 # XrmForge cache
 .xrmforge/
 
+# Local environment / secrets (never commit; xrmforge generate may write .env)
+.env
+.env.local
+
 # IDE
 .vscode/settings.json
 .idea/

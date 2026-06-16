@@ -444,10 +444,18 @@ Verbindung und Credentials werden auch aus Umgebungsvariablen aufgelöst, damit 
 | `XRMFORGE_CLIENT_SECRET` | `--client-secret` |
 | `XRMFORGE_TOKEN` | `--token` |
 
+Dieselben Variablen dürfen in einer lokalen **`.env`** neben der `xrmforge.config.json` stehen;
+`generate` lädt sie automatisch (eine echte Umgebungsvariable schlägt die `.env`). Und in einem
+**interaktiven Terminal** fragt `generate` einen noch fehlenden Pflichtwert ab (Secret-Eingabe
+verdeckt) und bietet an, die eingegebenen Werte in `./.env` zu speichern (auf POSIX `chmod 600`).
+Ohne Terminal (CI) wird nichts abgefragt, stattdessen kommt der gewohnte Fehler. `xrmforge init`
+nimmt `.env` in die `.gitignore` auf.
+
 Auflösungs-Vorrang pro Wert: erst das explizite CLI-Flag, dann die Umgebungsvariable, dann
-`xrmforge.config.json`. Nicht-geheime Verbindungsdefaults (URL, Tenant, Client, Label-Sprachen,
-Scope) gehören in `xrmforge.config.json`; das Client Secret bleibt aus dem Repo heraus und kommt
-nur über `XRMFORGE_CLIENT_SECRET` (das Secret wird nie aus der Config-Datei gelesen).
+`./.env`, dann `xrmforge.config.json`, zuletzt der interaktive Prompt. Nicht-geheime
+Verbindungsdefaults (URL, Tenant, Client, Label-Sprachen, Scope) gehören in `xrmforge.config.json`;
+das Client Secret bleibt aus dem Repo heraus und kommt nur über `XRMFORGE_CLIENT_SECRET` oder eine
+git-ignorierte `.env` (das Secret wird nie aus der Config-Datei gelesen).
 
 ### Azure App-Registrierung
 

@@ -188,7 +188,7 @@ export function mergeWithCliOptions(
  * out of the shell history and the process list (a flagged --client-secret is
  * visible in both).
  */
-const ENV_VAR_MAP: ReadonlyArray<readonly [string, string]> = [
+export const ENV_VAR_MAP: ReadonlyArray<readonly [string, string]> = [
   ['url', 'XRMFORGE_URL'],
   ['tenantId', 'XRMFORGE_TENANT_ID'],
   ['clientId', 'XRMFORGE_CLIENT_ID'],

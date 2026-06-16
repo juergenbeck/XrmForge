@@ -444,10 +444,18 @@ local shells) can avoid putting secrets on the command line:
 | `XRMFORGE_CLIENT_SECRET` | `--client-secret` |
 | `XRMFORGE_TOKEN` | `--token` |
 
+The same variables can live in a local **`.env`** file next to `xrmforge.config.json`;
+`generate` loads it automatically (a real environment variable still wins over `.env`). And
+in an **interactive terminal**, if a required value is still missing, `generate` prompts for
+it (secret input is hidden) and offers to save the entered values to `./.env` (chmod 600 on
+POSIX) for next time. In a non-interactive context (CI) nothing is prompted; the usual
+missing-value error fires instead. `xrmforge init` adds `.env` to `.gitignore`.
+
 Resolution precedence per value is: explicit CLI flag, then the environment variable, then
-`xrmforge.config.json`. Put non-secret connection defaults (URL, tenant, client, label
-languages, scope) in `xrmforge.config.json`; keep the client secret out of the repo and
-supply it only via `XRMFORGE_CLIENT_SECRET` (the secret is never read from the config file).
+`./.env`, then `xrmforge.config.json`, and finally the interactive prompt. Put non-secret
+connection defaults (URL, tenant, client, label languages, scope) in `xrmforge.config.json`;
+keep the client secret out of the repo and supply it only via `XRMFORGE_CLIENT_SECRET` or a
+git-ignored `.env` (the secret is never read from the config file).
 
 ### Azure App Registration
 

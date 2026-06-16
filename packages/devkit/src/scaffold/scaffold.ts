@@ -138,9 +138,11 @@ function generatePackageJson(projectName: string): string {
       // 0.x caret ranges only allow the same minor: keep these pins on the
       // current minor of each package, otherwise scaffolded projects install
       // outdated versions (e.g. helpers ^0.3.0 never resolves to 0.6.x).
-      // cli ^0.7.0: the env-var CI template (XRMFORGE_* without auth flags) needs
-      // cli >= 0.7.0, which reads those vars; ^0.6.0 would pin to 0.6.x and break it.
-      '@xrmforge/cli': '^0.7.0',
+      // cli ^0.8.0: the env-var CI template (XRMFORGE_* without auth flags, since
+      // 0.7.0) plus the ./.env auto-load and interactive prompt (0.8.0) need cli at
+      // that minor; a 0.x caret never crosses a minor boundary, so an older pin
+      // would hand fresh projects a cli without these features.
+      '@xrmforge/cli': '^0.8.0',
       '@xrmforge/eslint-plugin': '^0.3.0',
       '@xrmforge/helpers': '^0.6.1',
       '@xrmforge/testing': '^0.2.4',

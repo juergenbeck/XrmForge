@@ -19,9 +19,11 @@
  *
  * Connection and credentials also resolve from XRMFORGE_* environment variables
  * (XRMFORGE_URL, XRMFORGE_TENANT_ID, XRMFORGE_CLIENT_ID, XRMFORGE_CLIENT_SECRET,
- * XRMFORGE_TOKEN). Precedence per value: explicit CLI flag > environment variable
- * > xrmforge.config.json. In CI, inject the secret as an env var rather than via
- * --client-secret (which would expose it in the process list):
+ * XRMFORGE_TOKEN), from a local ./.env file, and - in an interactive terminal -
+ * from a prompt for any value still missing. Precedence per value: explicit CLI
+ * flag > environment variable > ./.env > xrmforge.config.json > interactive prompt.
+ * In CI, inject the secret as an env var rather than via --client-secret (which
+ * would expose it in the process list):
  *
  *   XRMFORGE_URL=... XRMFORGE_TENANT_ID=... XRMFORGE_CLIENT_ID=... \
  *   XRMFORGE_CLIENT_SECRET=... \
@@ -29,7 +31,14 @@
  */
 
 import type { Command } from 'commander';
+import dotenv from 'dotenv';
 import { loadConfig, mergeWithCliOptions, applyEnvDefaults } from '../config.js';
+import {
+  needsInteractiveAuth,
+  promptForMissingAuth,
+  writeEnvFile,
+  formatExportLines,
+} from '../prompt.js';
 import {
   TypeGenerationOrchestrator,
   createCredential,
@@ -167,9 +176,16 @@ export function registerGenerateCommand(program: Command): void {
  * @param cliOpts - Parsed CLI options merged with config file values
  */
 async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
-  // Resolve options in three layers. Precedence: CLI flag > environment variable >
-  // xrmforge.config.json. applyEnvDefaults runs BEFORE the config merge so an
-  // XRMFORGE_* value out-ranks the config file but still yields to an explicit flag.
+  // Load a local ./.env into process.env first (OE-12 Stufe 2). dotenv does NOT
+  // override variables already present in the environment, which matches the
+  // desired precedence (real env var beats .env). `quiet` suppresses dotenv's
+  // own startup banner.
+  dotenv.config({ quiet: true });
+
+  // Resolve options in layers. Precedence per value: CLI flag > environment
+  // variable (incl. values loaded from .env above) > xrmforge.config.json.
+  // applyEnvDefaults runs BEFORE the config merge so an XRMFORGE_* value out-ranks
+  // the config file but still yields to an explicit flag.
   const fileConfig = loadConfig();
   const cliWithEnv = applyEnvDefaults(cliOpts as unknown as Record<string, unknown>);
   const merged = mergeWithCliOptions(fileConfig, cliWithEnv);
@@ -192,6 +208,30 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
     sink: new ConsoleLogSink(),
     minLevel: opts.verbose ? LogLevel.DEBUG : LogLevel.INFO,
   });
+
+  // Interactive prompt (TTY only, OE-12 Stufe 2): ask for still-missing
+  // connection/credential values. Skipped in a non-interactive context (CI) so
+  // the validations below emit the usual clear error instead of hanging on stdin.
+  if (process.stdin.isTTY && needsInteractiveAuth(opts)) {
+    const { optionValues, persist } = await promptForMissingAuth(opts, {
+      input: process.stdin,
+      output: process.stderr,
+    });
+    Object.assign(opts, optionValues);
+    if (persist) {
+      const target = writeEnvFile(process.cwd(), optionValues);
+      process.stderr.write(
+        `\nSaved to ${target} (chmod 600 on POSIX). The auth method is not stored there - ` +
+        'keep it in xrmforge.config.json or pass --auth.\n',
+      );
+      const exportLines = formatExportLines(optionValues);
+      if (exportLines.length > 0) {
+        process.stderr.write('Or export them in your shell:\n');
+        for (const line of exportLines) process.stderr.write(`  ${line}\n`);
+      }
+      process.stderr.write('\n');
+    }
+  }
 
   // Validate required options (may come from config file)
   if (!opts.url) {

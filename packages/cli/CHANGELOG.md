@@ -1,5 +1,19 @@
 # @xrmforge/cli
 
+## 0.8.0
+
+### Minor Changes
+
+- generate: full OE-12 credential resolution. A local `./.env` is now auto-loaded (via `dotenv`,
+  without overriding real environment variables), and in an interactive terminal `generate` prompts
+  for any connection/credential value still missing (URL, auth method, tenant/client/secret or token).
+  Precedence per value: CLI flag > environment variable > `./.env` > `xrmforge.config.json` >
+  interactive prompt. The prompt hides secret input, can persist the entered values to `./.env`
+  (chmod 600 on POSIX) and prints `export XRMFORGE_*` lines; the auth method is not persisted (keep it
+  in `xrmforge.config.json` or pass `--auth`). In a non-interactive context (CI) nothing is prompted -
+  the usual missing-value error fires instead of hanging. New dependency: `dotenv` (zero-dependency).
+  Pulls devkit 0.7.15 (scaffold `.gitignore` ignores `.env`, cli pin `^0.8.0`) via workspace:*.
+
 ## 0.7.0
 
 ### Minor Changes

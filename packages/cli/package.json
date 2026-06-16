@@ -1,6 +1,6 @@
 {
   "name": "@xrmforge/cli",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "CLI for XrmForge - TypeScript type generator for Dynamics 365",
   "keywords": [
     "dynamics-365",
@@ -40,7 +40,8 @@
   "dependencies": {
     "@xrmforge/devkit": "workspace:*",
     "@xrmforge/typegen": "workspace:*",
-    "commander": "^13.0.0"
+    "commander": "^13.0.0",
+    "dotenv": "^17.4.2"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
