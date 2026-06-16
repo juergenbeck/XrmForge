@@ -1,5 +1,12 @@
 # @xrmforge/cli
 
+## 0.8.2
+
+### Patch Changes
+
+- Propagation bump: pulls devkit 0.7.17 (AGENT.md scaffold template now teaches `callCloudFlow`) via
+  workspace:* so `npx xrmforge init` scaffolds the updated agent guidance. No cli source change.
+
 ## 0.8.1
 
 ### Patch Changes

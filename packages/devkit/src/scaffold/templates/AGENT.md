@@ -21,7 +21,7 @@ functions with domain-specific names, not in anonymous chains of API calls.
 ## Packages
 
 - `@xrmforge/typegen` - Generates typed declarations from Dataverse metadata (Node.js CLI only, NEVER import in browser code)
-- `@xrmforge/helpers` - Browser-safe runtime: typedForm(), select(), parseLookup(), formLookup(), Xrm constants, Action executors
+- `@xrmforge/helpers` - Browser-safe runtime: typedForm(), select(), parseLookup(), formLookup(), Xrm constants, Action executors, callCloudFlow()
 - `@xrmforge/testing` - Type-safe form mocks: createFormMock(), fireOnChange(), setupXrmMock()
 - `@xrmforge/devkit` - esbuild IIFE bundles via xrmforge build
 - `@xrmforge/eslint-plugin` - D365-specific ESLint rules
@@ -379,6 +379,7 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 **Code quality:**
 - Never `Xrm.Page` (deprecated since D365 v9.0)
 - Never `eval()`, never synchronous XMLHttpRequest
+- Never hand-write `fetch`/`XMLHttpRequest` for Power Automate cloud-flow HTTP-trigger calls (use `callCloudFlow(flowUrl, body)` from `@xrmforge/helpers`)
 - Never `window.X = ...` (use module exports)
 - Never `console.log/warn/error` in form scripts (use shared logger)
 - Never export handlers without `wrapHandler()`
@@ -409,6 +410,7 @@ Copy these MANDATORY rules into every sub-agent prompt:
 13. NOTIFICATION_IDS from constants.ts for all notification unique IDs
 14. Named constants for non-obvious values (never magic numbers like 86400000)
 15. pickLang() for all user-visible strings (never hardcoded German/English)
+16. callCloudFlow(flowUrl, body) for Power Automate cloud-flow HTTP-trigger calls (never hand-rolled fetch/XHR)
 ```
 
 ## Mandatory Shared Utilities
@@ -517,6 +519,29 @@ const result = await withProgress(
 );
 ```
 
+### Cloud Flow Call (Power Automate HTTP trigger)
+```typescript
+// BEFORE (hand-rolled XMLHttpRequest/fetch against the flow trigger URL):
+const req = new XMLHttpRequest();
+req.open('POST', flowUrl, true);
+req.setRequestHeader('Content-Type', 'application/json');
+req.onreadystatechange = () => { /* manual status checks + JSON.parse */ };
+req.send(JSON.stringify(payload));
+
+// AFTER (callCloudFlow: typed body/response, JSON + non-2xx handling built in):
+import { callCloudFlow } from '@xrmforge/helpers';
+
+interface PriceRequest { quoteId: string; }
+interface PriceResponse { total: number; }
+
+// flowUrl comes from configuration (e.g. a Dataverse environment variable); it
+// contains a SAS signature, so never hard-code it in source.
+const price = await callCloudFlow<PriceRequest, PriceResponse>(flowUrl, { quoteId });
+
+// Compose with withProgress for a spinner:
+// await withProgress(lang.calculatingPrice, () => callCloudFlow(flowUrl, { quoteId }));
+```
+
 ### Date Calculation
 ```typescript
 // BEFORE: new Date(date.getTime() + nettotage * 86400000)
@@ -577,6 +602,7 @@ each attribute to its control. `mock.getControl(Fields.Name)` works out of the b
 | `getValue() === 595300000` | `form.statuscode.getValue() === StatusCode.Active` |
 | `86400000` | `const MS_PER_DAY = 24 * 60 * 60 * 1000` |
 | `'[Kurzbeschreibung]'` | `pickLang(languageId, MESSAGES).placeholder` |
+| `XMLHttpRequest`/`fetch` to a Power Automate flow URL | `callCloudFlow(flowUrl, body)` (from `@xrmforge/helpers`) |
 
 ### Legacy Helper Functions (DO NOT recreate, use typedForm instead)
 

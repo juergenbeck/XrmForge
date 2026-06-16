@@ -1,5 +1,15 @@
 # @xrmforge/devkit
 
+## 0.7.17
+
+### Patch Changes
+
+- AGENT.md scaffold template: document `callCloudFlow` (helpers 0.7.0) as the canonical way to call
+  a Power Automate cloud flow (HTTP-request trigger) from a form script. Adds a "Cloud Flow Call"
+  before/after example, a NEVER rule against hand-rolled `fetch`/`XMLHttpRequest` for flow calls, a
+  legacy-pattern table row, the helpers package blurb, and subagent-handoff item 16. Template-only;
+  closes the agent-facing gap from Backlog C (K32-01).
+
 ## 0.7.16
 
 ### Patch Changes
