@@ -14,6 +14,9 @@
   of `getFormType() === FormType.Create`, which raises TS2367 under `strict` (K32-03).
 - Scaffold devDependency pins: `@xrmforge/helpers ^0.8.0` (isFormType) and `@xrmforge/testing ^0.3.0`
   (createFormMock tabs option).
+- AGENT.md template "@types/xrm Pitfalls" list extended with two gaps hit in the Runde-6 showcase:
+  `GridControl.setFilterXml` is missing (cast the control), and `Xrm.App` global-notification `level`
+  is an `XrmEnum` (not available at runtime; pass the numeric value).
 
 ## 0.7.17
 

@@ -692,6 +692,11 @@ IDE autocomplete. Only keep shared helpers that contain actual domain logic
 4. **setNotification()** requires 2 arguments: (message, uniqueId).
 5. **openFile()** requires `fileSize` property in FileDetails.
 6. **Grid.refresh()** requires `(grid as any).refresh()` with eslint-disable comment.
+7. **GridControl.setFilterXml()** is missing from the typings. Cast the control:
+   `(gridControl as unknown as { setFilterXml(xml: string): void }).setFilterXml(fetchXml)`.
+8. **Xrm.App.addGlobalNotification level** is typed as `XrmEnum.AppNotificationLevel`, which (like
+   all `XrmEnum`) does not exist at runtime. Pass the numeric value with a cast/comment, not
+   `XrmEnum.AppNotificationLevel.X`.
 
 ## Build
 
