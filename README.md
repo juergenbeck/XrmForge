@@ -659,7 +659,8 @@ import { WinQuote } from '../generated/actions/quote';
 import { withProgress } from '@xrmforge/helpers';
 
 async function winQuote(quoteId: string): Promise<void> {
-  // withProgress shows a spinner, handles errors with a dialog
+  // withProgress shows a spinner and closes it on completion; errors propagate
+  // to the handler wrapper (wrapHandler/wrapCommand), which owns the error UI
   await withProgress("Processing quote...", () =>
     WinQuote.execute(quoteId),
   );
@@ -927,7 +928,7 @@ if (summaryTab.getDisplayState() === DisplayState.Collapsed) {
 
 ### Progress Indicator
 
-Wrap async operations with a progress spinner and automatic error dialog:
+Wrap async operations with a progress spinner. Errors are not displayed here; they propagate to the handler wrapper (`wrapHandler`/`wrapCommand`), which owns the single error UI:
 
 ```typescript
 import { withProgress } from '@xrmforge/helpers';
@@ -936,7 +937,7 @@ import { WinQuote } from '../generated/actions/quote';
 await withProgress("Processing quote...", () =>
   WinQuote.execute(quoteId),
 );
-// Spinner closes automatically. On error, an error dialog is shown.
+// Spinner closes automatically. On error it re-throws to the handler wrapper, which shows the notification.
 ```
 
 ### Required Level

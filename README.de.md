@@ -659,7 +659,8 @@ import { WinQuote } from '../generated/actions/quote';
 import { withProgress } from '@xrmforge/helpers';
 
 async function winQuote(quoteId: string): Promise<void> {
-  // withProgress zeigt einen Spinner und behandelt Fehler mit einem Dialog
+  // withProgress zeigt einen Spinner und schließt ihn am Ende; Fehler
+  // propagieren an den Handler-Wrapper (wrapHandler/wrapCommand), der die Fehler-UI besitzt
   await withProgress("Angebot wird verarbeitet...", () =>
     WinQuote.execute(quoteId),
   );
@@ -926,7 +927,7 @@ if (summaryTab.getDisplayState() === DisplayState.Collapsed) {
 
 ### Fortschrittsanzeige
 
-Asynchrone Operationen mit einem Fortschrittsspinner und automatischem Fehlerdialog umschließen:
+Asynchrone Operationen mit einem Fortschrittsspinner umschließen. Fehler werden hier nicht angezeigt; sie propagieren an den Handler-Wrapper (`wrapHandler`/`wrapCommand`), der die einzige Fehler-UI besitzt:
 
 ```typescript
 import { withProgress } from '@xrmforge/helpers';
@@ -935,7 +936,7 @@ import { WinQuote } from '../generated/actions/quote';
 await withProgress("Angebot wird verarbeitet...", () =>
   WinQuote.execute(quoteId),
 );
-// Spinner schließt automatisch. Bei Fehler wird ein Fehlerdialog angezeigt.
+// Spinner schließt automatisch. Bei Fehler wird an den Handler-Wrapper weitergeworfen, der die Benachrichtigung zeigt.
 ```
 
 ### Pflichtfeldstatus
