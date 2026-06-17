@@ -39,7 +39,7 @@ describe('scaffoldProject', () => {
     expect(result.filesCreated).toContain('.gitignore');
     expect(result.filesCreated).toContain('.gitattributes');
     expect(result.filesCreated).toContain('src/forms/example-form.ts');
-    expect(result.filesCreated).toContain('typings/.gitkeep');
+    expect(result.filesCreated).toContain('generated/.gitkeep');
     expect(result.filesCreated).toContain('tests/forms/example-form.test.ts');
     expect(result.filesCreated).toContain('AGENT.md');
     expect(result.filesCreated).toContain('.github/workflows/ci.yml');

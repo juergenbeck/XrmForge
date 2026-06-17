@@ -45,7 +45,7 @@ export async function scaffoldProject(config: ScaffoldConfig): Promise<ScaffoldR
   const dirs = [
     'src/forms',
     'src/shared',
-    'typings',
+    'generated',
     'tests/forms',
   ];
 
@@ -98,7 +98,7 @@ async function generateTemplates(config: ScaffoldConfig): Promise<Array<[string,
     ['.gitattributes', generateGitAttributes()],
     ['AGENT.md', await loadTemplate('AGENT.md')],
     ['src/forms/example-form.ts', await loadTemplate('example-form.ts', namespaceVars)],
-    ['typings/.gitkeep', ''],
+    ['generated/.gitkeep', ''],
     ['tests/forms/example-form.test.ts', await loadTemplate('example-form.test.ts', namespaceVars)],
     ['src/shared/logger.ts', await loadTemplate('logger.ts', namespaceVars)],
     ['src/shared/error-handler.ts', await loadTemplate('error-handler.ts')],
@@ -142,10 +142,13 @@ function generatePackageJson(projectName: string): string {
       // 0.7.0) plus the ./.env auto-load and interactive prompt (0.8.0) need cli at
       // that minor; a 0.x caret never crosses a minor boundary, so an older pin
       // would hand fresh projects a cli without these features.
+      // helpers ^0.8.0: isFormType (the AGENT.md form-type guard) ships in 0.8.0.
+      // testing ^0.3.0: the createFormMock tabs option (cross-tab section tests)
+      // ships in 0.3.0.
       '@xrmforge/cli': '^0.8.0',
       '@xrmforge/eslint-plugin': '^0.3.0',
-      '@xrmforge/helpers': '^0.7.0',
-      '@xrmforge/testing': '^0.2.4',
+      '@xrmforge/helpers': '^0.8.0',
+      '@xrmforge/testing': '^0.3.0',
       eslint: '^9.0.0',
       typescript: '^5.7.0',
       vitest: '^3.0.0',
@@ -199,8 +202,7 @@ function generateTsConfig(): string {
     },
     include: [
       'src/**/*.ts',
-      'typings/**/*.d.ts',
-      'typings/**/*.ts',
+      'generated/**/*.ts',
     ],
   };
   return JSON.stringify(config, null, 2) + '\n';

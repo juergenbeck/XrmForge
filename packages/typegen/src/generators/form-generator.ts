@@ -52,6 +52,7 @@ import {
   toPascalCase,
 } from './type-mapping.js';
 import { transliterateUmlauts, formatDualLabel, getPrimaryLabel, type LabelConfig, DEFAULT_LABEL_CONFIG } from './label-utils.js';
+import { singleQuoted } from './string-escape.js';
 
 /** Dataverse SystemForm type code for Quick Create forms (systemform_type) */
 const FORM_TYPE_QUICK_CREATE = 7;
@@ -249,7 +250,7 @@ export function generateFormInterface(
     if (field.label) {
       lines.push(`  /** ${field.label} */`);
     }
-    lines.push(`  ${field.enumMemberName} = '${field.logicalName}',`);
+    lines.push(`  ${field.enumMemberName} = ${singleQuoted(field.logicalName)},`);
   }
   lines.push('}');
   lines.push('');
@@ -281,7 +282,7 @@ export function generateFormInterface(
       if (tab.label) {
         lines.push(`  /** ${tab.label} */`);
       }
-      lines.push(`  ${tabMemberNames[i]} = '${tab.name}',`);
+      lines.push(`  ${tabMemberNames[i]} = ${singleQuoted(tab.name)},`);
     }
     lines.push('}');
     lines.push('');
@@ -311,7 +312,7 @@ export function generateFormInterface(
           sCounter++;
         }
         usedSectionMembers.add(sectionMember);
-        lines.push(`  ${sectionMember} = '${section.name}',`);
+        lines.push(`  ${sectionMember} = ${singleQuoted(section.name)},`);
       }
       lines.push('}');
       lines.push('');
@@ -339,7 +340,7 @@ export function generateFormInterface(
       usedMembers.add(member);
       const label = sg.targetEntityType ? `Subgrid: ${sg.targetEntityType}` : `Subgrid`;
       lines.push(`  /** ${label} */`);
-      lines.push(`  ${member} = '${sg.id}',`);
+      lines.push(`  ${member} = ${singleQuoted(sg.id)},`);
     }
     lines.push('}');
     lines.push('');
@@ -360,7 +361,7 @@ export function generateFormInterface(
       }
       usedMembers.add(member);
       lines.push(`  /** Quick View */`);
-      lines.push(`  ${member} = '${qv.id}',`);
+      lines.push(`  ${member} = ${singleQuoted(qv.id)},`);
     }
     lines.push('}');
     lines.push('');

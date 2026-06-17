@@ -25,6 +25,7 @@ export {
 export {
   DisplayState,
   FormType,
+  isFormType,
   FormNotificationLevel,
   RequiredLevel,
   SubmitMode,

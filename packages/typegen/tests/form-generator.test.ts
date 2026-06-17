@@ -388,3 +388,51 @@ describe('tab/section disambiguation', () => {
     expect(result).toContain('const enum ContactInsightsFormInsights2Sections {');
   });
 });
+
+describe('apostrophes in FormXML names (K32-02)', () => {
+  it('escapes a single quote in a section name so the emitted literal is valid TS', () => {
+    const form: ParsedForm = {
+      name: 'Notes',
+      formId: 'form-notes',
+      isDefault: true,
+      tabs: [
+        {
+          name: 'General',
+          label: 'General',
+          sections: [
+            { name: "note's information", label: 'Notes', controls: [{ id: 'f1', datafieldname: 'subject', classid: '' }] },
+          ],
+        },
+      ],
+      allControls: [{ id: 'f1', datafieldname: 'subject', classid: '' }],
+    };
+    const attributes = [createAttr('subject', 'String', 'Subject')];
+
+    const result = generateFormInterface(form, 'annotation', new Map(attributes.map((a) => [a.LogicalName, a])));
+
+    // The raw value must be escaped (would otherwise be an unterminated literal).
+    expect(result).toContain("= 'note\\'s information',");
+    expect(result).not.toContain("= 'note's information',");
+  });
+
+  it('escapes an apostrophe in a tab name', () => {
+    const form: ParsedForm = {
+      name: 'Quote',
+      formId: 'form-quote',
+      isDefault: true,
+      tabs: [
+        {
+          name: "customer's tab",
+          label: 'Customer',
+          sections: [{ name: 'S1', label: 'S1', controls: [{ id: 'f1', datafieldname: 'name', classid: '' }] }],
+        },
+      ],
+      allControls: [{ id: 'f1', datafieldname: 'name', classid: '' }],
+    };
+    const attributes = [createAttr('name', 'String', 'Name')];
+
+    const result = generateFormInterface(form, 'quote', new Map(attributes.map((a) => [a.LogicalName, a])));
+
+    expect(result).toContain("= 'customer\\'s tab',");
+  });
+});

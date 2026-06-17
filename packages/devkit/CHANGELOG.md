@@ -1,5 +1,20 @@
 # @xrmforge/devkit
 
+## 0.7.18
+
+### Patch Changes
+
+- Scaffold uses `generated/` instead of `typings/` for generated types. The `xrmforge generate`
+  default output (`./generated`), the `.gitattributes` LF pin, the AGENT.md import examples and the
+  example-form TODO already used `generated/`; only the created directory and the tsconfig `include`
+  lagged on `typings/`, so a freshly scaffolded project type-checked an empty `typings/` while the
+  real types landed unchecked in `generated/`. tsconfig `include` is now `src/**/*.ts` +
+  `generated/**/*.ts` (K32-04).
+- AGENT.md template: the form-type guard uses `isFormType(form.$context, FormType.Create)` instead
+  of `getFormType() === FormType.Create`, which raises TS2367 under `strict` (K32-03).
+- Scaffold devDependency pins: `@xrmforge/helpers ^0.8.0` (isFormType) and `@xrmforge/testing ^0.3.0`
+  (createFormMock tabs option).
+
 ## 0.7.17
 
 ### Patch Changes

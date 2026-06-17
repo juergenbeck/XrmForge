@@ -5,6 +5,8 @@
  * Tracks form notifications for assertions.
  */
 
+import type { MockTabConfig, MockSectionConfig } from './types.js';
+
 /**
  * Default values matching @xrmforge/helpers const enums.
  * Cannot import const enums across module boundaries with isolatedModules,
@@ -18,6 +20,84 @@ export interface FormNotification {
   message: string;
   /** The severity level ('INFO', 'WARNING', or 'ERROR'). */
   level: string;
+}
+
+/** Build a stateful section mock that tracks setVisible/setLabel. */
+function buildSection(config: MockSectionConfig): Xrm.Controls.Section {
+  let visible = config.visible ?? true;
+  let label = config.label ?? config.name;
+  const section = {
+    getName: () => config.name,
+    getVisible: () => visible,
+    setVisible: (v: boolean) => {
+      visible = v;
+    },
+    getLabel: () => label,
+    setLabel: (l: string) => {
+      label = l;
+    },
+    getParent: () => ({}) as Xrm.Controls.Tab,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Xrm.Collection overloaded get()
+    controls: { forEach: () => {}, get: (() => null) as any, getLength: () => 0 },
+  };
+  return section as unknown as Xrm.Controls.Section;
+}
+
+/** Build a stateful tab mock with a section collection; tracks visibility/state. */
+function buildTab(config: MockTabConfig): Xrm.Controls.Tab {
+  let visible = config.visible ?? true;
+  let displayState: Xrm.DisplayState = config.displayState ?? DEFAULT_DISPLAY_STATE;
+  let label = config.label ?? config.name;
+
+  const sections = new Map<string, Xrm.Controls.Section>();
+  for (const s of config.sections ?? []) {
+    const sectionConfig: MockSectionConfig = typeof s === 'string' ? { name: s } : s;
+    sections.set(sectionConfig.name, buildSection(sectionConfig));
+  }
+  const getOrCreateSection = (name: string): Xrm.Controls.Section => {
+    let section = sections.get(name);
+    if (!section) {
+      section = buildSection({ name });
+      sections.set(name, section);
+    }
+    return section;
+  };
+
+  const sectionCollection = {
+    forEach: (callback: (section: Xrm.Controls.Section, index: number) => void) =>
+      [...sections.values()].forEach(callback),
+    get: ((selector?: string | number) => {
+      if (typeof selector === 'string') return getOrCreateSection(selector);
+      if (typeof selector === 'number') return [...sections.values()][selector] ?? null;
+      return [...sections.values()];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Xrm.Collection overloaded get()
+    }) as any,
+    getLength: () => sections.size,
+  };
+
+  const tab = {
+    getName: () => config.name,
+    getVisible: () => visible,
+    setVisible: (v: boolean) => {
+      visible = v;
+    },
+    getDisplayState: () => displayState,
+    setDisplayState: (s: Xrm.DisplayState) => {
+      displayState = s;
+    },
+    getLabel: () => label,
+    setLabel: (l: string) => {
+      label = l;
+    },
+    setFocus: () => {},
+    addTabStateChange: () => {},
+    removeTabStateChange: () => {},
+    getParent: () => ({}) as Xrm.Ui,
+    sections: sectionCollection,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Xrm.Collection overloaded get()
+    controls: { forEach: () => {}, get: (() => null) as any, getLength: () => 0 },
+  };
+  return tab as unknown as Xrm.Controls.Tab;
 }
 
 /**
@@ -35,6 +115,28 @@ export interface FormNotification {
  */
 export class MockUi {
   private _notifications: Map<string, FormNotification> = new Map();
+
+  /** Seeded tabs (createFormMock options.tabs); tabs are also created on demand. */
+  private _tabs: Map<string, Xrm.Controls.Tab> = new Map();
+
+  /**
+   * Seed the tab/section structure so ui.tabs.get() (all tabs), forEach, and
+   * cross-tab section visibility become testable. Called by createFormMock.
+   */
+  seedTabs(configs: MockTabConfig[]): void {
+    for (const config of configs) {
+      this._tabs.set(config.name, buildTab(config));
+    }
+  }
+
+  private getOrCreateTab(name: string): Xrm.Controls.Tab {
+    let tab = this._tabs.get(name);
+    if (!tab) {
+      tab = buildTab({ name });
+      this._tabs.set(name, tab);
+    }
+    return tab;
+  }
 
   /**
    * Sets a form-level notification.
@@ -70,41 +172,24 @@ export class MockUi {
     return this._notifications;
   }
 
-  /** Stub: tabs.get returns a minimal Tab mock */
+  /**
+   * Mock tab collection. Supports the overloaded `get`:
+   * - `get()` (no argument) returns all (seeded or on-demand) tabs as an array
+   * - `get(name)` returns the named tab, creating a stateful one on demand
+   * - `get(index)` returns the tab at that position
+   * `forEach`/`getLength` iterate the known tabs. Tabs and their sections track
+   * `setVisible`/`setDisplayState` so cross-tab logic is assertable.
+   */
   tabs = {
-    get: (name: string): Xrm.Controls.Tab =>
-      ({
-        getName: () => name,
-        getVisible: () => true,
-        setVisible: () => {},
-        getDisplayState: () => DEFAULT_DISPLAY_STATE,
-        setDisplayState: () => {},
-        getLabel: () => name,
-        setLabel: () => {},
-        setFocus: () => {},
-        addTabStateChange: () => {},
-        removeTabStateChange: () => {},
-        getParent: () => ({}) as Xrm.Ui,
-        sections: {
-          forEach: () => {},
-          get: ((sectionName: string) => ({
-            getName: () => sectionName,
-            getVisible: () => true,
-            setVisible: () => {},
-            getLabel: () => sectionName,
-            setLabel: () => {},
-            getParent: () => ({}) as Xrm.Controls.Tab,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Xrm.Collection overloaded get()
-            controls: { forEach: () => {}, get: (() => null) as any, getLength: () => 0 },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Xrm.Collection overloaded get()
-          })) as any,
-          getLength: () => 0,
-        },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Xrm.Collection overloaded get()
-        controls: { forEach: () => {}, get: (() => null) as any, getLength: () => 0 },
-      }) as unknown as Xrm.Controls.Tab,
-    forEach: () => {},
-    getLength: () => 0,
+    get: ((selector?: string | number): Xrm.Controls.Tab | Xrm.Controls.Tab[] | null => {
+      if (typeof selector === 'string') return this.getOrCreateTab(selector);
+      if (typeof selector === 'number') return [...this._tabs.values()][selector] ?? null;
+      return [...this._tabs.values()];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Xrm.Collection overloaded get()
+    }) as any,
+    forEach: (callback: (tab: Xrm.Controls.Tab, index: number) => void): void =>
+      [...this._tabs.values()].forEach(callback),
+    getLength: (): number => this._tabs.size,
   };
 
   /** Closes the form (no-op in this mock). */

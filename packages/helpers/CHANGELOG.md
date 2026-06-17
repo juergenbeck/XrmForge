@@ -1,5 +1,20 @@
 # @xrmforge/helpers
 
+## 0.8.0
+
+### Minor Changes
+
+- New `isFormType(formContext, FormType)`: form-type equality without the TS2367 friction.
+  `formContext.ui.getFormType()` is typed as `XrmEnum.FormType` (from @types/xrm), which is a
+  nominally distinct type from the `FormType` const enum here, so a bare
+  `getFormType() === FormType.Create` fails to compile under `strict` ("no overlap"). `isFormType`
+  bridges both numeric enums for the equality case (K32-03).
+- `withProgress` no longer shows its own error dialog on failure. It shows/closes the progress
+  indicator and re-throws, leaving the single error UI to the handler wrapper
+  (`wrapHandler`/`wrapCommand`). Previously it opened an error dialog AND the wrapper showed a form
+  notification, producing a duplicate error UI when `withProgress` ran inside a wrapped command
+  (the common ribbon case) (K32-06). Behavior change.
+
 ## 0.7.0
 
 ### Minor Changes

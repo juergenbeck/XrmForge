@@ -80,6 +80,9 @@ export function createFormMock<TForm>(
 
   const mockEntity = new MockEntity(entityName, entityId, attributes);
   const mockUi = new MockUi();
+  if (options.tabs) {
+    mockUi.seedTabs(options.tabs);
+  }
 
   // Build the formContext object that satisfies the TForm interface
   const formContext = {

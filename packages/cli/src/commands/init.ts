@@ -111,7 +111,7 @@ async function runInit(dir: string | undefined, opts: InitOptions): Promise<void
   if (!opts.skipInstall) {
     console.log('  npm install');
   }
-  console.log('  xrmforge generate --url https://YOUR-ORG.crm4.dynamics.com --auth interactive --entities account --output ./typings');
+  console.log('  xrmforge generate --url https://YOUR-ORG.crm4.dynamics.com --auth interactive --entities account --output ./generated');
   console.log('  xrmforge build');
   console.log('');
 }

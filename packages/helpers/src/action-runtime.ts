@@ -8,7 +8,7 @@
  * - `createBoundAction` / `createUnboundAction`: Produce executor objects
  *   with `.execute()` (calls Xrm.WebApi) and `.request()` (for executeMultiple)
  * - `executeRequest`: Central execute wrapper (single place for the `as any` cast)
- * - `withProgress`: Convenience wrapper with progress indicator + error dialog
+ * - `withProgress`: Convenience wrapper with progress indicator (errors propagate to the handler wrapper)
  *
  * @example
  * ```typescript
@@ -373,10 +373,14 @@ export function createBoundFunction<TResult>(
 // Convenience
 
 /**
- * Execute an async operation with Xrm progress indicator.
+ * Execute an async operation with an Xrm progress indicator.
  *
- * Shows a progress spinner before the operation, closes it after,
- * and shows an error dialog on failure.
+ * Shows a progress spinner before the operation and closes it afterwards
+ * (success or failure). Errors are NOT displayed here; they propagate to the
+ * caller so the single error UI is owned by the handler wrapper
+ * (`wrapHandler`/`wrapCommand`). Showing an error dialog here too would produce
+ * a duplicate error UI (dialog + form notification) when `withProgress` runs
+ * inside a wrapped command (the common ribbon case).
  *
  * @param message - Progress indicator message (e.g. "Processing quote...")
  * @param operation - Async function to execute
@@ -384,6 +388,7 @@ export function createBoundFunction<TResult>(
  *
  * @example
  * ```typescript
+ * // Inside a wrapCommand handler: the wrapper shows the error notification.
  * await withProgress('Processing quote...', () => WinQuote.execute(recordId));
  * ```
  */
@@ -394,10 +399,6 @@ export async function withProgress<T>(
   Xrm.Utility.showProgressIndicator(message);
   try {
     return await operation();
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error);
-    Xrm.Navigation.openErrorDialog({ message: msg });
-    throw error;
   } finally {
     Xrm.Utility.closeProgressIndicator();
   }

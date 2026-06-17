@@ -267,23 +267,24 @@ describe('withProgress', () => {
     expect((Xrm.Utility as any).closeProgressIndicator).toHaveBeenCalled();
   });
 
-  it('should show error dialog and rethrow on failure', async () => {
+  it('should close progress and rethrow on failure without showing its own error UI', async () => {
+    (Xrm.Navigation as any).openErrorDialog.mockClear();
     const error = new Error('Test failure');
     await expect(
       withProgress('Loading...', async () => { throw error; }),
     ).rejects.toThrow('Test failure');
 
-    expect((Xrm.Navigation as any).openErrorDialog).toHaveBeenCalled();
+    // The handler wrapper (wrapHandler/wrapCommand) owns the error UI, not withProgress.
+    expect((Xrm.Navigation as any).openErrorDialog).not.toHaveBeenCalled();
     expect((Xrm.Utility as any).closeProgressIndicator).toHaveBeenCalled();
   });
 
-  it('should handle non-Error throws', async () => {
+  it('should propagate non-Error throws (error UI is the wrapper job)', async () => {
+    (Xrm.Navigation as any).openErrorDialog.mockClear();
     await expect(
       withProgress('Loading...', async () => { throw 'string error'; }),
     ).rejects.toBe('string error');
 
-    expect((Xrm.Navigation as any).openErrorDialog).toHaveBeenCalledWith({
-      message: 'string error',
-    });
+    expect((Xrm.Navigation as any).openErrorDialog).not.toHaveBeenCalled();
   });
 });

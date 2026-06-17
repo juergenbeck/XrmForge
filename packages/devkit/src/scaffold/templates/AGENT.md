@@ -313,13 +313,14 @@ form.$context.ui.setFormNotification(msg, FormNotificationLevel.Error, NOTIFICAT
 Never use raw strings or magic numbers for Xrm API constants:
 
 ```typescript
-import { SaveMode, FormNotificationLevel, RequiredLevel, SubmitMode, DisplayState } from '@xrmforge/helpers';
+import { SaveMode, FormType, isFormType, FormNotificationLevel, RequiredLevel, SubmitMode, DisplayState } from '@xrmforge/helpers';
 
 // Save mode:
 if (ctx.getEventArgs().getSaveMode() === SaveMode.AutoSave) { ... }  // not === 70
 
-// Form type (const enum from @types/xrm, works at runtime):
-if (form.$context.ui.getFormType() === FormType.Create) { ... }  // not === 1
+// Form type: use isFormType (getFormType() returns XrmEnum.FormType, so a bare
+// `=== FormType.Create` raises TS2367 "no overlap" under strict):
+if (isFormType(form.$context, FormType.Create)) { ... }  // not getFormType() === 1
 
 // Display state:
 if (tab.getDisplayState() === DisplayState.Expanded) { ... }  // not === 'expanded'
@@ -362,7 +363,7 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 - Never magic numbers for OptionSet values, status codes, or FetchXML `<value>` (use OptionSet Enums)
 - Never magic numbers for time calculations (use named constants like `MS_PER_DAY`)
 - Never `getSaveMode() === 70` (use `SaveMode.AutoSave` from @xrmforge/helpers)
-- Never `getFormType() === 1` (use `FormType.Create` from `@xrmforge/helpers`)
+- Never `getFormType() === 1` (use `isFormType(form.$context, FormType.Create)` from `@xrmforge/helpers`; a bare `getFormType() === FormType.Create` raises TS2367)
 - Never `XrmEnum.FormType` (does NOT exist at runtime, esbuild does not resolve const enums from .d.ts. Use `FormType` from `@xrmforge/helpers`)
 - Never `'expanded'`/`'collapsed'` (use `DisplayState` from @xrmforge/helpers)
 - Never `'ERROR'`/`'INFO'`/`'WARNING'` (use `FormNotificationLevel`)

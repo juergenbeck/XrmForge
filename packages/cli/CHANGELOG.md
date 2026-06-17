@@ -1,5 +1,14 @@
 # @xrmforge/cli
 
+## 0.8.3
+
+### Patch Changes
+
+- `init` next-steps print `xrmforge generate ... --output ./generated` instead of `./typings`,
+  consistent with the generate default output and the scaffolded tsconfig `include` (K32-04).
+- Bundles devkit 0.7.18 + typegen 0.12.1 (scaffold `generated/` + AGENT.md isFormType + apostrophe
+  escaping) via the workspace dependency.
+
 ## 0.8.2
 
 ### Patch Changes

@@ -67,8 +67,46 @@ describe('MockUi', () => {
 
   it('tabs.forEach and getLength should work', () => {
     const ui = new MockUi();
-    ui.tabs.forEach();
+    const seen: string[] = [];
+    ui.tabs.forEach((tab) => seen.push(tab.getName()));
+    expect(seen).toEqual([]);
     expect(ui.tabs.getLength()).toBe(0);
+  });
+
+  it('seeded tabs are returned by get() (no argument) and forEach', () => {
+    const ui = new MockUi();
+    ui.seedTabs([
+      { name: 'TAB_A', sections: ['SEC_A1', 'SEC_A2'] },
+      { name: 'TAB_B', sections: [{ name: 'SEC_B1', visible: false }] },
+    ]);
+    const all = (ui.tabs.get as () => Xrm.Controls.Tab[])();
+    expect(all.map((t) => t.getName())).toEqual(['TAB_A', 'TAB_B']);
+    expect(ui.tabs.getLength()).toBe(2);
+
+    const names: string[] = [];
+    ui.tabs.forEach((tab) => names.push(tab.getName()));
+    expect(names).toEqual(['TAB_A', 'TAB_B']);
+  });
+
+  it('tracks section visibility across tabs (cross-tab search assertable)', () => {
+    const ui = new MockUi();
+    ui.seedTabs([{ name: 'TAB_A', sections: [{ name: 'SEC_A1', visible: true }] }]);
+    // Emulate cross-tab onLoad logic: iterate all tabs, hide a matching section.
+    (ui.tabs.get as () => Xrm.Controls.Tab[])().forEach((tab) => {
+      tab.sections.forEach((section) => {
+        if (section.getName() === 'SEC_A1') section.setVisible(false);
+      });
+    });
+    const section = (ui.tabs.get('TAB_A') as Xrm.Controls.Tab).sections.get('SEC_A1');
+    expect(section.getVisible()).toBe(false);
+  });
+
+  it('seeded tab visibility and display state are honoured', () => {
+    const ui = new MockUi();
+    ui.seedTabs([{ name: 'TAB_A', visible: false, displayState: 'collapsed' }]);
+    const tab = ui.tabs.get('TAB_A') as Xrm.Controls.Tab;
+    expect(tab.getVisible()).toBe(false);
+    expect(tab.getDisplayState()).toBe('collapsed');
   });
 
   it('close should not throw', () => {

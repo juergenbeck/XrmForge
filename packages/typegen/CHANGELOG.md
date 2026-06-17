@@ -1,5 +1,17 @@
 # @xrmforge/typegen
 
+## 0.12.1
+
+### Patch Changes
+
+- form-generator: tab names, section names and subgrid/quick-view control ids are emitted through a
+  single-quote escaper (`singleQuoted`). A FormXML name containing an apostrophe (e.g. a section
+  literally named `note's information`) previously produced an unterminated string literal / invalid
+  TypeScript in the generated form file (K32-02; hit independently in two showcase runs). Schema
+  identifiers (entity/attribute logical names, navigation property names, custom-api unique names)
+  are constrained to `[a-z0-9_]` by Dataverse and were verified apostrophe-free, so only the
+  FormXML-derived emitters needed escaping; output is byte-identical when no such characters occur.
+
 ## 0.12.0
 
 ### Minor Changes
