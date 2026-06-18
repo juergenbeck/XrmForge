@@ -66,6 +66,20 @@ export const enum FormNotificationLevel {
   Info = 'INFO',
 }
 
+/**
+ * App-level (global) notification level for Xrm.App.addGlobalNotification.
+ *
+ * Mirrors XrmEnum.AppNotificationLevel, which (like all XrmEnum const enums) does
+ * NOT exist at runtime. Use this enum; {@link addAppNotification} applies the cast
+ * to the @types/xrm typings at a single boundary.
+ */
+export const enum AppNotificationLevel {
+  Success = 1,
+  Error = 2,
+  Warning = 3,
+  Information = 4,
+}
+
 /** Attribute required level (attribute.setRequiredLevel) */
 export const enum RequiredLevel {
   None = 'none',

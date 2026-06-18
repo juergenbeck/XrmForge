@@ -1,5 +1,13 @@
 # @xrmforge/cli
 
+## 0.8.8
+
+### Patch Changes
+
+- Propagation bump: pulls devkit 0.7.23 (AGENT.md helper guidance + helpers ^0.10.0 scaffold pin,
+  F-MAR7-03/F-LMA7-07/09) via workspace:* so `npx xrmforge init` scaffolds the updated guidance and
+  pin. No cli source change.
+
 ## 0.8.7
 
 ### Patch Changes

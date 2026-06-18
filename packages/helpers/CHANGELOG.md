@@ -1,5 +1,22 @@
 # @xrmforge/helpers
 
+## 0.10.0
+
+### Minor Changes
+
+- New consumer helpers that showcase sessions previously hand-rolled per form (F-MAR7-03,
+  F-LMA7-07/09):
+  - `parseMultiSelect(value, emptyAsNull?)`: normalize a MultiSelect OptionSet (Web API
+    comma-string, number[], single number, null) to `number[]` (or `null` with `emptyAsNull`).
+    Empty/whitespace parts are dropped before Number() to avoid a spurious 0 from a trailing comma.
+  - `clearAndSubmit(attr)`: clear an attribute and force `SubmitMode.Always` without the
+    `setAndSubmit(attr, null)` type-inference trap (F-LMA7-09).
+  - `setUnsafeAndSubmit(form, field, value)`: set an off-form (`$unsafe`) attribute and force submit;
+    returns false if the field is absent (F-LMA7-07).
+  - `addAppNotification(message, level, options?)` + `AppNotificationLevel` const enum: wrap
+    `Xrm.App.addGlobalNotification`, applying the `XrmEnum.AppNotificationLevel` runtime-gap cast at a
+    single boundary instead of at every call site.
+
 ## 0.9.0
 
 ### Minor Changes

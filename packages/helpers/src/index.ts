@@ -17,6 +17,7 @@ export {
   parseLookup,
   parseLookups,
   parseFormattedValue,
+  parseMultiSelect,
   formLookup,
   formLookupId,
 } from './webapi-helpers.js';
@@ -27,6 +28,7 @@ export {
   FormType,
   isFormType,
   FormNotificationLevel,
+  AppNotificationLevel,
   RequiredLevel,
   SubmitMode,
   SaveMode,
@@ -65,3 +67,10 @@ export type { TypedForm, FormFields, FormTypeInfoProtocol } from './typed-form.j
 // Power Automate cloud flow caller
 export { callCloudFlow } from './cloud-flow.js';
 export type { CloudFlowOptions } from './cloud-flow.js';
+
+// Attribute submit helpers (set/clear + force SubmitMode.Always)
+export { clearAndSubmit, setUnsafeAndSubmit } from './form-submit.js';
+
+// App-level (global) notification helper
+export { addAppNotification } from './app-notification.js';
+export type { AppNotificationOptions } from './app-notification.js';

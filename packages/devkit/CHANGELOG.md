@@ -1,5 +1,16 @@
 # @xrmforge/devkit
 
+## 0.7.23
+
+### Patch Changes
+
+- AGENT.md template documents the new @xrmforge/helpers 0.10.0 helpers (parseMultiSelect,
+  clearAndSubmit, setUnsafeAndSubmit, addAppNotification/AppNotificationLevel) with NEVER entries
+  against hand-rolled equivalents, plus an `@odata.bind` guidance note (resolve the EntitySet plural
+  via getEntityMetadata; deliberately no helper) (F-MAR7-03, F-LMA7-07/09).
+- Scaffold devDependency pin `@xrmforge/helpers ^0.9.0` -> `^0.10.0` so freshly scaffolded projects
+  get the new helpers (a 0.x caret never crosses a minor).
+
 ## 0.7.22
 
 ### Patch Changes

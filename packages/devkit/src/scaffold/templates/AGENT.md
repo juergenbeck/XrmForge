@@ -21,7 +21,7 @@ functions with domain-specific names, not in anonymous chains of API calls.
 ## Packages
 
 - `@xrmforge/typegen` - Generates typed declarations from Dataverse metadata (Node.js CLI only, NEVER import in browser code)
-- `@xrmforge/helpers` - Browser-safe runtime: typedForm(), select(), parseLookup(), formLookup(), Xrm constants, Action executors, callCloudFlow()
+- `@xrmforge/helpers` - Browser-safe runtime: typedForm(), select(), parseLookup(), parseMultiSelect(), formLookup(), clearAndSubmit()/setUnsafeAndSubmit(), addAppNotification(), Xrm constants, Action executors, callCloudFlow()
 - `@xrmforge/testing` - Type-safe form mocks: createFormMock(), fireOnChange(), setupXrmMock()
 - `@xrmforge/devkit` - esbuild IIFE bundles via xrmforge build
 - `@xrmforge/eslint-plugin` - D365-specific ESLint rules
@@ -424,12 +424,14 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 - Never wrap a `XxxFields` lookup value again as `` `_${XxxFields.X}_value` `` (it is already `_value`-form; double-wrap -> `__..._value_value` -> OData 400). Use the Fields value directly in `$select`/`$filter`; use `XxxNavigationProperties` for `parseLookup`/`$expand`/`@odata.bind`
 - Never raw strings in `$unsafe()` (use Entity-level Fields Enum: `form.$unsafe(AccountFields.X)`)
 - Never manual OData annotation access (`_value`, `@OData.Community.Display.V1.FormattedValue`, `@Microsoft.Dynamics.CRM.lookuplogicalname`). Use `parseLookup()` which extracts all three.
+- Never hardcode an `@odata.bind` EntitySet plural - the set name is NOT the entity logical name. Resolve it via `(await Xrm.Utility.getEntityMetadata(logicalName)).EntitySetName`, then build `` `${navProperty}@odata.bind`: `/${entitySetName}(${id})` `` (there is no helper: the plural needs a metadata lookup, which is project-specific and worth caching)
 
 **Code quality:**
 - Never `Xrm.Page` (deprecated since D365 v9.0)
 - Never `eval()`, never synchronous XMLHttpRequest
 - Never hand-write `fetch`/`XMLHttpRequest` for Power Automate cloud-flow HTTP-trigger calls (use `callCloudFlow(flowUrl, body)` from `@xrmforge/helpers`)
 - Never check `.ok`/`.status` or call `.json()` on a Custom API executor result (`execute()` throws on failure; a void action returns nothing, so `if (!resp.ok)` crashes at runtime with `response.json is not a function`)
+- Never hand-build a MultiSelect parser, an off-form set-and-submit, a clear-and-submit, or an app-notification-level cast (use `parseMultiSelect`, `setUnsafeAndSubmit`, `clearAndSubmit`, `addAppNotification`/`AppNotificationLevel` from `@xrmforge/helpers`)
 - Never `window.X = ...` (use module exports)
 - Never `console.log/warn/error` in form scripts (use shared logger)
 - Never export handlers without `wrapHandler()`

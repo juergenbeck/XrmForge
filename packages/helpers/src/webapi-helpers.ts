@@ -123,6 +123,53 @@ export function parseFormattedValue(
 }
 
 /**
+ * Parse a MultiSelect OptionSet value into a number array.
+ *
+ * MultiSelect OptionSets come back in different shapes: the Web API returns a
+ * comma-separated string (`"595300000,595300001"`), a form attribute returns a
+ * `number[]`. This normalizes all shapes (comma string, number[], single number,
+ * null/undefined) to a clean `number[]` (empty/whitespace parts dropped).
+ *
+ * @param value - The raw value (comma string, number[], number, or null)
+ * @param emptyAsNull - When `true`, an empty result yields `null` instead of `[]`
+ *   (handy for `setValue`, which treats `null` as "clear")
+ * @returns The parsed option values
+ *
+ * @example
+ * // Web API response -> number[] for comparison:
+ * const types = parseMultiSelect(account.markant_customertypemulticode);
+ * if (types.includes(CustomerType.Industry)) { ... }
+ *
+ * // Writing back to a form field (empty -> null clears it):
+ * form.markant_customertypemulticode.setValue(parseMultiSelect(raw, true));
+ */
+export function parseMultiSelect(value: unknown): number[];
+export function parseMultiSelect(value: unknown, emptyAsNull: false): number[];
+export function parseMultiSelect(value: unknown, emptyAsNull: true): number[] | null;
+export function parseMultiSelect(value: unknown, emptyAsNull = false): number[] | null {
+  let nums: number[];
+  if (value == null) {
+    nums = [];
+  } else if (Array.isArray(value)) {
+    nums = value.map((v) => Number(v)).filter(Number.isFinite);
+  } else if (typeof value === 'number') {
+    nums = [value];
+  } else if (typeof value === 'string') {
+    // Drop empty parts BEFORE Number(): Number('') is 0, not NaN, which would
+    // otherwise sneak a spurious 0 in from a trailing comma.
+    nums = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s !== '')
+      .map(Number)
+      .filter(Number.isFinite);
+  } else {
+    nums = [];
+  }
+  return nums.length === 0 && emptyAsNull ? null : nums;
+}
+
+/**
  * Build an OData $select and $expand query string.
  *
  * @param fields - Field names to select

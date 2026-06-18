@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { select, selectExpand, parseLookup, parseLookups, parseFormattedValue, formLookup, formLookupId } from '../src/webapi-helpers.js';
+import { select, selectExpand, parseLookup, parseLookups, parseFormattedValue, parseMultiSelect, formLookup, formLookupId } from '../src/webapi-helpers.js';
 
 // select / selectExpand
 
@@ -212,5 +212,41 @@ describe('formLookupId', () => {
   it('should return null for null value', () => {
     const attr = { getValue: () => null };
     expect(formLookupId(attr)).toBeNull();
+  });
+});
+
+// ─── parseMultiSelect ───────────────────────────────────────────────────────
+
+describe('parseMultiSelect', () => {
+  it('parses a comma-separated Web API string', () => {
+    expect(parseMultiSelect('595300000,595300001')).toEqual([595300000, 595300001]);
+  });
+
+  it('passes through a number array', () => {
+    expect(parseMultiSelect([1, 2, 3])).toEqual([1, 2, 3]);
+  });
+
+  it('wraps a single number', () => {
+    expect(parseMultiSelect(7)).toEqual([7]);
+  });
+
+  it('returns [] for null/undefined by default', () => {
+    expect(parseMultiSelect(null)).toEqual([]);
+    expect(parseMultiSelect(undefined)).toEqual([]);
+  });
+
+  it('drops empty parts from a trailing comma (no spurious 0)', () => {
+    expect(parseMultiSelect('1,2,')).toEqual([1, 2]);
+    expect(parseMultiSelect(' 1 , 2 ')).toEqual([1, 2]);
+  });
+
+  it('returns null for empty input when emptyAsNull is true', () => {
+    expect(parseMultiSelect(null, true)).toBeNull();
+    expect(parseMultiSelect('', true)).toBeNull();
+    expect(parseMultiSelect([], true)).toBeNull();
+  });
+
+  it('returns the array (not null) for non-empty input when emptyAsNull is true', () => {
+    expect(parseMultiSelect('1,2', true)).toEqual([1, 2]);
   });
 });
