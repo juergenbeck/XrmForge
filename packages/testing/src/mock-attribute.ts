@@ -36,6 +36,8 @@ export class MockAttribute {
   private _requiredLevel: Xrm.Attributes.RequirementLevel = DEFAULT_REQUIRED_LEVEL;
   private _submitMode: Xrm.SubmitMode = DEFAULT_SUBMIT_MODE;
   private _onChangeHandlers: OnChangeHandler[] = [];
+  private _text = '';
+  private _precision = 0;
 
   /**
    * @param name - Logical name of the attribute (e.g. 'name', 'revenue')
@@ -143,6 +145,44 @@ export class MockAttribute {
   /** Returns the format string (always null in this mock). */
   getFormat(): string | null {
     return null;
+  }
+
+  /**
+   * Returns the text label of the currently selected value
+   * (`OptionSetAttribute.getText()`). Defaults to `''`; seed it with
+   * {@link setText} for tests that build strings from an option label.
+   */
+  getText(): string {
+    return this._text;
+  }
+
+  /**
+   * Seeds the value returned by {@link getText} (test helper; the real Xrm
+   * API has no setter - getText() reflects the selected option's label).
+   *
+   * @param text - The label getText() should return
+   */
+  setText(text: string): void {
+    this._text = text;
+  }
+
+  /**
+   * Returns the number of allowed decimal places
+   * (`NumberAttribute.getPrecision()`). Defaults to `0`; seed it with
+   * {@link setPrecision} for decimal/money fields.
+   */
+  getPrecision(): number {
+    return this._precision;
+  }
+
+  /**
+   * Seeds the value returned by {@link getPrecision} (test helper; the real
+   * Xrm API derives precision from metadata).
+   *
+   * @param precision - The precision getPrecision() should return
+   */
+  setPrecision(precision: number): void {
+    this._precision = precision;
   }
 
   /** Returns a stub parent entity reference. */

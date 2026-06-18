@@ -108,6 +108,20 @@ describe('MockAttribute', () => {
     expect(attr.getFormat()).toBeNull();
   });
 
+  it('getText should default to empty and be seedable via setText', () => {
+    const attr = new MockAttribute('markant_targetgroupcode', 1);
+    expect(attr.getText()).toBe('');
+    attr.setText('B2B');
+    expect(attr.getText()).toBe('B2B');
+  });
+
+  it('getPrecision should default to 0 and be seedable via setPrecision', () => {
+    const attr = new MockAttribute('amount', 12.5);
+    expect(attr.getPrecision()).toBe(0);
+    attr.setPrecision(2);
+    expect(attr.getPrecision()).toBe(2);
+  });
+
   it('getParent should return an object', () => {
     const attr = new MockAttribute('name');
     expect(attr.getParent()).toBeDefined();

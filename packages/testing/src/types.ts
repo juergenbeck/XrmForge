@@ -50,6 +50,11 @@ export interface CreateFormMockOptions {
    * with no argument returns an empty array.
    */
   tabs?: MockTabConfig[];
+  /**
+   * Form type returned by formContext.ui.getFormType() (default 2 = Update).
+   * Set to 1 to test Create-only paths (isFormType(ctx, FormType.Create)).
+   */
+  formType?: number;
 }
 
 /**
@@ -86,4 +91,15 @@ export interface FormMock<TForm> {
    * Creates an EventContext with the attribute as event source and calls all handlers.
    */
   fireOnChange(fieldName: string): void;
+
+  /**
+   * Fire all entity onSave handlers (registered via
+   * formContext.data.entity.addOnSave). Passes a save event context whose
+   * getEventArgs().getSaveMode() returns the given mode and supports
+   * preventDefault()/isDefaultPrevented() for testing save cancellation.
+   *
+   * @param saveMode - Numeric save mode (default 1 = Save; 70 = AutoSave)
+   * @returns true if a handler called preventDefault(), otherwise false
+   */
+  fireOnSave(saveMode?: number): boolean;
 }

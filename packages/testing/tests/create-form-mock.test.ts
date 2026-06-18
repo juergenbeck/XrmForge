@@ -237,4 +237,36 @@ describe('createFormMock', () => {
     const attr = mock.getAttribute('name');
     expect(attr.controls.getLength()).toBe(1);
   });
+
+  it('should expose a seeded form type via options.formType', () => {
+    const mock = createFormMock<TestAccountForm>(
+      { name: 'Contoso' } satisfies TestAccountFormMockValues,
+      { formType: 1 },
+    );
+    expect(mock.formContext.ui.getFormType()).toBe(1);
+  });
+
+  it('should default form type to Update (2)', () => {
+    const mock = createFormMock<TestAccountForm>({ name: 'Contoso' });
+    expect(mock.formContext.ui.getFormType()).toBe(2);
+  });
+
+  it('should fire entity onSave handlers via fireOnSave', () => {
+    const mock = createFormMock<TestAccountForm>({ name: 'Contoso' });
+    let savedMode = -1;
+    mock.formContext.data.entity.addOnSave((ctx) => {
+      savedMode = ctx.getEventArgs().getSaveMode();
+    });
+    const prevented = mock.fireOnSave(70);
+    expect(savedMode).toBe(70);
+    expect(prevented).toBe(false);
+  });
+
+  it('fireOnSave reports preventDefault from a handler', () => {
+    const mock = createFormMock<TestAccountForm>({ name: 'Contoso' });
+    mock.formContext.data.entity.addOnSave((ctx) => {
+      ctx.getEventArgs().preventDefault();
+    });
+    expect(mock.fireOnSave()).toBe(true);
+  });
 });

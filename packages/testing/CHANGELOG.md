@@ -1,5 +1,22 @@
 # @xrmforge/testing
 
+## 0.4.0
+
+### Minor Changes
+
+- Complex-form mock gaps closed (F-MAR7-02), so tests of real forms stop hand-patching the mock:
+  - `createFormMock(values, { formType })` seeds the form type returned by `ui.getFormType()`
+    (default 2 = Update), making Create-only paths (`isFormType(ctx, FormType.Create)`) testable.
+  - `MockAttribute` gains `getText()`/`setText()` (OptionSet label) and `getPrecision()`/
+    `setPrecision()` (number precision); both default to a neutral value and are test-seedable.
+  - `MockEntity` gains `addOnSave`/`removeOnSave` (so onLoad scripts that register an onSave handler
+    no longer throw) plus `fireOnSave()` on the FormMock to trigger them with a save event context
+    (getSaveMode/preventDefault/isDefaultPrevented).
+  - `setupXrmMock` exposes `userSettings.roles` as a real `Collection.ItemCollection<LookupValue>`
+    (`get()`/`forEach`/`getLength`, seedable via `globalContextOverrides.roles` or derived from
+    `securityRoles`; `getAll` kept for backwards compat) and adds `utilityOverrides`
+    (`getEntityMetadata`, `lookupObjects`).
+
 ## 0.3.0
 
 ### Minor Changes

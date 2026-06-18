@@ -18,6 +18,7 @@ export class MockEntity {
   private _id: string;
   private _entityName: string;
   private _attributes: Map<string, MockAttribute>;
+  private _onSaveHandlers: Array<Xrm.Events.SaveEventHandler | Xrm.Events.SaveEventHandlerAsync> = [];
 
   /**
    * @param entityName - Logical name of the entity (e.g. 'account')
@@ -81,5 +82,44 @@ export class MockEntity {
   /** Simulates a save operation that resolves immediately. */
   save(): Xrm.Async.PromiseLike<void> {
     return { then: (cb: () => void) => cb() } as Xrm.Async.PromiseLike<void>;
+  }
+
+  /**
+   * Registers an onSave handler. Mirrors `Xrm.Entity.addOnSave` so that onLoad
+   * scripts wiring up an onSave handler do not throw in tests.
+   *
+   * @param handler - The save handler to register
+   */
+  addOnSave(handler: Xrm.Events.SaveEventHandler | Xrm.Events.SaveEventHandlerAsync): void {
+    this._onSaveHandlers.push(handler);
+  }
+
+  /**
+   * Removes a previously registered onSave handler.
+   *
+   * @param handler - The save handler to remove
+   */
+  removeOnSave(handler: Xrm.Events.SaveEventHandler | Xrm.Events.SaveEventHandlerAsync): void {
+    const index = this._onSaveHandlers.indexOf(handler);
+    if (index >= 0) {
+      this._onSaveHandlers.splice(index, 1);
+    }
+  }
+
+  /** @internal Get registered onSave handlers (for assertions / event simulation). */
+  getOnSaveHandlers(): readonly (Xrm.Events.SaveEventHandler | Xrm.Events.SaveEventHandlerAsync)[] {
+    return this._onSaveHandlers;
+  }
+
+  /**
+   * Fire all registered onSave handlers with the given save event context.
+   * @internal Called by FormMock.fireOnSave().
+   *
+   * @param context - The save event context passed to each handler
+   */
+  fireOnSave(context: Xrm.Events.SaveEventContext): void {
+    for (const handler of this._onSaveHandlers) {
+      (handler as Xrm.Events.SaveEventHandler)(context);
+    }
   }
 }

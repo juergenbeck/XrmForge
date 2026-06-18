@@ -119,6 +119,12 @@ describe('MockUi', () => {
     expect(ui.getFormType()).toBe(2);
   });
 
+  it('getFormType reflects a seeded form type (Create paths testable)', () => {
+    const ui = new MockUi();
+    ui.seedFormType(1);
+    expect(ui.getFormType()).toBe(1);
+  });
+
   it('getViewPortHeight should return 800', () => {
     const ui = new MockUi();
     expect(ui.getViewPortHeight()).toBe(800);

@@ -1,5 +1,13 @@
 # @xrmforge/cli
 
+## 0.8.6
+
+### Patch Changes
+
+- Propagation bump: pulls devkit 0.7.21 (AGENT.md testing-mock guidance + testing ^0.4.0 scaffold
+  pin, F-MAR7-02) via workspace:* so `npx xrmforge init` scaffolds the updated guidance and pin.
+  No cli source change.
+
 ## 0.8.5
 
 ### Patch Changes

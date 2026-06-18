@@ -1,5 +1,15 @@
 # @xrmforge/devkit
 
+## 0.7.21
+
+### Patch Changes
+
+- AGENT.md template: testing section documents the @xrmforge/testing 0.4.0 complex-form mock
+  helpers (createFormMock formType option, attribute setText/setPrecision, entity addOnSave +
+  fireOnSave, setupXrmMock roles ItemCollection + utilityOverrides) (F-MAR7-02).
+- Scaffold devDependency pin `@xrmforge/testing ^0.3.0` -> `^0.4.0` so freshly scaffolded projects
+  get the complex-form mock helpers (a 0.x caret never crosses a minor).
+
 ## 0.7.20
 
 ### Patch Changes

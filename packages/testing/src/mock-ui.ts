@@ -119,6 +119,9 @@ export class MockUi {
   /** Seeded tabs (createFormMock options.tabs); tabs are also created on demand. */
   private _tabs: Map<string, Xrm.Controls.Tab> = new Map();
 
+  /** Form type returned by getFormType() (createFormMock options.formType; default Update = 2). */
+  private _formType: XrmEnum.FormType = 2 as XrmEnum.FormType;
+
   /**
    * Seed the tab/section structure so ui.tabs.get() (all tabs), forEach, and
    * cross-tab section visibility become testable. Called by createFormMock.
@@ -127,6 +130,17 @@ export class MockUi {
     for (const config of configs) {
       this._tabs.set(config.name, buildTab(config));
     }
+  }
+
+  /**
+   * Seed the form type returned by {@link getFormType} (createFormMock
+   * options.formType). Lets tests exercise Create-only paths such as
+   * `isFormType(ctx, FormType.Create)`.
+   *
+   * @param formType - Numeric Xrm form type (1 = Create, 2 = Update, ...)
+   */
+  seedFormType(formType: number): void {
+    this._formType = formType as XrmEnum.FormType;
   }
 
   private getOrCreateTab(name: string): Xrm.Controls.Tab {
@@ -197,9 +211,9 @@ export class MockUi {
     // no-op
   }
 
-  /** Returns the form type (always 2 / Update in this mock). */
+  /** Returns the form type (default 2 / Update; override via createFormMock options.formType). */
   getFormType(): XrmEnum.FormType {
-    return 2 as XrmEnum.FormType; // XrmEnum.FormType.Update (const enum, cannot import with isolatedModules)
+    return this._formType;
   }
 
   /** Returns the viewport height in pixels (always 800 in this mock). */

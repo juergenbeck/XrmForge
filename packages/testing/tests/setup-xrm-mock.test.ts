@@ -77,6 +77,49 @@ describe('setupXrmMock', () => {
     expect(ctx.getClientUrl()).toBe('https://test.crm4.dynamics.com');
   });
 
+  it('should expose userSettings.roles as an ItemCollection (get/forEach/getLength)', () => {
+    setupXrmMock({
+      globalContextOverrides: {
+        roles: [
+          { id: '{r1}', name: 'Sales Manager', entityType: 'role' },
+          { id: '{r2}', name: 'System Administrator', entityType: 'role' },
+        ],
+      },
+    });
+
+    const roles = (globalThis as any).Xrm.Utility.getGlobalContext().userSettings.roles;
+    expect(roles.getLength()).toBe(2);
+    expect(roles.get().map((r: Xrm.LookupValue) => r.name)).toContain('System Administrator');
+    const seen: string[] = [];
+    roles.forEach((r: Xrm.LookupValue) => seen.push(r.id));
+    expect(seen).toEqual(['{r1}', '{r2}']);
+  });
+
+  it('should derive roles from securityRoles when roles not given', () => {
+    setupXrmMock({
+      globalContextOverrides: {
+        securityRoles: [{ id: '{r1}', name: 'Sales' }],
+      },
+    });
+    const roles = (globalThis as any).Xrm.Utility.getGlobalContext().userSettings.roles;
+    expect(roles.getLength()).toBe(1);
+    expect(roles.get(0).name).toBe('Sales');
+  });
+
+  it('should apply utilityOverrides for getEntityMetadata', async () => {
+    setupXrmMock({
+      utilityOverrides: {
+        getEntityMetadata: async (entityName: string) => ({
+          LogicalName: entityName,
+          PrimaryIdAttribute: `${entityName}id`,
+        }),
+      },
+    });
+    const meta = await (globalThis as any).Xrm.Utility.getEntityMetadata('account');
+    expect(meta.LogicalName).toBe('account');
+    expect(meta.PrimaryIdAttribute).toBe('accountid');
+  });
+
   it('should apply webApiOverrides for retrieveMultipleRecords', async () => {
     const testEntities = [{ name: 'Contoso' }, { name: 'Fabrikam' }];
 

@@ -54,6 +54,13 @@ export interface SetupXrmMockOptions {
     userId: string;
     userName: string;
     securityRoles: Array<{ id: string; name?: string }>;
+    /** Security roles exposed as the userSettings.roles ItemCollection (id/name/entityType). */
+    roles: Xrm.LookupValue[];
+  }>;
+  /** Override specific Xrm.Utility methods */
+  utilityOverrides?: Partial<{
+    getEntityMetadata: (entityName: string, attributes?: string[]) => Promise<Record<string, unknown>>;
+    lookupObjects: (lookupOptions: unknown) => Promise<Record<string, unknown>[]>;
   }>;
 }
 
@@ -99,11 +106,35 @@ export function setupXrmMock(options?: SetupXrmMockOptions): void {
 
   const gcOverrides = options?.globalContextOverrides;
 
+  // userSettings.roles is Collection.ItemCollection<LookupValue> in @types/xrm.
+  // Seed it from globalContextOverrides.roles, or derive it from securityRoles.
+  const roleItems: Xrm.LookupValue[] =
+    gcOverrides?.roles
+    ?? (gcOverrides?.securityRoles ?? []).map((r) => ({
+      id: r.id,
+      name: r.name ?? '',
+      entityType: 'role',
+    }));
+  const roles = {
+    get: ((selector?: number | ((item: Xrm.LookupValue, index: number) => boolean)) => {
+      if (typeof selector === 'number') return roleItems[selector] ?? null;
+      if (typeof selector === 'function') return roleItems.filter(selector);
+      return [...roleItems];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Xrm.Collection overloaded get()
+    }) as any,
+    forEach: (callback: (item: Xrm.LookupValue, index: number) => void) => roleItems.forEach(callback),
+    getLength: () => roleItems.length,
+    // getAll is not part of @types/xrm but kept for backwards compatibility.
+    getAll: () => [...roleItems],
+  };
+
   const utility = {
     showProgressIndicator: () => undefined,
     closeProgressIndicator: () => undefined,
-    getEntityMetadata: async () => ({ LogicalName: '', EntitySetName: '' }),
-    lookupObjects: async () => [],
+    getEntityMetadata: options?.utilityOverrides?.getEntityMetadata
+      ?? (async () => ({ LogicalName: '', EntitySetName: '' })),
+    lookupObjects: options?.utilityOverrides?.lookupObjects
+      ?? (async () => []),
     getGlobalContext: () => ({
       getClientUrl: () => gcOverrides?.clientUrl ?? 'https://test.crm4.dynamics.com',
       getQueryStringParameters: () => ({}),
@@ -113,7 +144,7 @@ export function setupXrmMock(options?: SetupXrmMockOptions): void {
         userName: gcOverrides?.userName ?? 'Test User',
         languageId: gcOverrides?.languageId ?? 1033,
         securityRoles: gcOverrides?.securityRoles ?? [],
-        roles: { getAll: () => gcOverrides?.securityRoles ?? [] },
+        roles,
       },
     }),
   };

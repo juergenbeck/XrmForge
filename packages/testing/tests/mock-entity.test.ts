@@ -69,4 +69,29 @@ describe('MockEntity', () => {
     const entity = new MockEntity('account', 'abc', attrs);
     expect(entity.getIsDirty()).toBe(false);
   });
+
+  it('should register and track onSave handlers', () => {
+    const entity = new MockEntity('account', 'abc', new Map());
+    const handler = () => {};
+    entity.addOnSave(handler);
+    expect(entity.getOnSaveHandlers()).toHaveLength(1);
+  });
+
+  it('should remove onSave handlers', () => {
+    const entity = new MockEntity('account', 'abc', new Map());
+    const handler = () => {};
+    entity.addOnSave(handler);
+    entity.removeOnSave(handler);
+    expect(entity.getOnSaveHandlers()).toHaveLength(0);
+  });
+
+  it('should fire onSave handlers with the given context', () => {
+    const entity = new MockEntity('account', 'abc', new Map());
+    let fired = false;
+    entity.addOnSave(() => {
+      fired = true;
+    });
+    entity.fireOnSave({} as Xrm.Events.SaveEventContext);
+    expect(fired).toBe(true);
+  });
 });

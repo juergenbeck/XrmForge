@@ -635,6 +635,17 @@ Every onChange handler MUST have a `fireOnChange` test.
 **attr.controls:** Since @xrmforge/testing 0.2.3, `createFormMock()` automatically links
 each attribute to its control. `mock.getControl(Fields.Name)` works out of the box.
 
+**Complex forms (since @xrmforge/testing 0.4.0):**
+- `createFormMock(values, { formType: 1 })` seeds the form type, so Create-only paths
+  (`isFormType(ctx, FormType.Create)`) are testable.
+- On an attribute: `mock.getAttribute(Fields.X).setText('B2B')` / `.setPrecision(2)` seed
+  `getText()` (OptionSet label) and `getPrecision()` (number precision).
+- `formContext.data.entity.addOnSave(...)` is supported; trigger it in a test with
+  `mock.fireOnSave(saveMode)` (returns true if a handler called `preventDefault()`).
+- `setupXrmMock({ globalContextOverrides: { roles: [{ id, name, entityType: 'role' }] },
+  utilityOverrides: { getEntityMetadata } })` seeds the `userSettings.roles` ItemCollection
+  (`get()/forEach/getLength`) and overrides `Xrm.Utility.getEntityMetadata`.
+
 ## Pattern Recognition: Legacy to XrmForge
 
 ### Xrm API Patterns

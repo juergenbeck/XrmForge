@@ -144,12 +144,13 @@ function generatePackageJson(projectName: string): string {
       // would hand fresh projects a cli without these features.
       // helpers ^0.9.0: void Custom API executors return void instead of Response
       // since 0.9.0 (F-MAR7-01); isFormType (the form-type guard) shipped in 0.8.0.
-      // testing ^0.3.0: the createFormMock tabs option (cross-tab section tests)
-      // ships in 0.3.0.
+      // testing ^0.4.0: complex-form mocks (createFormMock formType option, attribute
+      // getText/getPrecision, entity addOnSave/fireOnSave, roles ItemCollection,
+      // utilityOverrides) ship in 0.4.0 (F-MAR7-02); the tabs option shipped in 0.3.0.
       '@xrmforge/cli': '^0.8.0',
       '@xrmforge/eslint-plugin': '^0.3.0',
       '@xrmforge/helpers': '^0.9.0',
-      '@xrmforge/testing': '^0.3.0',
+      '@xrmforge/testing': '^0.4.0',
       eslint: '^9.0.0',
       typescript: '^5.7.0',
       vitest: '^3.0.0',

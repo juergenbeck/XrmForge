@@ -83,6 +83,9 @@ export function createFormMock<TForm>(
   if (options.tabs) {
     mockUi.seedTabs(options.tabs);
   }
+  if (options.formType !== undefined) {
+    mockUi.seedFormType(options.formType);
+  }
 
   // Build the formContext object that satisfies the TForm interface
   const formContext = {
@@ -167,6 +170,28 @@ export function createFormMock<TForm>(
         attr,
       ) as unknown as Xrm.Events.EventContext;
       attr.fireOnChange(eventContext);
+    },
+
+    fireOnSave(saveMode = 1): boolean {
+      let defaultPrevented = false;
+      const eventArgs = {
+        getSaveMode: () => saveMode,
+        isDefaultPrevented: () => defaultPrevented,
+        preventDefault: () => {
+          defaultPrevented = true;
+        },
+      };
+      const saveContext = {
+        getFormContext: () => formContext as unknown as Xrm.FormContext,
+        getEventSource: () => mockEntity,
+        getEventArgs: () => eventArgs,
+        getContext: () => ({}) as Xrm.GlobalContext,
+        getDepth: () => 1,
+        getSharedVariable: () => undefined,
+        setSharedVariable: () => undefined,
+      } as unknown as Xrm.Events.SaveEventContext;
+      mockEntity.fireOnSave(saveContext);
+      return defaultPrevented;
     },
   };
 }
