@@ -326,9 +326,13 @@ export function generateBarrelIndex(files: GeneratedFile[]): string {
   }
 
   if (actions.length > 0) {
-    lines.push('// Custom API Actions & Functions');
+    // Actions/functions are NOT re-exported with `export *`: bound MS-standard
+    // operations (e.g. SynchronizePhoneNumbers, PredictResult) share a name across
+    // several entity modules, so a flat re-export collides (TS2308). Same reasoning
+    // as OptionSets/Fields above; import them directly from their files (F-LMA7-01).
+    lines.push('// Custom API Actions & Functions - import directly from individual files to avoid name conflicts:');
     for (const f of actions) {
-      lines.push(`export * from '${toImportSpecifier(f.relativePath)}';`);
+      lines.push(`//   import { ... } from '${toImportSpecifier(f.relativePath)}';`);
     }
     lines.push('');
   }

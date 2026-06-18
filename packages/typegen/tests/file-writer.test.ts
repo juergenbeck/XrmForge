@@ -33,6 +33,23 @@ describe('generateBarrelIndex', () => {
     expect(result).toContain("export * from './forms/account.js';");
   });
 
+  it('does not export-star actions; comments them instead (F-LMA7-01, avoids TS2308)', () => {
+    const files: GeneratedFile[] = [
+      { relativePath: 'entities/account.ts', absolutePath: '', content: '', type: 'entity' },
+      { relativePath: 'actions/account.ts', absolutePath: '', content: '', type: 'action' },
+      { relativePath: 'actions/contact.ts', absolutePath: '', content: '', type: 'action' },
+    ];
+
+    const result = generateBarrelIndex(files);
+
+    // Same-named bound MS-standard actions across entity modules would collide
+    // under a flat re-export (TS2308); the barrel must comment them, not export *.
+    expect(result).not.toContain("export * from './actions/account.js';");
+    expect(result).not.toContain("export * from './actions/contact.js';");
+    expect(result).toContain('// Custom API Actions & Functions - import directly from individual files to avoid name conflicts:');
+    expect(result).toContain("//   import { ... } from './actions/account.js';");
+  });
+
   it('should group by type with headers', () => {
     const files: GeneratedFile[] = [
       { relativePath: 'entities/account.ts', absolutePath: '', content: '', type: 'entity' },

@@ -1,5 +1,17 @@
 # @xrmforge/typegen
 
+## 0.12.2
+
+### Patch Changes
+
+- Barrel index no longer re-exports Custom API action/function modules with `export *`. Bound
+  MS-standard operations (e.g. `SynchronizePhoneNumbers`, `PredictResult`) carry the same exported
+  name across several entity action modules, so a flat re-export collided with TS2308 on an
+  unfiltered `xrmforge generate --actions` run (the `--actions-filter` workaround only masked it).
+  Actions/functions are now listed as a comment hint and imported directly from their files, exactly
+  like OptionSets and Fields (same name-collision reasoning). The AGENT.md examples already import
+  actions directly, so the documented usage is unchanged (F-LMA7-01).
+
 ## 0.12.1
 
 ### Patch Changes

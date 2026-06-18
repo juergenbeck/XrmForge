@@ -37,7 +37,7 @@ Run `xrmforge generate` to create:
 - `generated/actions/global.ts` - Custom API Action executors (typed params + results)
 - `generated/functions/global.ts` - Custom API Function executors
 - `generated/form-mapping.json` - Entity to form interface mapping (read after generate!)
-- `generated/index.ts` - Barrel file with `export * from` re-exports
+- `generated/index.ts` - Barrel (entities + forms via `export *`); OptionSets, Fields/NavigationProperties and Actions are imported directly from their own files (name-collision-safe)
 
 **After generate:** Read `generated/form-mapping.json` for the mapping of entity logical
 names to form interface names. Do NOT guess interface names from entity names.

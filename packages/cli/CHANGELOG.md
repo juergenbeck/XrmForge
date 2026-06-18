@@ -1,5 +1,13 @@
 # @xrmforge/cli
 
+## 0.8.7
+
+### Patch Changes
+
+- Propagation bump: pulls typegen 0.12.2 (barrel no longer export-stars action modules, F-LMA7-01)
+  and devkit 0.7.22 via workspace:* so `npx xrmforge generate`/`init` use the fixed barrel and
+  updated guidance. No cli source change.
+
 ## 0.8.6
 
 ### Patch Changes

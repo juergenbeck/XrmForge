@@ -1,5 +1,13 @@
 # @xrmforge/devkit
 
+## 0.7.22
+
+### Patch Changes
+
+- AGENT.md template: the `generated/index.ts` description now states that only entities and forms are
+  re-exported via `export *`, while OptionSets, Fields/NavigationProperties and Actions are imported
+  directly from their files (name-collision-safe), matching the typegen 0.12.2 barrel (F-LMA7-01).
+
 ## 0.7.21
 
 ### Patch Changes
