@@ -189,6 +189,41 @@ import { AccountNavigationProperties as AccountNav } from '../../generated/entit
 const parent = parseLookup(apiResponse, AccountNav.ParentAccountId);
 ```
 
+### 5b. Lookup fields: `Fields` enum is `_value`-form, `NavigationProperties` is blank
+
+typegen emits TWO enums per entity for lookups, with DIFFERENT values. Picking the wrong one
+compiles green but breaks at runtime (no tsc/eslint gate catches it):
+
+| Enum | Value for a lookup (e.g. `transactioncurrencyid`) | Use for |
+|---|---|---|
+| `XxxFields` | `'_transactioncurrencyid_value'` (already `_value`-form) | `$select`, `$filter` |
+| `XxxNavigationProperties` | `'transactioncurrencyid'` (blank) | `parseLookup`, `$expand`, `@odata.bind` |
+
+```typescript
+import { AccountFields } from '../../generated/fields/account.js';
+import { AccountNavigationProperties as AccountNav } from '../../generated/entities/account.js';
+
+// $select / $filter: the Fields value is ALREADY _value-form, use it directly
+select(AccountFields.TransactionCurrencyId);              // -> "_transactioncurrencyid_value"
+
+// parseLookup: the NavigationProperties value (blank), NOT Fields
+const currency = parseLookup(apiResponse, AccountNav.TransactionCurrencyId);
+
+// BUG (F-LMA7-05): double _value wrap -> "__transactioncurrencyid_value_value" -> OData 400 at runtime
+const key = `_${AccountFields.TransactionCurrencyId}_value`;
+// BUG: parseLookup with a Fields value (already _value) -> key wrong -> always returns null
+parseLookup(apiResponse, AccountFields.TransactionCurrencyId);
+```
+
+- **`$select`/`$filter`:** use the `XxxFields` value DIRECTLY. NEVER wrap it again as
+  `` `_${XxxFields.Lookup}_value` `` - the Fields value is already complete.
+- **`parseLookup(response, X)`:** `X` MUST be `XxxNavigationProperties.Lookup` (blank). parseLookup
+  builds the key itself as `_${nav}_value`; a `XxxFields` value double-wraps and always returns `null`.
+- **Never write a local `lookupValue(field)` helper** that puts `_${field}_value` around a `XxxFields`
+  value (F-LMA7-05). It is plain string concatenation - green at compile time, broken at runtime.
+- **parseLookup needs the raw response** (`Record<string, unknown>`), not a value cast to a generated
+  Entity interface (no index signature). Keep the raw response for parseLookup, cast separately.
+
 ### 6. select(), $filter, $expand, $orderby with Fields Enums
 
 ALL OData query parts must use entity-level Fields Enums. No raw field name strings anywhere.
@@ -374,6 +409,8 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 - Never access WebApi response properties with `as string` casts (use generated Entity interfaces)
 - Never `.getValue()[0].id` for lookups (use `formLookup`/`formLookupId`)
 - Never raw strings in `parseLookup()` (use NavigationProperties enum)
+- Never pass a `XxxFields` value to `parseLookup()` (use `XxxNavigationProperties`; a `XxxFields` value is already `_value`-form, so parseLookup double-wraps the key and always returns `null`)
+- Never wrap a `XxxFields` lookup value again as `` `_${XxxFields.X}_value` `` (it is already `_value`-form; double-wrap -> `__..._value_value` -> OData 400). Use the Fields value directly in `$select`/`$filter`; use `XxxNavigationProperties` for `parseLookup`/`$expand`/`@odata.bind`
 - Never raw strings in `$unsafe()` (use Entity-level Fields Enum: `form.$unsafe(AccountFields.X)`)
 - Never manual OData annotation access (`_value`, `@OData.Community.Display.V1.FormattedValue`, `@Microsoft.Dynamics.CRM.lookuplogicalname`). Use `parseLookup()` which extracts all three.
 
@@ -598,6 +635,7 @@ each attribute to its control. `mock.getControl(Fields.Name)` works out of the b
 | `Xrm.WebApi.retrieveRecord("account", id)` | `Xrm.WebApi.retrieveRecord(EntityNames.Account, id)` |
 | `"?$select=name,revenue"` | `select(AccountFields.Name, AccountFields.Revenue)` |
 | `value[0].id.replace("{","")` | `formLookupId(form.customerid)` |
+| `` `_${field}_value` `` hand-built lookup key | `XxxFields.X` directly in `$select`/`$filter` (already `_value`); `XxxNavigationProperties.X` for `parseLookup` |
 | `ExecuteFunctionCall("name", ...)` | `import { Name } from '../../generated/actions/global.js'` |
 | `setFormNotification(msg, 'ERROR', id)` | `setFormNotification(msg, FormNotificationLevel.Error, id)` |
 | `getValue() === 595300000` | `form.statuscode.getValue() === StatusCode.Active` |

@@ -155,6 +155,8 @@ describe('scaffoldProject', () => {
     expect(agent).toContain('@types/xrm Pitfalls');
     expect(agent).toContain('parseLookup');
     expect(agent).toContain('@xrmforge/helpers');
+    // Lookup convention (F-LMA7-05): Fields vs NavigationProperties distinction must ship
+    expect(agent).toContain('NavigationProperties');
   });
 
   it('should generate GitHub Actions CI workflow', async () => {

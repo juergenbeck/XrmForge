@@ -1,5 +1,13 @@
 # @xrmforge/cli
 
+## 0.8.4
+
+### Patch Changes
+
+- Propagation bump: pulls devkit 0.7.19 (AGENT.md section 5b + validate-form.mjs lookup convention,
+  F-LMA7-05) via workspace:* so `npx xrmforge init` scaffolds the updated guidance and gate. No cli
+  source change.
+
 ## 0.8.3
 
 ### Patch Changes

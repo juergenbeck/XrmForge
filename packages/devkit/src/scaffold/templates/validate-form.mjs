@@ -307,6 +307,26 @@ checkPattern(
   ['generated/', 'node_modules'],
 );
 
+// ── Lookup Convention (Fields vs NavigationProperties, F-LMA7-05) ─────────────
+
+// 3q2. Hand-built `_<field>_value` key (Fields enum is already _value-form, never wrap again).
+// Compiles green (plain string concatenation) but produces __..._value_value -> OData 400 at runtime.
+checkPattern(
+  'Double _value wrap on a lookup (Fields enum is already _value-form, no _${...}_value)',
+  allSrcFiles,
+  /_\$\{[^}]*\}_value/,
+  ['generated/'],
+);
+
+// 3q3. parseLookup with a Fields enum value (must use the NavigationProperties enum).
+// parseLookup builds the key itself as _${nav}_value; a Fields value (already _value) yields null.
+checkPattern(
+  'parseLookup with a Fields enum (use the NavigationProperties enum instead)',
+  allSrcFiles,
+  /parseLookup\s*\(\s*\w+\s*,\s*\w*Fields\b/,
+  ['generated/'],
+);
+
 // ── Legacy Helper Wrappers ───────────────────────────────────────────────────
 
 // 3r. Forbidden legacy helper functions (must use typedForm + @xrmforge/helpers)

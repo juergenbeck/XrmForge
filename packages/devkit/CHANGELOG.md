@@ -1,5 +1,19 @@
 # @xrmforge/devkit
 
+## 0.7.19
+
+### Patch Changes
+
+- AGENT.md + validate-form.mjs scaffold templates: lookup convention (F-LMA7-05). New AGENT.md
+  section 5b documents that the `XxxFields` lookup enum is already `_value`-form (use directly in
+  `$select`/`$filter`) while `XxxNavigationProperties` is blank (use for `parseLookup`/`$expand`/
+  `@odata.bind`); double-wrapping `` `_${XxxFields.X}_value` `` or passing a Fields value to
+  `parseLookup` compiles green but breaks at runtime (OData 400 / always `null`). The NEVER block and
+  the Legacy-to-XrmForge table got matching entries.
+- validate-form.mjs gains two pattern checks for this "green-but-broken" bug class that no tsc/eslint
+  gate sees: a hand-built `_${...}_value` key, and `parseLookup(x, XxxFields.Y)`. Verified
+  false-positive-free against the markant + lmapp showcases.
+
 ## 0.7.18
 
 ### Patch Changes
