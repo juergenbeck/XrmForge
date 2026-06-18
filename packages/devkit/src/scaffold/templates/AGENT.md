@@ -197,7 +197,7 @@ compiles green but breaks at runtime (no tsc/eslint gate catches it):
 | Enum | Value for a lookup (e.g. `transactioncurrencyid`) | Use for |
 |---|---|---|
 | `XxxFields` | `'_transactioncurrencyid_value'` (already `_value`-form) | `$select`, `$filter` |
-| `XxxNavigationProperties` | `'transactioncurrencyid'` (blank) | `parseLookup`, `$expand`, `@odata.bind` |
+| `XxxNavigationProperties` | `'transactioncurrencyid'` (blank) | `parseLookup`, `$expand`, `@odata.bind`, `$unsafe` (lookup) |
 
 ```typescript
 import { AccountFields } from '../../generated/fields/account.js';
@@ -219,6 +219,10 @@ parseLookup(apiResponse, AccountFields.TransactionCurrencyId);
   `` `_${XxxFields.Lookup}_value` `` - the Fields value is already complete.
 - **`parseLookup(response, X)`:** `X` MUST be `XxxNavigationProperties.Lookup` (blank). parseLookup
   builds the key itself as `_${nav}_value`; a `XxxFields` value double-wraps and always returns `null`.
+- **`$unsafe()` on an off-form LOOKUP** uses `XxxNavigationProperties.Lookup` (blank) - it takes an
+  attribute logical name, not the `_value` Web API key. `XxxFields.Lookup` (already `_value`-form) is
+  not a valid attribute name and resolves to `null` at runtime. For a non-lookup off-form field,
+  `XxxFields` is correct (F-LMA7-06).
 - **Never write a local `lookupValue(field)` helper** that puts `_${field}_value` around a `XxxFields`
   value (F-LMA7-05). It is plain string concatenation - green at compile time, broken at runtime.
 - **parseLookup needs the raw response** (`Record<string, unknown>`), not a value cast to a generated
