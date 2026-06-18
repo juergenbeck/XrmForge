@@ -57,6 +57,29 @@ import { singleQuoted } from './string-escape.js';
 /** Dataverse SystemForm type code for Quick Create forms (systemform_type) */
 const FORM_TYPE_QUICK_CREATE = 7;
 
+/** Dataverse SystemForm type code for Main forms (systemform_type) */
+const FORM_TYPE_MAIN = 2;
+
+/**
+ * Machine-readable metadata for one generated form, surfaced in form-mapping.json
+ * so AI agents can pick the right form by its fields without parsing the generated
+ * code (F-MAR7-04).
+ */
+export interface FormGenerationMeta {
+  /** Form display name (from FormXml) */
+  formName: string;
+  /** Generated interface name (e.g. AccountForm) */
+  interfaceName: string;
+  /** Generated Fields enum name (e.g. AccountFormFieldsEnum) */
+  fieldsEnumName: string;
+  /** Generated Tabs enum name, or '' if the form has no named tabs */
+  tabsEnumName: string;
+  /** Sorted logical names of the attributes this form binds to */
+  fields: string[];
+  /** True for a Main form (systemform_type 2), false for Quick Create etc. */
+  isMain: boolean;
+}
+
 /** Map special control types to @types/xrm control interfaces */
 function specialControlToXrmType(controlType: SpecialControlType): string | null {
   switch (controlType) {
@@ -119,6 +142,34 @@ function labelToPascalMember(label: string): string {
 }
 
 /**
+ * Collect the unique attribute logical names a form binds to, deduplicated across
+ * tabs/sections and sorted for stable output. statuscode/statecode are always
+ * included when the entity has them: they have no FormXml control but are
+ * accessible via getAttribute() and common in legacy code.
+ *
+ * @param form - Parsed form structure
+ * @param attributeMap - Map of LogicalName to AttributeMetadata
+ * @returns Sorted, deduplicated field logical names
+ */
+function collectFormFieldNames(
+  form: ParsedForm,
+  attributeMap: Map<string, AttributeMetadata>,
+): string[] {
+  const fieldNames = new Set<string>();
+  for (const control of form.allControls) {
+    if (control.datafieldname) {
+      fieldNames.add(control.datafieldname);
+    }
+  }
+  for (const systemField of ['statuscode', 'statecode']) {
+    if (attributeMap.has(systemField)) {
+      fieldNames.add(systemField);
+    }
+  }
+  return [...fieldNames].sort();
+}
+
+/**
  * Generate a complete form declaration: union type, mapped types, fields enum, and interface.
  *
  * @param form - Parsed form structure (from FormXml parser)
@@ -142,21 +193,8 @@ export function generateFormInterface(
   const attrMapName = `${baseName}FormAttributeMap`;
   const ctrlMapName = `${baseName}FormControlMap`;
 
-  // Get unique field names from form controls (deduplicate across tabs/sections)
-  const fieldNames = new Set<string>();
-  for (const control of form.allControls) {
-    if (control.datafieldname) {
-      fieldNames.add(control.datafieldname);
-    }
-  }
-
-  // Always include statuscode/statecode - these system fields have no FormXml control
-  // but are accessible via getAttribute() and commonly used in legacy code
-  for (const systemField of ['statuscode', 'statecode']) {
-    if (attributeMap.has(systemField)) {
-      fieldNames.add(systemField);
-    }
-  }
+  // Unique attribute names this form binds to (sorted, incl. statuscode/statecode)
+  const sortedFieldNames = collectFormFieldNames(form, attributeMap);
 
   // Resolve field types from attribute metadata
   const fields: Array<{
@@ -170,7 +208,7 @@ export function generateFormInterface(
 
   const usedEnumNames = new Set<string>();
 
-  for (const fieldName of [...fieldNames].sort()) {
+  for (const fieldName of sortedFieldNames) {
     const attr = attributeMap.get(fieldName);
     if (!attr) continue;
 
@@ -399,9 +437,11 @@ export function generateFormInterface(
       if (tab.name) {
         const sectionNames = tab.sections.filter((s) => s.name).map((s) => s.name);
         if (sectionNames.length > 0) {
-          // Tab with typed sections
+          // Tab with typed sections. The ItemCollection base keeps get(index)/get()/
+          // forEach/getLength available (legacy numeric-index section access, F-LMA7-10);
+          // the literal get(name) overloads add autocomplete for the section names.
           lines.push(`      get(name: "${tab.name}"): Xrm.Controls.Tab & {`);
-          lines.push('        sections: {');
+          lines.push('        sections: Xrm.Collection.ItemCollection<Xrm.Controls.Section> & {');
           for (const sectionName of sectionNames) {
             lines.push(`          get(name: "${sectionName}"): Xrm.Controls.Section;`);
           }
@@ -459,7 +499,7 @@ export function generateEntityForms(
   entityLogicalName: string,
   attributes: AttributeMetadata[],
   options: FormGeneratorOptions = {},
-): Array<{ formName: string; interfaceName: string; content: string }> {
+): Array<FormGenerationMeta & { content: string }> {
   // Build attribute lookup map
   const attributeMap = new Map<string, AttributeMetadata>();
   for (const attr of attributes) {
@@ -487,7 +527,7 @@ export function generateEntityForms(
 
   // Disambiguate duplicate base names with numeric suffix
   const baseNameCounters = new Map<string, number>();
-  const results: Array<{ formName: string; interfaceName: string; content: string }> = [];
+  const results: Array<FormGenerationMeta & { content: string }> = [];
 
   for (let i = 0; i < validForms.length; i++) {
     const form = validForms[i]!;
@@ -503,7 +543,16 @@ export function generateEntityForms(
 
     const interfaceName = `${baseName}Form`;
     const content = generateFormInterface(form, entityLogicalName, attributeMap, options, baseName);
-    results.push({ formName: form.name, interfaceName, content });
+    const hasNamedTabs = form.tabs.some((t) => t.name);
+    results.push({
+      formName: form.name,
+      interfaceName,
+      fieldsEnumName: `${baseName}FormFieldsEnum`,
+      tabsEnumName: hasNamedTabs ? `${baseName}FormTabs` : '',
+      fields: collectFormFieldNames(form, attributeMap),
+      isMain: form.type === FORM_TYPE_MAIN,
+      content,
+    });
   }
 
   return results;

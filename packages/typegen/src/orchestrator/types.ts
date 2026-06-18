@@ -5,6 +5,7 @@
  */
 
 import type { LabelConfig } from '../metadata/labels.js';
+import type { FormGenerationMeta } from '../generators/form-generator.js';
 
 /** Configuration for the type generation process */
 export interface GenerateConfig {
@@ -82,6 +83,9 @@ export interface EntityGenerationResult {
 
   /** Warnings (e.g. missing labels, empty forms) */
   warnings: string[];
+
+  /** Per-form metadata for this entity (drives form-mapping.json, F-MAR7-04) */
+  formMeta: FormGenerationMeta[];
 }
 
 /** A single generated file */

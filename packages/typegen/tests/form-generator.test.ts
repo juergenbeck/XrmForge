@@ -361,6 +361,60 @@ describe('generateEntityForms', () => {
     expect(results[0].interfaceName).toBe('AccountQuickCreateForm');
     expect(results[1].interfaceName).toBe('AccountQuickCreate2Form');
   });
+
+  it('exposes per-form metadata for form-mapping.json: fields, isMain, enum names (F-MAR7-04)', () => {
+    const forms = [
+      createForm('Account', ['name', 'telephone1'], 2),
+      createForm('Account', ['name'], 7),
+    ];
+    const attributes = [
+      createAttr('name', 'String', 'Account Name'),
+      createAttr('telephone1', 'String', 'Main Phone'),
+    ];
+
+    const results = generateEntityForms(forms, 'account', attributes);
+
+    // Main form (type 2): isMain true, fields sorted, enum names derived from base name
+    expect(results[0].isMain).toBe(true);
+    expect(results[0].fields).toEqual(['name', 'telephone1']);
+    expect(results[0].fieldsEnumName).toBe('AccountFormFieldsEnum');
+    expect(results[0].tabsEnumName).toBe('AccountFormTabs');
+
+    // Quick Create form (type 7): isMain false, own (smaller) field set
+    expect(results[1].isMain).toBe(false);
+    expect(results[1].fields).toEqual(['name']);
+    expect(results[1].fieldsEnumName).toBe('AccountQuickCreateFormFieldsEnum');
+  });
+
+  it('reports tabsEnumName as empty when a form has no named tabs (F-MAR7-04)', () => {
+    const form: ParsedForm = {
+      name: 'Account',
+      formId: 'form-1',
+      isDefault: true,
+      type: 2,
+      tabs: [],
+      allControls: [{ id: 'name', datafieldname: 'name', classid: '' }],
+    };
+
+    const results = generateEntityForms([form], 'account', [createAttr('name', 'String', 'Name')]);
+
+    expect(results[0].tabsEnumName).toBe('');
+    expect(results[0].fields).toEqual(['name']);
+  });
+});
+
+describe('typed sections keep the ItemCollection base (F-LMA7-10)', () => {
+  it('emits sections as ItemCollection<Section> intersection so get(index)/forEach/getLength stay available', () => {
+    const form = createForm('Account', ['name']);
+    const attributeMap = new Map<string, AttributeMetadata>([['name', createAttr('name', 'String', 'Name')]]);
+
+    const content = generateFormInterface(form, 'account', attributeMap);
+
+    // The typed sections must extend the Xrm ItemCollection base, not replace it with a
+    // bare { get(name) } object (which would hide get(index)/forEach/getLength; F-LMA7-10).
+    expect(content).toContain('sections: Xrm.Collection.ItemCollection<Xrm.Controls.Section> & {');
+    expect(content).toContain('get(name: "General"): Xrm.Controls.Section;');
+  });
 });
 
 describe('tab/section disambiguation', () => {

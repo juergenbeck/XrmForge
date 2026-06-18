@@ -761,6 +761,9 @@ IDE autocomplete. Only keep shared helpers that contain actual domain logic
 8. **Xrm.App.addGlobalNotification level** is typed as `XrmEnum.AppNotificationLevel`, which (like
    all `XrmEnum`) does not exist at runtime. Pass the numeric value with a cast/comment, not
    `XrmEnum.AppNotificationLevel.X`.
+9. **Xrm.LookupValue.name** is typed `string | undefined`. Coalesce it before passing it to a string
+   setter or a template literal: `lookup.name ?? ''`. The `parseLookup`/`formLookup` helpers already
+   return `name` as `''`, so this only bites on a raw `getValue()[0].name` access.
 
 ## Build
 

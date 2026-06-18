@@ -185,6 +185,12 @@ npm init -y
 npm install --save-dev @xrmforge/cli @types/xrm typescript esbuild
 ```
 
+> **Tip — reproducible CLI version.** After this local install, `npx xrmforge ...` runs the binary
+> from `node_modules` (the version pinned in your `package.json`). Avoid invoking the CLI as
+> `npx @xrmforge/cli@latest ...` *without* a local install: npx caches the first download and may
+> keep serving a stale version on later runs. For a one-off run, pin an exact version
+> (`npx @xrmforge/cli@<version> ...`) so the result is deterministic.
+
 **Step 3: Generate types from your environment.**
 
 Replace `YOUR_TENANT_ID` with your Azure AD tenant ID (see [Authentication](#authentication) for how to find it). The client ID below is Microsoft's well-known sample App ID, so no own App Registration is needed.

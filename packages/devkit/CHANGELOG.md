@@ -1,5 +1,13 @@
 # @xrmforge/devkit
 
+## 0.7.24
+
+### Patch Changes
+
+- AGENT.md template: new @types/xrm pitfall (#9) on `Xrm.LookupValue.name` (typed `string | undefined`):
+  coalesce it with `?? ''` before passing it to a string setter; the parseLookup/formLookup helpers
+  already return `''` (F-LMA7-11).
+
 ## 0.7.23
 
 ### Patch Changes

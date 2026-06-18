@@ -19,7 +19,7 @@ import { createLogger, type Logger } from '../logger.js';
 import type { EntityTypeInfo, OptionSetMetadata } from '../metadata/types.js';
 import { generateEntityInterface } from '../generators/entity-generator.js';
 import { generateEntityOptionSets } from '../generators/optionset-generator.js';
-import { generateEntityForms } from '../generators/form-generator.js';
+import { generateEntityForms, type FormGenerationMeta } from '../generators/form-generator.js';
 import { generateActionModule, groupCustomApis } from '../generators/action-generator.js';
 import { generateEntityFieldsEnum, generateEntityNavigationProperties } from '../generators/entity-fields-generator.js';
 import { generateEntityNamesEnum } from '../generators/entity-names-generator.js';
@@ -219,6 +219,7 @@ export class TypeGenerationOrchestrator {
           entityLogicalName: entityName,
           files: [],
           warnings: [`Failed to process: ${failedEntities.get(entityName)}`],
+          formMeta: [],
         });
         continue;
       }
@@ -248,10 +249,14 @@ export class TypeGenerationOrchestrator {
       });
     }
 
-    // 3f. Generate form-mapping.json (AI agent helper: entity -> form interface names)
-    const formFiles = allFiles.filter((f) => f.type === 'form');
-    if (formFiles.length > 0) {
-      const formMapping = this.generateFormMapping(formFiles);
+    // 3f. Generate form-mapping.json (AI agent helper: entity -> form interfaces,
+    // their fields and a main-form marker). Built from the structured per-form
+    // metadata collected during generation (F-MAR7-04), not by parsing the generated code.
+    const entityFormMeta = entityResults
+      .filter((r) => r.formMeta.length > 0)
+      .map((r) => ({ entityName: r.entityLogicalName, forms: r.formMeta }));
+    if (entityFormMeta.length > 0) {
+      const formMapping = this.generateFormMapping(entityFormMeta);
       allFiles.push({
         relativePath: 'form-mapping.json',
         content: JSON.stringify(formMapping, null, 2) + '\n',
@@ -482,6 +487,7 @@ export class TypeGenerationOrchestrator {
   ): EntityGenerationResult {
     const warnings: string[] = [];
     const files: GeneratedFile[] = [];
+    const formMeta: FormGenerationMeta[] = [];
 
     // Generate entity interface
     if (this.config.generateEntities) {
@@ -538,6 +544,10 @@ export class TypeGenerationOrchestrator {
             content: addGeneratedHeader(combinedContent),
             type: 'form',
           });
+          // Surface per-form metadata (fields, isMain, enum names) for form-mapping.json
+          for (const { content: _content, ...meta } of formResults) {
+            formMeta.push(meta);
+          }
         }
       } else {
         warnings.push(`No forms found for ${entityName}`);
@@ -565,7 +575,7 @@ export class TypeGenerationOrchestrator {
       });
     }
 
-    return { entityLogicalName: entityName, files, warnings };
+    return { entityLogicalName: entityName, files, warnings, formMeta };
   }
 
   /**
@@ -654,46 +664,29 @@ export class TypeGenerationOrchestrator {
   }
 
   /**
-   * Generate a form-mapping.json that maps entity names to their generated
-   * form interface names, fields enums, and tabs enums.
+   * Generate a form-mapping.json that maps each entity to its generated forms:
+   * interface name, Fields/Tabs enum names, a main-form marker (isMain), and the
+   * list of fields each form binds to. This lets AI agents pick the right form by
+   * its fields without guessing interface names.
    *
-   * This helps AI agents find the correct interface names without guessing.
+   * Built from the structured per-form metadata collected during generation
+   * (F-MAR7-04), not by parsing the generated code.
    */
   private generateFormMapping(
-    formFiles: GeneratedFile[],
-  ): Record<string, Array<{ formName: string; interface: string; fieldsEnum: string; tabsEnum: string }>> {
-    const mapping: Record<string, Array<{ formName: string; interface: string; fieldsEnum: string; tabsEnum: string }>> = {};
+    entityForms: Array<{ entityName: string; forms: FormGenerationMeta[] }>,
+  ): Record<string, Array<{ formName: string; interface: string; fieldsEnum: string; tabsEnum: string; isMain: boolean; fields: string[] }>> {
+    const mapping: Record<string, Array<{ formName: string; interface: string; fieldsEnum: string; tabsEnum: string; isMain: boolean; fields: string[] }>> = {};
 
-    for (const file of formFiles) {
-      // Extract entity name from path: forms/account.ts -> account
-      const match = file.relativePath.match(/^forms\/(.+)\.ts$/);
-      if (!match) continue;
-      const entityName = match[1]!;
-
-      // Parse interface/enum names from generated content
-      const interfaces = [...file.content.matchAll(/export\s+interface\s+(\w+Form)\s+extends/g)].map((m) => m[1]!);
-      const fieldsEnums = [...file.content.matchAll(/export\s+const\s+enum\s+(\w+FormFieldsEnum)\s*\{/g)].map((m) => m[1]!);
-      const tabsEnums = [...file.content.matchAll(/export\s+const\s+enum\s+(\w+FormTabs)\s*\{/g)].map((m) => m[1]!);
-
-      const forms: Array<{ formName: string; interface: string; fieldsEnum: string; tabsEnum: string }> = [];
-
-      for (let i = 0; i < interfaces.length; i++) {
-        // Extract form name from JSDoc above the interface: /** FormName */
-        const interfaceName = interfaces[i]!;
-        const jsdocMatch = file.content.match(new RegExp(`/\\*\\*\\s*(.+?)\\s*\\*/\\s*export\\s+interface\\s+${interfaceName}`));
-        const formName = jsdocMatch?.[1] ?? interfaceName.replace(/Form$/, '');
-
-        forms.push({
-          formName,
-          interface: interfaceName,
-          fieldsEnum: fieldsEnums[i] ?? '',
-          tabsEnum: tabsEnums[i] ?? '',
-        });
-      }
-
-      if (forms.length > 0) {
-        mapping[entityName] = forms;
-      }
+    for (const { entityName, forms } of entityForms) {
+      if (forms.length === 0) continue;
+      mapping[entityName] = forms.map((f) => ({
+        formName: f.formName,
+        interface: f.interfaceName,
+        fieldsEnum: f.fieldsEnumName,
+        tabsEnum: f.tabsEnumName,
+        isMain: f.isMain,
+        fields: f.fields,
+      }));
     }
 
     return mapping;

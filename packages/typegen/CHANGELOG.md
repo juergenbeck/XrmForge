@@ -1,5 +1,19 @@
 # @xrmforge/typegen
 
+## 0.13.0
+
+### Minor Changes
+
+- form-mapping.json now records, per form, the list of `fields` it binds to and an `isMain` marker
+  (Main form = systemform_type 2), alongside the existing interface and Fields/Tabs enum names. This
+  lets AI agents pick the right form for an entity with many forms by its fields, without guessing.
+  Built from structured per-form metadata during generation instead of regex over the generated
+  output (F-MAR7-04).
+- Typed form sections now extend `Xrm.Collection.ItemCollection<Xrm.Controls.Section>` instead of a
+  bare `{ get(name) }` object, so `get(index)`, `get()`, `forEach()` and `getLength()` stay available
+  (legacy numeric-index section access) next to the typed `get(name)` autocomplete overloads
+  (F-LMA7-10).
+
 ## 0.12.2
 
 ### Patch Changes

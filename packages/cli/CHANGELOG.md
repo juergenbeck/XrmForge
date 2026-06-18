@@ -1,5 +1,13 @@
 # @xrmforge/cli
 
+## 0.8.9
+
+### Patch Changes
+
+- Propagation bump: pulls typegen 0.13.0 (form-mapping `fields`/`isMain`, F-MAR7-04; typed section
+  ItemCollection base, F-LMA7-10) and devkit 0.7.24 (AGENT.md pitfall #9, F-LMA7-11) via workspace:*
+  so `npx xrmforge generate`/`init` use them. No cli source change.
+
 ## 0.8.8
 
 ### Patch Changes
