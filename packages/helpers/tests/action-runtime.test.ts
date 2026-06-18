@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, expectTypeOf, vi, beforeEach } from 'vitest';
 import {
   createBoundAction,
   createUnboundAction,
@@ -70,13 +70,15 @@ describe('executeMultiple', () => {
 // createBoundAction
 
 describe('createBoundAction', () => {
-  it('should create executor without params (204 no-content)', async () => {
+  it('should resolve to undefined for a void action (no typed result)', async () => {
     const resp = mockResponse(true, 204);
     mockExecute.mockResolvedValue(resp);
 
     const action = createBoundAction('markant_winquote', 'quote');
     const result = await action.execute('{abc-123}');
-    expect(result).toBe(resp);
+    // F-MAR7-01: a void action returns void, never the raw Response (no .ok/.json trap)
+    expectTypeOf(result).toBeVoid();
+    expect(result).toBeUndefined();
   });
 
   it('should parse JSON response for bound action with result type', async () => {
@@ -160,13 +162,15 @@ describe('createBoundAction', () => {
 // createUnboundAction
 
 describe('createUnboundAction', () => {
-  it('should create executor without params', async () => {
+  it('should resolve to undefined for a void action (no typed result)', async () => {
     const resp = mockResponse(true, 204);
     mockExecute.mockResolvedValue(resp);
 
     const action = createUnboundAction('markant_globalaction');
     const result = await action.execute();
-    expect(result).toBe(resp);
+    // F-MAR7-01: a void action returns void, never the raw Response (no .ok/.json trap)
+    expectTypeOf(result).toBeVoid();
+    expect(result).toBeUndefined();
   });
 
   it('should parse JSON response when not 204', async () => {

@@ -142,12 +142,13 @@ function generatePackageJson(projectName: string): string {
       // 0.7.0) plus the ./.env auto-load and interactive prompt (0.8.0) need cli at
       // that minor; a 0.x caret never crosses a minor boundary, so an older pin
       // would hand fresh projects a cli without these features.
-      // helpers ^0.8.0: isFormType (the AGENT.md form-type guard) ships in 0.8.0.
+      // helpers ^0.9.0: void Custom API executors return void instead of Response
+      // since 0.9.0 (F-MAR7-01); isFormType (the form-type guard) shipped in 0.8.0.
       // testing ^0.3.0: the createFormMock tabs option (cross-tab section tests)
       // ships in 0.3.0.
       '@xrmforge/cli': '^0.8.0',
       '@xrmforge/eslint-plugin': '^0.3.0',
-      '@xrmforge/helpers': '^0.8.0',
+      '@xrmforge/helpers': '^0.9.0',
       '@xrmforge/testing': '^0.3.0',
       eslint: '^9.0.0',
       typescript: '^5.7.0',

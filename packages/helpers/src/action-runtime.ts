@@ -16,9 +16,9 @@
  * import { createBoundAction } from '@xrmforge/helpers';
  * export const WinQuote = createBoundAction('markant_winquote', 'quote');
  *
- * // Developer code (in quote-form.ts):
+ * // Developer code (in quote-form.ts): void action throws on failure, so just await it
  * import { WinQuote } from '../generated/actions/quote';
- * const response = await WinQuote.execute(recordId);
+ * await WinQuote.execute(recordId);
  * ```
  */
 
@@ -37,25 +37,25 @@ export type ParameterMetaMap = Record<string, ParameterMeta>;
 
 /** Executor for a bound action without additional parameters */
 export interface BoundActionExecutor<TResult = void> {
-  execute(recordId: string): Promise<TResult extends void ? Response : TResult>;
+  execute(recordId: string): Promise<TResult extends void ? void : TResult>;
   request(recordId: string): Record<string, unknown>;
 }
 
 /** Executor for a bound action with typed parameters */
 export interface BoundActionWithParamsExecutor<TParams, TResult = void> {
-  execute(recordId: string, params: TParams): Promise<TResult extends void ? Response : TResult>;
+  execute(recordId: string, params: TParams): Promise<TResult extends void ? void : TResult>;
   request(recordId: string, params: TParams): Record<string, unknown>;
 }
 
 /** Executor for an unbound action without parameters */
 export interface UnboundActionExecutor<TResult = void> {
-  execute(): Promise<TResult extends void ? Response : TResult>;
+  execute(): Promise<TResult extends void ? void : TResult>;
   request(): Record<string, unknown>;
 }
 
 /** Executor for an unbound action with typed parameters and optional typed response */
 export interface UnboundActionWithParamsExecutor<TParams, TResult = void> {
-  execute(params: TParams): Promise<TResult extends void ? Response : TResult>;
+  execute(params: TParams): Promise<TResult extends void ? void : TResult>;
   request(params: TParams): Record<string, unknown>;
 }
 
@@ -227,7 +227,7 @@ export function createBoundAction<
   paramMeta?: ParameterMetaMap,
 ): BoundActionExecutor<TResult> | BoundActionWithParamsExecutor<TParams, TResult> {
   return {
-    async execute(recordId: string, params?: TParams): Promise<TResult extends void ? Response : TResult> {
+    async execute(recordId: string, params?: TParams): Promise<TResult extends void ? void : TResult> {
       const req = buildBoundRequest(
         operationName, entityLogicalName, OperationType.Action,
         recordId, paramMeta, params,
@@ -239,9 +239,9 @@ export function createBoundAction<
       }
       // Parse JSON when response properties are defined (TResult is not void)
       if (response.status !== 204) {
-        return response.json() as Promise<TResult extends void ? Response : TResult>;
+        return response.json() as Promise<TResult extends void ? void : TResult>;
       }
-      return response as TResult extends void ? Response : TResult;
+      return undefined as TResult extends void ? void : TResult;
     },
     request(recordId: string, params?: TParams): Record<string, unknown> {
       return buildBoundRequest(
@@ -292,7 +292,7 @@ export function createUnboundAction<
   paramMeta?: ParameterMetaMap,
 ): UnboundActionExecutor | UnboundActionWithParamsExecutor<TParams, TResult> {
   return {
-    async execute(params?: TParams): Promise<TResult extends void ? Response : TResult> {
+    async execute(params?: TParams): Promise<TResult extends void ? void : TResult> {
       const req = buildUnboundRequest(
         operationName, OperationType.Action, paramMeta, params,
       );
@@ -302,9 +302,9 @@ export function createUnboundAction<
         throw new Error(errorText);
       }
       if (response.status !== 204) {
-        return response.json() as Promise<TResult extends void ? Response : TResult>;
+        return response.json() as Promise<TResult extends void ? void : TResult>;
       }
-      return response as TResult extends void ? Response : TResult;
+      return undefined as TResult extends void ? void : TResult;
     },
     request(params?: TParams): Record<string, unknown> {
       return buildUnboundRequest(

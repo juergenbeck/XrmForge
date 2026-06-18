@@ -1,5 +1,17 @@
 # @xrmforge/devkit
 
+## 0.7.20
+
+### Patch Changes
+
+- AGENT.md template: Custom API executor section (8) now states that `execute()` throws on failure
+  itself (never check `.ok`/`.status` or call `.json()` on the result) and shows the void
+  fire-and-forget case (`await Action.execute(...)`) next to the typed-result case. Matching NEVER
+  entry, subagent-handoff note, and a corrected "Custom API Call" before/after example (F-MAR7-01).
+- Scaffold devDependency pin `@xrmforge/helpers ^0.8.0` -> `^0.9.0` so freshly scaffolded projects
+  get the void-executor return type (a 0.x caret never crosses a minor, so the old pin would keep new
+  projects on 0.8.x without the fix).
+
 ## 0.7.19
 
 ### Patch Changes

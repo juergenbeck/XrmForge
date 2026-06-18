@@ -1,5 +1,18 @@
 # @xrmforge/helpers
 
+## 0.9.0
+
+### Minor Changes
+
+- Custom API action executors now return `void` for a void action (no typed result) instead of
+  `Response`. `createBoundAction`/`createUnboundAction` (and their with-params variants) without a
+  `TResult` type argument resolve to `Promise<void>`; `execute()` already throws on a non-2xx
+  response and parses JSON itself. Previously the void case was typed `Promise<Response>` but at
+  runtime returned `response.json()` (status 200) or the raw `Response` (204), so following the type
+  with `if (!result.ok)` crashed at runtime with `response.json is not a function` (F-MAR7-01).
+  Functions (`createBoundFunction`/`createUnboundFunction`) always carry a result and are unchanged.
+  Type-level breaking change for callers that consumed the (unusable) `Response` return value.
+
 ## 0.8.0
 
 ### Minor Changes

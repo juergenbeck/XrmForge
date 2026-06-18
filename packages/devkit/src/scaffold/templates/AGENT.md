@@ -276,19 +276,26 @@ export const onLoad = wrapHandler('Namespace.Entity.onLoad', logger, async (ctx)
 
 ### 8. Custom API Executors from generated/actions/
 
-Never build your own ExecuteFunctionCall wrapper. Use the generated executors:
+Never build your own ExecuteFunctionCall wrapper. Use the generated executors.
+`execute()` reports failures itself (a non-2xx response becomes a thrown Error), so
+NEVER check `.ok`/`.status` or call `.json()` on the result - that raw-fetch mental
+model does not apply. The handler/command wrapper (and `withProgress`) surface the error.
 
 ```typescript
-import { CreateEMailFromInvoice } from '../../generated/actions/global.js';
+import { CreateEMailFromInvoice, CancelInvoice } from '../../generated/actions/global.js';
 import { withProgress } from '@xrmforge/helpers';
 
-// withProgress(message, operation): the operation is a thunk (() => Promise),
-// NOT an already-started promise, and the first argument is the progress message.
+// Action WITH a typed result: use the return value.
+// withProgress(message, operation): operation is a thunk (() => Promise), message is first.
 const result = await withProgress(
   lang.creatingEmail,
   () => CreateEMailFromInvoice.execute({ InvoiceId: recordId }),
 );
 // result.EmailId is typed as string
+
+// Action WITHOUT a typed result (void): just await it, there is no return value.
+await CancelInvoice.execute({ InvoiceId: recordId });
+// WRONG: if (!(await CancelInvoice.execute(...)).ok) { ... }  -> void result has no .ok
 ```
 
 ### 9. Named constants for ALL non-obvious values
@@ -422,6 +429,7 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 - Never `Xrm.Page` (deprecated since D365 v9.0)
 - Never `eval()`, never synchronous XMLHttpRequest
 - Never hand-write `fetch`/`XMLHttpRequest` for Power Automate cloud-flow HTTP-trigger calls (use `callCloudFlow(flowUrl, body)` from `@xrmforge/helpers`)
+- Never check `.ok`/`.status` or call `.json()` on a Custom API executor result (`execute()` throws on failure; a void action returns nothing, so `if (!resp.ok)` crashes at runtime with `response.json is not a function`)
 - Never `window.X = ...` (use module exports)
 - Never `console.log/warn/error` in form scripts (use shared logger)
 - Never export handlers without `wrapHandler()`
@@ -448,7 +456,7 @@ Copy these MANDATORY rules into every sub-agent prompt:
 9. SaveMode/FormType/DisplayState/RequiredLevel/SubmitMode/FormNotificationLevel constants
 10. wrapHandler() around EVERY exported handler
 11. createLogger() instead of console.* (except logger.ts)
-12. Custom API Executors from generated/actions/ (never build your own)
+12. Custom API Executors from generated/actions/ (never build your own; execute() throws on failure - never check .ok; a void action returns nothing, just await)
 13. NOTIFICATION_IDS from constants.ts for all notification unique IDs
 14. Named constants for non-obvious values (never magic numbers like 86400000)
 15. pickLang() for all user-visible strings (never hardcoded German/English)
@@ -555,7 +563,8 @@ if (customer) {
 // BEFORE: ExecuteFunctionCall("CancelInvoice", { InvoiceId: id })
 // AFTER:
 import { CancelInvoice } from '../../generated/actions/global.js';
-const result = await withProgress(
+// CancelInvoice returns no result: execute() throws on failure, so just await it.
+await withProgress(
   lang.cancellingInvoice,
   () => CancelInvoice.execute({ InvoiceId: id }),
 );
