@@ -227,4 +227,21 @@ describe('teardownXrmMock', () => {
     result = await (globalThis as any).Xrm.WebApi.retrieveRecord('account', 'id');
     expect(result.version).toBe('B');
   });
+
+  it('online.execute defaults to a 204 (no body)', async () => {
+    setupXrmMock();
+    const res: Response = await (globalThis as any).Xrm.WebApi.online.execute({});
+    expect(res.status).toBe(204);
+  });
+
+  it('online.execute override lets Custom-API tests return a JSON response', async () => {
+    setupXrmMock({
+      webApiOverrides: {
+        execute: async () => new Response(JSON.stringify({ IsValid: true }), { status: 200 }),
+      },
+    });
+    const res: Response = await (globalThis as any).Xrm.WebApi.online.execute({});
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ IsValid: true });
+  });
 });

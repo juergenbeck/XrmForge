@@ -162,4 +162,34 @@ describe('MockControl', () => {
     expect(win).toBeDefined();
     expect(typeof win).toBe('object');
   });
+
+  it('manages OptionSet options (add/remove/clear/get)', () => {
+    const ctrl = new MockControl('lm_status');
+    ctrl.addOption({ text: 'Open', value: 1 });
+    ctrl.addOption({ text: 'Closed', value: 2 });
+    ctrl.addOption({ text: 'Top', value: 0 }, 0);
+    expect(ctrl.getOptions().map((o) => o.value)).toEqual([0, 1, 2]);
+
+    ctrl.removeOption(1);
+    expect(ctrl.getOptions().map((o) => o.value)).toEqual([0, 2]);
+
+    ctrl.clearOptions();
+    expect(ctrl.getOptions()).toEqual([]);
+  });
+
+  it('stores custom views and the default view (lookup control)', () => {
+    const ctrl = new MockControl('primarycontactid');
+    ctrl.addCustomView('view-1', 'contact', 'My View', '<fetch/>', '<grid/>', true);
+    ctrl.setDefaultView('view-1');
+
+    expect(ctrl.getCustomViews()).toHaveLength(1);
+    expect(ctrl.getCustomViews()[0]!.viewDisplayName).toBe('My View');
+    expect(ctrl.getDefaultView()).toBe('view-1');
+  });
+
+  it('stores a FetchXML filter (subgrid setFilterXml, not in @types/xrm)', () => {
+    const ctrl = new MockControl('Subgrid_orders');
+    ctrl.setFilterXml('<filter><condition/></filter>');
+    expect(ctrl.getFilterXml()).toBe('<filter><condition/></filter>');
+  });
 });

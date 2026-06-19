@@ -29,6 +29,17 @@ export class MockControl {
   private _preSearchHandlers: Array<() => void> = [];
   private _customFilters: Array<{ filter: string; entityLogicalName?: string }> =
     [];
+  private _options: Array<{ text: string; value: number }> = [];
+  private _customViews: Array<{
+    viewId: string;
+    entityName: string;
+    viewDisplayName: string;
+    fetchXml: string;
+    layoutXml: string;
+    isDefault: boolean;
+  }> = [];
+  private _defaultView: string = '';
+  private _filterXml: string | undefined;
   private _showTime: boolean = false;
 
   /**
@@ -171,6 +182,114 @@ export class MockControl {
     entityLogicalName?: string;
   }> {
     return this._customFilters;
+  }
+
+  // --- OptionSet-specific methods ---
+
+  /**
+   * Adds an option to an OptionSet control (e.g. for dependent/filtered picklists).
+   * The option is stored; `index` inserts at a position (appended if omitted).
+   *
+   * @param option - The option ({ text, value })
+   * @param index - Optional insert position
+   */
+  addOption(option: { text: string; value: number }, index?: number): void {
+    if (index === undefined) this._options.push(option);
+    else this._options.splice(index, 0, option);
+  }
+
+  /**
+   * Removes an option from an OptionSet control by value.
+   *
+   * @param value - The numeric value of the option to remove
+   */
+  removeOption(value: number): void {
+    this._options = this._options.filter((o) => o.value !== value);
+  }
+
+  /** Removes all options from an OptionSet control. */
+  clearOptions(): void {
+    this._options = [];
+  }
+
+  /** Returns the current options of an OptionSet control. */
+  getOptions(): Array<{ text: string; value: number }> {
+    return this._options;
+  }
+
+  // --- Lookup view methods ---
+
+  /**
+   * Adds a custom view to a lookup control. The view is stored but not applied.
+   *
+   * @param viewId - GUID of the view
+   * @param entityName - Entity logical name the view targets
+   * @param viewDisplayName - Display name of the view
+   * @param fetchXml - FetchXML defining the view
+   * @param layoutXml - Layout XML defining the columns
+   * @param isDefault - Whether this view is the default
+   */
+  addCustomView(
+    viewId: string,
+    entityName: string,
+    viewDisplayName: string,
+    fetchXml: string,
+    layoutXml: string,
+    isDefault: boolean,
+  ): void {
+    this._customViews.push({
+      viewId,
+      entityName,
+      viewDisplayName,
+      fetchXml,
+      layoutXml,
+      isDefault,
+    });
+  }
+
+  /** @internal Returns all registered custom views (for assertions). */
+  getCustomViews(): ReadonlyArray<{
+    viewId: string;
+    entityName: string;
+    viewDisplayName: string;
+    fetchXml: string;
+    layoutXml: string;
+    isDefault: boolean;
+  }> {
+    return this._customViews;
+  }
+
+  /**
+   * Sets the default view of a lookup control.
+   *
+   * @param viewId - GUID of the view to make default
+   */
+  setDefaultView(viewId: string): void {
+    this._defaultView = viewId;
+  }
+
+  /** Returns the default view id of a lookup control. */
+  getDefaultView(): string {
+    return this._defaultView;
+  }
+
+  // --- Subgrid-specific methods ---
+
+  /**
+   * Sets a FetchXML filter on a subgrid control.
+   *
+   * Note: `setFilterXml` is NOT in the public @types/xrm (AGENT.md pitfall) - consumer
+   * code casts to call it. This mock provides it so subgrid-filter tests need no patch.
+   *
+   * @param xml - The FetchXML filter
+   */
+  setFilterXml(xml: string): void {
+    this._filterXml = xml;
+  }
+
+  /** @internal Returns the FetchXML filter set via setFilterXml (for assertions). */
+  getFilterXml(): string | undefined {
+    return this._filterXml;
   }
 
   // --- DateTime-specific methods ---

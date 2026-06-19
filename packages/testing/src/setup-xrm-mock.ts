@@ -39,6 +39,15 @@ export interface SetupXrmMockOptions {
     createRecord: (entityType: string, data: Record<string, unknown>) => Promise<{ id: string }>;
     updateRecord: (entityType: string, id: string, data: Record<string, unknown>) => Promise<{ id: string }>;
     deleteRecord: (entityType: string, id: string) => Promise<{ id: string }>;
+    /**
+     * Override `Xrm.WebApi.online.execute`. The default returns a 204 (no body),
+     * which makes Custom API executors that call `response.json()` throw - override
+     * it with a JSON-bearing `Response` to test result-returning actions, e.g.
+     * `execute: async () => new Response(JSON.stringify({ IsValid: true }), { status: 200 })`.
+     */
+    execute: (request: unknown) => Promise<Response>;
+    /** Override `Xrm.WebApi.online.executeMultiple`. */
+    executeMultiple: (requests: unknown[]) => Promise<Response[]>;
   }>;
   /** Override specific Xrm.Navigation methods */
   navigationOverrides?: Partial<{
@@ -85,8 +94,10 @@ export function setupXrmMock(options?: SetupXrmMockOptions): void {
     deleteRecord: options?.webApiOverrides?.deleteRecord
       ?? (async () => ({ id: '00000000-0000-0000-0000-000000000000' })),
     online: {
-      execute: async () => new Response(null, { status: 204 }),
-      executeMultiple: async () => [],
+      execute: options?.webApiOverrides?.execute
+        ?? (async () => new Response(null, { status: 204 })),
+      executeMultiple: options?.webApiOverrides?.executeMultiple
+        ?? (async () => []),
     },
   };
 

@@ -38,6 +38,7 @@ export class MockAttribute {
   private _onChangeHandlers: OnChangeHandler[] = [];
   private _text = '';
   private _precision = 0;
+  private _options: Array<{ text: string; value: number }> = [];
 
   /**
    * @param name - Logical name of the attribute (e.g. 'name', 'revenue')
@@ -183,6 +184,24 @@ export class MockAttribute {
    */
   setPrecision(precision: number): void {
     this._precision = precision;
+  }
+
+  /**
+   * Returns the OptionSet options (`OptionSetAttribute.getOptions()`). Defaults to
+   * `[]`; seed them with {@link setOptions} for tests that read the option list.
+   */
+  getOptions(): Array<{ text: string; value: number }> {
+    return this._options;
+  }
+
+  /**
+   * Seeds the value returned by {@link getOptions} (test helper; the real Xrm API
+   * derives options from metadata).
+   *
+   * @param options - The options getOptions() should return
+   */
+  setOptions(options: Array<{ text: string; value: number }>): void {
+    this._options = options;
   }
 
   /** Returns a stub parent entity reference. */

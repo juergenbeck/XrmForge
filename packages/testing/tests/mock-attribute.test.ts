@@ -192,4 +192,16 @@ describe('MockAttribute', () => {
     expect(result).toHaveLength(1);
     expect(result[0]).toBe(ctrl2);
   });
+
+  it('getOptions defaults to [] and reflects seeded options (setOptions)', () => {
+    const attr = new MockAttribute('lm_status');
+    expect(attr.getOptions()).toEqual([]);
+
+    attr.setOptions([
+      { text: 'Open', value: 1 },
+      { text: 'Closed', value: 2 },
+    ]);
+    expect(attr.getOptions()).toHaveLength(2);
+    expect(attr.getOptions()[1]!.text).toBe('Closed');
+  });
 });
