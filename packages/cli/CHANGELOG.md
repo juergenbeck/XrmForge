@@ -1,5 +1,11 @@
 # @xrmforge/cli
 
+## 0.8.13
+
+### Patch Changes
+
+- Propagate devkit 0.7.28 (AGENT.md template: raw FormContext + named constants is the supported multi-form pattern; the planned per-entity union FormTypeInfo was rejected, OE-13). No cli source change.
+
 ## 0.8.12
 
 ### Patch Changes

@@ -142,8 +142,11 @@ function onChange(ctx: Xrm.Events.EventContext): void {
 
 The validate-form gate counts a named constant as compliant (the violation is the raw inline
 string, not the FormContext itself). Use `typedForm` whenever one form interface fits; fall back to
-raw FormContext + named constants only for true multi-entity / multi-form scripts. For a single
-entity with several forms, a per-entity union FormTypeInfo would be ideal (planned).
+raw FormContext + named constants for any multi-form script - across entities, or across several
+forms of one entity. For both cases this is the deliberate, supported pattern, not a stopgap. (A
+generated per-entity union FormTypeInfo was considered and deliberately rejected: it would type
+fields the active form may not carry as non-nullable - the false compile-time safety this framework
+exists to prevent. Use named constants + `$unsafe` for nullable access instead.)
 
 ### 2. Fields Enum for ALL getAttribute/getControl AND select() calls
 

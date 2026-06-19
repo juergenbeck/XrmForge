@@ -1,5 +1,11 @@
 # @xrmforge/devkit
 
+## 0.7.28
+
+### Patch Changes
+
+- AGENT.md template: replace the "per-entity union FormTypeInfo (planned)" note with a clear statement that raw `Xrm.FormContext` + named constants is the deliberate, supported pattern for both cross-entity and single-entity-multi-form scripts. The union type was considered and rejected because it would type fields the active form may lack as non-nullable, the false compile-time safety the framework avoids (OE-13, decided Option 0).
+
 ## 0.7.27
 
 ### Patch Changes
