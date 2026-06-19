@@ -1,5 +1,14 @@
 # @xrmforge/helpers
 
+## 0.11.0
+
+### Minor Changes
+
+- Add `setAndSubmit(attr, value)`: on-form set + `SubmitMode.Always` in one type-safe call (the dominant programmatic-set idiom). Explicit opt-in, does not change `setValue` semantics (Runde 8 F-LMA8-N1).
+- Add `formLookupIdUnsafe(form, nav)` / `formLookupUnsafe(form, nav)`: read an off-form lookup via the `$unsafe` proxy, bundling the `LookupAttribute` cast + null check (Runde 8 F-LMA8-N2).
+- Add `isUnsavedRecord(formContext)`: treats both empty-string and null-GUID ids as unsaved (Runde 8 F-MK8-N4b).
+- Add `getEnvironmentVariable(schemaName)` + `clearEnvironmentVariableCache()`: cached Dataverse environment-variable reader (current value, default fallback, OData-escaped; WebApi errors propagate) (Runde 8 F-MK8-N4a).
+
 ## 0.10.1
 
 ### Patch Changes

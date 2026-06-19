@@ -1,5 +1,13 @@
 # @xrmforge/testing
 
+## 0.5.0
+
+### Minor Changes
+
+- `setupXrmMock`: add `webApiOverrides.execute` / `executeMultiple`. The default `online.execute` returns a 204 (no body), which makes Custom API executors that call `response.json()` throw; tests can now inject a JSON `Response` (Runde 8 F-MK8-04b).
+- `MockControl`: add OptionSet methods (`addOption`/`removeOption`/`clearOptions`/`getOptions`), lookup view methods (`addCustomView`/`getCustomViews`/`setDefaultView`/`getDefaultView`), and subgrid `setFilterXml`/`getFilterXml` (not in @types/xrm).
+- `MockAttribute`: add `getOptions`/`setOptions` (OptionSet option-list seed).
+
 ## 0.4.1
 
 ### Patch Changes

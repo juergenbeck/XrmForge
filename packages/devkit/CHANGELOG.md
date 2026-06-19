@@ -1,5 +1,12 @@
 # @xrmforge/devkit
 
+## 0.7.26
+
+### Patch Changes
+
+- Scaffold pins: bump `@xrmforge/helpers` to `^0.11.0` and `@xrmforge/testing` to `^0.5.0` so fresh `xrmforge init` projects get the Runde-8 helpers/mocks (a 0.x caret never crosses a minor boundary).
+- AGENT.md template: document the new helpers (`setAndSubmit`, `formLookupIdUnsafe`, `getEnvironmentVariable`, `isUnsavedRecord`), the `getAttribute`/`getControl` lookup-name rule (entity `Fields` is `_value`-form, use the blank form-level enum / NavigationProperties; F-MK8-05), and the `getControl(string-variable)` pitfall (F-R8-N5).
+
 ## 0.7.25
 
 ### Patch Changes
