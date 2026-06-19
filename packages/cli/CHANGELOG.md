@@ -1,5 +1,12 @@
 # @xrmforge/cli
 
+## 0.8.10
+
+### Patch Changes
+
+- Add package README (rendered on npmjs.com). Docs only; propagation pulls typegen 0.13.1 + devkit
+  0.7.25 via workspace:*.
+
 ## 0.8.9
 
 ### Patch Changes

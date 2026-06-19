@@ -1,5 +1,11 @@
 # @xrmforge/webapi
 
+## 0.1.2
+
+### Patch Changes
+
+- Add package README (rendered on npmjs.com). Docs only, no code change.
+
 ## 0.1.1
 
 ### Patch Changes

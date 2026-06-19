@@ -1,5 +1,11 @@
 # @xrmforge/devkit
 
+## 0.7.25
+
+### Patch Changes
+
+- Add package README (rendered on npmjs.com). Docs only, no code change.
+
 ## 0.7.24
 
 ### Patch Changes

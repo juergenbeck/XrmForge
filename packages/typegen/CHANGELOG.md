@@ -1,5 +1,11 @@
 # @xrmforge/typegen
 
+## 0.13.1
+
+### Patch Changes
+
+- Add package README (rendered on npmjs.com). Docs only, no code change.
+
 ## 0.13.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
   "name": "@xrmforge/webapi",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Type-safe Xrm.WebApi client with query builder for Dynamics 365",
   "keywords": [
     "dynamics-365",

@@ -1,5 +1,11 @@
 # @xrmforge/helpers
 
+## 0.10.1
+
+### Patch Changes
+
+- Add package README (rendered on npmjs.com). Docs only, no code change.
+
 ## 0.10.0
 
 ### Minor Changes

@@ -1045,14 +1045,14 @@ Install: `npm install -D @xrmforge/testing`
 
 | Package | Description | Status |
 |---------|-------------|--------|
-| `@xrmforge/typegen` | Core engine: metadata reading, type generation, Web API helpers, Xrm constants, action runtime, MockValues types, incremental generation with metadata cache | v0.6.0 |
-| `@xrmforge/testing` | Type-safe form mock builder: `createFormMock()`, `fireOnChange()`, MockAttribute, MockControl, MockUi | v0.2.0 |
-| `@xrmforge/cli` | Command-line interface: `generate` (with `--cache`), `build` (with `--watch`) | v0.4.2 |
-| `@xrmforge/webapi` | Type-safe Web API client: `retrieve<T>()`, `retrieveMultiple<T>()`, `create()`, `update()`, `remove()`, QueryBuilder | v0.1.0 |
-| `@xrmforge/helpers` | Browser-safe runtime: `select()`, `parseLookup()`, `typedForm()`, Xrm constants, Action/Function executors | v0.1.0 |
-| `@xrmforge/devkit` | Build orchestration: esbuild IIFE bundles for D365 WebResources, `xrmforge build`, watch mode | v0.4.0 |
+| `@xrmforge/cli` | Command-line interface: `init`, `generate` (with `--cache` and `--check`), `build` (with `--watch`) | Published |
+| `@xrmforge/typegen` | Type-generation engine: metadata reading, entity/form/OptionSet/Custom-API generation, incremental cache | Published |
+| `@xrmforge/helpers` | Browser-safe runtime: `select()`, `parseLookup()`, `typedForm()`, Xrm constants, Action/Function executors | Published |
+| `@xrmforge/webapi` | Type-safe Web API client: `retrieve<T>()`, `retrieveMultiple<T>()`, `create()`, `update()`, `remove()`, QueryBuilder | Published |
+| `@xrmforge/testing` | Type-safe form mock builder: `createFormMock()`, `setupXrmMock()`, MockAttribute, MockControl, MockUi | Published |
+| `@xrmforge/devkit` | Build orchestration: esbuild IIFE bundles for D365 WebResources, `xrmforge build`, watch mode, scaffolding | Published |
+| `@xrmforge/eslint-plugin` | D365-specific ESLint rules: no-xrm-page, no-raw-field-strings, no-raw-entity-names, no-magic-optionset, ... | Published |
 | `@xrmforge/pipeline` | CI/CD templates for Azure DevOps and GitHub Actions | Planned |
-| `@xrmforge/eslint-plugin` | D365-specific ESLint rules: no-xrm-page, no-magic-optionset, no-sync-webapi, require-error-handling, require-namespace | v0.2.0 |
 
 ---
 
@@ -1065,7 +1065,7 @@ git clone https://github.com/juergenbeck/XrmForge.git
 cd XrmForge
 pnpm install
 pnpm build
-pnpm test       # 699 tests across 7 packages
+pnpm test       # full test suite across all 7 packages
 pnpm typecheck  # TypeScript strict mode
 pnpm lint       # ESLint v9
 ```
@@ -1142,18 +1142,19 @@ If esbuild cannot resolve an import:
 
 ### Shipped
 
-- **`@xrmforge/testing`** (v0.2.0) -- Type-safe form mock builder with compile-time field validation.
-- **`@xrmforge/webapi`** (v0.1.0) -- Type-safe Web API client: `retrieve<T>()`, `retrieveMultiple<T>()`, `create()`, `update()`, `remove()`, QueryBuilder with pagination.
-- **`@xrmforge/helpers`** (v0.1.0) -- Browser-safe runtime: select(), parseLookup(), typedForm(), Xrm constants, Action/Function executors.
-- **`@xrmforge/devkit`** (v0.4.0) -- Build orchestration: `xrmforge build` with IIFE bundles, watch mode, declarative config.
-- **`@xrmforge/eslint-plugin`** (v0.2.0) -- D365-specific ESLint rules: no-xrm-page, no-magic-optionset, no-sync-webapi, require-error-handling, require-namespace.
+- **`xrmforge init`** -- Project scaffolding: tsconfig, build config, AGENT.md, example layout.
+- **`@xrmforge/cli`** -- `init`, `generate` (with `--cache` and `--check` drift detection), `build` (with `--watch`).
+- **`@xrmforge/testing`** -- Type-safe form mock builder with compile-time field validation.
+- **`@xrmforge/webapi`** -- Type-safe Web API client: `retrieve<T>()`, `retrieveMultiple<T>()`, `create()`, `update()`, `remove()`, QueryBuilder with pagination.
+- **`@xrmforge/helpers`** -- Browser-safe runtime: select(), parseLookup(), typedForm(), Xrm constants, Action/Function executors.
+- **`@xrmforge/devkit`** -- Build orchestration: `xrmforge build` with IIFE bundles, watch mode, declarative config.
+- **`@xrmforge/eslint-plugin`** -- D365-specific ESLint rules.
 - **Custom API live generation** -- `--actions` flag queries Custom API metadata from Dataverse and generates typed executors. `--actions-filter` for prefix filtering.
 - **Solution-based discovery** -- `--solutions Sales,Service` discovers entities from Dataverse solutions automatically.
 - **Incremental generation** -- `--cache` flag enables metadata caching with delta detection via `RetrieveMetadataChanges`. 10x faster on subsequent runs.
 
 ### Planned
 
-- **`xrmforge init`** -- Project scaffolding: tsconfig templates, build configuration, example projects.
 - **`@xrmforge/pipeline`** -- Ready-to-use CI/CD pipeline templates for Azure DevOps (YAML) and GitHub Actions.
 - **webpack support** -- Tier 2 bundler for teams with existing webpack investment.
 
