@@ -21,7 +21,7 @@ functions with domain-specific names, not in anonymous chains of API calls.
 ## Packages
 
 - `@xrmforge/typegen` - Generates typed declarations from Dataverse metadata (Node.js CLI only, NEVER import in browser code)
-- `@xrmforge/helpers` - Browser-safe runtime: typedForm(), select(), parseLookup(), parseMultiSelect(), formLookup(), clearAndSubmit()/setUnsafeAndSubmit(), addAppNotification(), Xrm constants, Action executors, callCloudFlow()
+- `@xrmforge/helpers` - Browser-safe runtime: typedForm(), select(), parseLookup(), parseMultiSelect(), formLookup()/formLookupId()/formLookupIdUnsafe(), setAndSubmit()/clearAndSubmit()/setUnsafeAndSubmit(), addAppNotification(), isUnsavedRecord(), getEnvironmentVariable(), Xrm constants, Action executors, callCloudFlow()
 - `@xrmforge/testing` - Type-safe form mocks: createFormMock(), fireOnChange(), setupXrmMock()
 - `@xrmforge/devkit` - esbuild IIFE bundles via xrmforge build
 - `@xrmforge/eslint-plugin` - D365-specific ESLint rules
@@ -223,6 +223,12 @@ parseLookup(apiResponse, AccountFields.TransactionCurrencyId);
   attribute logical name, not the `_value` Web API key. `XxxFields.Lookup` (already `_value`-form) is
   not a valid attribute name and resolves to `null` at runtime. For a non-lookup off-form field,
   `XxxFields` is correct (F-LMA7-06).
+- **`getAttribute`/`getControl` on a LOOKUP need the BLANK name** (form-level `XxxFormFieldsEnum`
+  member, or `XxxNavigationProperties.Lookup`), NEVER the entity `XxxFields.Lookup` value. The entity
+  `XxxFields` lookup member is already `_value`-form (`'_markant_roleid_value'`), which is the Web API
+  `$select` key, NOT a valid attribute name - `getAttribute` returns `null` and the whole branch
+  silently no-ops (F-MK8-05). Prefer the form-level `XxxFormFieldsEnum` (blank for every field incl.
+  lookups) for all `getAttribute`/`getControl`; reserve the entity `XxxFields` for `$select`/`$filter`.
 - **Never write a local `lookupValue(field)` helper** that puts `_${field}_value` around a `XxxFields`
   value (F-LMA7-05). It is plain string concatenation - green at compile time, broken at runtime.
 - **parseLookup needs the raw response** (`Record<string, unknown>`), not a value cast to a generated
@@ -431,7 +437,8 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 - Never `eval()`, never synchronous XMLHttpRequest
 - Never hand-write `fetch`/`XMLHttpRequest` for Power Automate cloud-flow HTTP-trigger calls (use `callCloudFlow(flowUrl, body)` from `@xrmforge/helpers`)
 - Never check `.ok`/`.status` or call `.json()` on a Custom API executor result (`execute()` throws on failure; a void action returns nothing, so `if (!resp.ok)` crashes at runtime with `response.json is not a function`)
-- Never hand-build a MultiSelect parser, an off-form set-and-submit, a clear-and-submit, or an app-notification-level cast (use `parseMultiSelect`, `setUnsafeAndSubmit`, `clearAndSubmit`, `addAppNotification`/`AppNotificationLevel` from `@xrmforge/helpers`)
+- Never hand-build a MultiSelect parser, a set-and-submit (on-form `setAndSubmit`, off-form `setUnsafeAndSubmit`, clear `clearAndSubmit`), an off-form lookup-id read (`formLookupIdUnsafe`/`formLookupUnsafe`), an app-notification-level cast (`addAppNotification`/`AppNotificationLevel`), an environment-variable read (`getEnvironmentVariable`), or an unsaved-record check (`isUnsavedRecord`, handles "" AND null GUID) - all from `@xrmforge/helpers`
+- Never `getAttribute`/`getControl` with a `XxxFields` lookup value (it is `_value`-form and resolves to `null`); use the form-level `XxxFormFieldsEnum` or `XxxNavigationProperties` (blank). For a runtime/variable control name use the raw `ctx.getFormContext().getControl(name)` (typed `$context` has no string overload)
 - Never `window.X = ...` (use module exports)
 - Never `console.log/warn/error` in form scripts (use shared logger)
 - Never export handlers without `wrapHandler()`
@@ -764,6 +771,12 @@ IDE autocomplete. Only keep shared helpers that contain actual domain logic
 9. **Xrm.LookupValue.name** is typed `string | undefined`. Coalesce it before passing it to a string
    setter or a template literal: `lookup.name ?? ''`. The `parseLookup`/`formLookup` helpers already
    return `name` as `''`, so this only bites on a raw `getValue()[0].name` access.
+10. **`form.$context.getControl(stringVariable)` / `getAttribute(stringVariable)`** fails to compile
+    ("string is not assignable to number"): the typedForm `$context` carries only the literal
+    control/attribute-name overloads plus the `number` index overload, no generic
+    `getControl(name: string)`. For a runtime/variable name use the RAW form context:
+    `ctx.getFormContext().getControl(name)` (real `Xrm.FormContext` has the string overload). Prefer
+    constant literals/enums where possible (F-R8-N5).
 
 ## Build
 
