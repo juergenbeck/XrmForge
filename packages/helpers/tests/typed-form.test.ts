@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { typedForm } from '../src/typed-form.js';
+import { typedForm, isUnsavedRecord } from '../src/typed-form.js';
 import type { TypedForm } from '../src/typed-form.js';
 
 // ─── Test Form Types (simulate typegen output) ──────────────────────────────
@@ -256,5 +256,22 @@ describe('typedForm - symbol handling', () => {
     const form = typedForm<TestForm>(fc) as any;
 
     expect(() => form[Symbol.toPrimitive]).not.toThrow();
+  });
+});
+
+describe('isUnsavedRecord', () => {
+  const ctx = (id: string) => ({ data: { entity: { getId: () => id } } });
+
+  it('treats an empty id as unsaved', () => {
+    expect(isUnsavedRecord(ctx(''))).toBe(true);
+  });
+
+  it('treats the null GUID (braced or bare, any case) as unsaved', () => {
+    expect(isUnsavedRecord(ctx('{00000000-0000-0000-0000-000000000000}'))).toBe(true);
+    expect(isUnsavedRecord(ctx('00000000-0000-0000-0000-000000000000'))).toBe(true);
+  });
+
+  it('treats a real GUID as saved', () => {
+    expect(isUnsavedRecord(ctx('{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}'))).toBe(false);
   });
 });

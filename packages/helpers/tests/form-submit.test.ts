@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { clearAndSubmit, setUnsafeAndSubmit } from '../src/form-submit.js';
+import { clearAndSubmit, setUnsafeAndSubmit, setAndSubmit } from '../src/form-submit.js';
 
 describe('clearAndSubmit', () => {
   it('clears the value and forces SubmitMode.Always', () => {
@@ -35,5 +35,27 @@ describe('setUnsafeAndSubmit', () => {
 
     expect(result).toBe(false);
     expect($unsafe).toHaveBeenCalledWith('missing');
+  });
+});
+
+describe('setAndSubmit', () => {
+  it('sets the value and forces SubmitMode.Always', () => {
+    const setValue = vi.fn();
+    const setSubmitMode = vi.fn();
+
+    setAndSubmit({ setValue, setSubmitMode }, 150000);
+
+    expect(setValue).toHaveBeenCalledWith(150000);
+    expect(setSubmitMode).toHaveBeenCalledWith('always');
+  });
+
+  it('infers the value type from the attribute (compile-time) and passes it through', () => {
+    const setValue = vi.fn<(value: string) => void>();
+    const setSubmitMode = vi.fn();
+
+    setAndSubmit({ setValue, setSubmitMode }, 'hello');
+
+    expect(setValue).toHaveBeenCalledWith('hello');
+    expect(setSubmitMode).toHaveBeenCalledWith('always');
   });
 });

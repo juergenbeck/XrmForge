@@ -249,3 +249,47 @@ export function formLookupId(
   if (!values || values.length === 0) return null;
   return values[0]!.id.replace(/[{}]/g, '');
 }
+
+/**
+ * Off-form variant of {@link formLookupId}: read a lookup that is loaded by D365
+ * but not on the current form layout, reached via the typedForm `$unsafe` proxy.
+ *
+ * `$unsafe(nav)` returns `Attribute | null`; this bundles the null check and the
+ * lookup cast so callers avoid the repetitive
+ * `form.$unsafe(Nav.X) as Xrm.Attributes.LookupAttribute | null` (F-LMA8-N2).
+ * Pass the BLANK navigation property name (e.g. a `XxxNavigationProperties` member),
+ * never the `_value`-form entity Fields enum.
+ *
+ * @param form - The typedForm proxy (anything exposing `$unsafe`)
+ * @param navProperty - The lookup navigation property name (blank, not `_value`-form)
+ * @returns Normalized GUID (no braces), or null if the field is absent or empty
+ */
+export function formLookupIdUnsafe(
+  form: { $unsafe(name: string): Xrm.Attributes.Attribute | null },
+  navProperty: string,
+): string | null {
+  const attr = form.$unsafe(navProperty);
+  if (attr == null) return null;
+  return formLookupId(attr as unknown as { getValue(): { id: string }[] | null });
+}
+
+/**
+ * Off-form variant of {@link formLookup}: full lookup value (id + name + entityType)
+ * for an off-form lookup reached via the typedForm `$unsafe` proxy.
+ *
+ * @param form - The typedForm proxy (anything exposing `$unsafe`)
+ * @param navProperty - The lookup navigation property name (blank, not `_value`-form)
+ * @returns Normalized lookup value, or null if the field is absent or empty
+ */
+export function formLookupUnsafe(
+  form: { $unsafe(name: string): Xrm.Attributes.Attribute | null },
+  navProperty: string,
+): { id: string; name: string; entityType: string } | null {
+  const attr = form.$unsafe(navProperty);
+  if (attr == null) return null;
+  return formLookup(
+    attr as unknown as {
+      getValue(): { id: string; name?: string; entityType: string }[] | null;
+    },
+  );
+}

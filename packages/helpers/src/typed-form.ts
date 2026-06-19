@@ -258,6 +258,24 @@ export function normalizeGuid(guid: string | null | undefined): string {
   return guid.replace(/[{}]/g, '').toLowerCase();
 }
 
+/**
+ * Whether the form's record is not yet persisted (Create form / unsaved).
+ *
+ * Treats BOTH "no id" representations as unsaved: an empty string (some Create
+ * forms return `""` from `getId()`) and the null GUID
+ * `00000000-0000-0000-0000-000000000000` (the other variant). Use this instead of
+ * ad-hoc `getId() === ''` checks, which miss the null-GUID case (F-MK8-N4b).
+ *
+ * @param formContext - The form context (`executionContext.getFormContext()`)
+ * @returns true if the record has no real id yet
+ */
+export function isUnsavedRecord(formContext: {
+  data: { entity: { getId(): string } };
+}): boolean {
+  const id = normalizeGuid(formContext.data.entity.getId());
+  return !id || id === '00000000-0000-0000-0000-000000000000';
+}
+
 // ─── Legacy Exports ──────────────────────────────────────────────────────────
 
 /** @deprecated Use ExtractFields<TForm> instead */

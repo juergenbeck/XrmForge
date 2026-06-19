@@ -20,6 +20,8 @@ export {
   parseMultiSelect,
   formLookup,
   formLookupId,
+  formLookupIdUnsafe,
+  formLookupUnsafe,
 } from './webapi-helpers.js';
 
 // Xrm constants (const enums, zero runtime overhead)
@@ -61,7 +63,7 @@ export type {
 } from './action-runtime.js';
 
 // TypedForm proxy + GUID utility
-export { typedForm, normalizeGuid } from './typed-form.js';
+export { typedForm, normalizeGuid, isUnsavedRecord } from './typed-form.js';
 export type { TypedForm, FormFields, FormTypeInfoProtocol } from './typed-form.js';
 
 // Power Automate cloud flow caller
@@ -69,8 +71,11 @@ export { callCloudFlow } from './cloud-flow.js';
 export type { CloudFlowOptions } from './cloud-flow.js';
 
 // Attribute submit helpers (set/clear + force SubmitMode.Always)
-export { clearAndSubmit, setUnsafeAndSubmit } from './form-submit.js';
+export { clearAndSubmit, setUnsafeAndSubmit, setAndSubmit } from './form-submit.js';
 
 // App-level (global) notification helper
 export { addAppNotification } from './app-notification.js';
 export type { AppNotificationOptions } from './app-notification.js';
+
+// Environment variable reader (definition + value, cached)
+export { getEnvironmentVariable, clearEnvironmentVariableCache } from './environment.js';

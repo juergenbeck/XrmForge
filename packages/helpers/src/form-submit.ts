@@ -51,3 +51,31 @@ export function setUnsafeAndSubmit(
   attr.setSubmitMode(SubmitMode.Always);
   return true;
 }
+
+/**
+ * Set an on-form attribute's value and force it to be submitted (`SubmitMode.Always`).
+ *
+ * The single most common programmatic-set idiom: D365 AutoSave only submits dirty
+ * attributes, so a value set in code without `setSubmitMode(Always)` can be silently
+ * dropped. This collapses the two-line `attr.setValue(v); attr.setSubmitMode(Always)`
+ * into one type-safe call (the value type is taken from the attribute's `setValue`,
+ * so `setAndSubmit(form.revenue, 150000)` rejects a wrong-typed value).
+ *
+ * Use the typedForm proxy attribute directly (`setAndSubmit(form.revenue, 150000)`).
+ * For off-form fields use {@link setUnsafeAndSubmit} (bundles the `$unsafe` null check);
+ * to clear a value use {@link clearAndSubmit} (avoids mis-inferring the type from `null`).
+ *
+ * Explicit opt-in by design: it deliberately does NOT change `setValue` semantics.
+ * Some programmatic sets legitimately must NOT submit (read-only display fields,
+ * fields set only to trigger an onChange).
+ *
+ * @param attr - A settable attribute (e.g. `form.revenue` from the typedForm proxy)
+ * @param value - The value to set; its type is taken from the attribute's `setValue`
+ */
+export function setAndSubmit<T>(
+  attr: { setValue(value: T): void; setSubmitMode(mode: Xrm.SubmitMode): void },
+  value: T,
+): void {
+  attr.setValue(value);
+  attr.setSubmitMode(SubmitMode.Always);
+}

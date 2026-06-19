@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { select, selectExpand, parseLookup, parseLookups, parseFormattedValue, parseMultiSelect, formLookup, formLookupId } from '../src/webapi-helpers.js';
+import { select, selectExpand, parseLookup, parseLookups, parseFormattedValue, parseMultiSelect, formLookup, formLookupId, formLookupIdUnsafe, formLookupUnsafe } from '../src/webapi-helpers.js';
 
 // select / selectExpand
 
@@ -248,5 +248,45 @@ describe('parseMultiSelect', () => {
 
   it('returns the array (not null) for non-empty input when emptyAsNull is true', () => {
     expect(parseMultiSelect('1,2', true)).toEqual([1, 2]);
+  });
+});
+
+// ─── formLookupIdUnsafe / formLookupUnsafe ───────────────────────────────────
+
+describe('formLookupIdUnsafe', () => {
+  it('reads an off-form lookup id via $unsafe (normalized, no braces)', () => {
+    const attr = { getValue: () => [{ id: '{A1B2C3D4-0000-0000-0000-000000000000}' }] };
+    const $unsafe = (name: string) => (name === 'parentaccountid' ? attr : null);
+
+    expect(formLookupIdUnsafe({ $unsafe } as Parameters<typeof formLookupIdUnsafe>[0], 'parentaccountid')).toBe(
+      'A1B2C3D4-0000-0000-0000-000000000000',
+    );
+  });
+
+  it('returns null when the off-form field is absent', () => {
+    const $unsafe = () => null;
+    expect(formLookupIdUnsafe({ $unsafe }, 'missing')).toBeNull();
+  });
+
+  it('returns null when the lookup is empty', () => {
+    const $unsafe = () => ({ getValue: () => null });
+    expect(formLookupIdUnsafe({ $unsafe } as Parameters<typeof formLookupIdUnsafe>[0], 'empty')).toBeNull();
+  });
+});
+
+describe('formLookupUnsafe', () => {
+  it('reads the full off-form lookup value via $unsafe', () => {
+    const attr = {
+      getValue: () => [{ id: '{A1-B2}', name: 'Acme', entityType: 'account' }],
+    };
+    const $unsafe = () => attr;
+
+    const result = formLookupUnsafe({ $unsafe } as Parameters<typeof formLookupUnsafe>[0], 'parentaccountid');
+    expect(result).toEqual({ id: 'A1-B2', name: 'Acme', entityType: 'account' });
+  });
+
+  it('returns null when the off-form field is absent', () => {
+    const $unsafe = () => null;
+    expect(formLookupUnsafe({ $unsafe }, 'missing')).toBeNull();
   });
 });
