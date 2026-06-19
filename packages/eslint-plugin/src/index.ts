@@ -17,6 +17,9 @@
  * @packageDocumentation
  */
 
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import noXrmPage from './rules/no-xrm-page.js';
 import noMagicOptionSet from './rules/no-magic-optionset.js';
 import noSyncWebapi from './rules/no-sync-webapi.js';
@@ -27,10 +30,13 @@ import noRawFieldStrings from './rules/no-raw-field-strings.js';
 import noRawEntityNames from './rules/no-raw-entity-names.js';
 import noRawSelect from './rules/no-raw-select.js';
 
+// Read version from package.json (single source of truth, avoids stale literal drift)
+const pkg = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf-8'));
+
 const plugin = {
   meta: {
     name: '@xrmforge/eslint-plugin',
-    version: '0.3.0',
+    version: pkg.version,
   },
 
   rules: {

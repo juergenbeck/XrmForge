@@ -1,5 +1,12 @@
 # @xrmforge/eslint-plugin
 
+## 0.3.2
+
+### Patch Changes
+
+- Derive `plugin.meta.version` from `package.json` at load time instead of a hardcoded literal (was
+  stale at `0.3.0` after the 0.3.1 bump). No rule behavior change.
+
 ## 0.3.1
 
 ### Patch Changes

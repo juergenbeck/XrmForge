@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Linter } from 'eslint';
 import plugin from '../src/index.js';
+import pkg from '../package.json';
 
 function createLinter(): Linter {
   const linter = new Linter({ configType: 'flat' });
@@ -226,7 +227,9 @@ describe('plugin', () => {
 
   it('should have meta with name and version', () => {
     expect(plugin.meta.name).toBe('@xrmforge/eslint-plugin');
-    expect(plugin.meta.version).toBe('0.3.0');
+    // Derived from package.json at load time -- assert against the same source so it never drifts.
+    expect(plugin.meta.version).toBe(pkg.version);
+    expect(plugin.meta.version).toMatch(/^\d+\.\d+\.\d+/);
   });
 });
 

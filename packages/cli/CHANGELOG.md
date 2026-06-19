@@ -1,5 +1,13 @@
 # @xrmforge/cli
 
+## 0.8.11
+
+### Patch Changes
+
+- Fix `init --force` description in README: existing files are skipped (only missing ones written),
+  not overwritten -- the prose said the opposite and contradicted `xrmforge init --help`. Docs only,
+  no code change.
+
 ## 0.8.10
 
 ### Patch Changes

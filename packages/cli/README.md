@@ -55,7 +55,7 @@ cd my-d365-project
 xrmforge init
 ```
 
-Use `--force` to scaffold into a non-empty directory (overwrites the managed files).
+Use `--force` to scaffold into a non-empty directory. Existing files are skipped (only the missing ones are written), so `--force` never overwrites your existing work.
 
 ---
 
