@@ -1,5 +1,11 @@
 # @xrmforge/cli
 
+## 0.8.12
+
+### Patch Changes
+
+- Propagate devkit 0.7.27 (AGENT.md template: cross-form pattern + section-toggle clarification). No cli source change.
+
 ## 0.8.11
 
 ### Patch Changes

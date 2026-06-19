@@ -1,5 +1,11 @@
 # @xrmforge/devkit
 
+## 0.7.27
+
+### Patch Changes
+
+- AGENT.md template: document the cross-entity / cross-form script pattern (raw `Xrm.FormContext` + named constants with blank logical names) as an accepted exception to typedForm (F-R8-N3a), and clarify that whole-section show/hide uses `.sections.get(name).setVisible()` rather than per-control toggling (F-R8-N3b / F-LMA7-10).
+
 ## 0.7.26
 
 ### Patch Changes

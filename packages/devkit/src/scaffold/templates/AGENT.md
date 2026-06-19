@@ -123,6 +123,28 @@ form.$unsafe('estimatedclosedate')?.setValue(closeDate);
 Always use optional chaining (`?.`). The Entity-level Fields Enum ensures the field
 name is valid even though it's not on the form.
 
+**Exception - genuinely cross-entity / cross-form scripts (no single FormTypeInfo fits):**
+
+A script bound to several entities (e.g. a GDPR helper on account/contact/lead) or to several
+forms of one entity where no single form interface carries all the fields cannot use one
+`typedForm<...>`. Then use the RAW `Xrm.FormContext` plus **named constants** (blank logical
+names) for field/control access - this is an accepted pattern, not a workaround:
+
+```typescript
+// constants.ts: named constants with blank logical names (NOT raw inline strings)
+export const ROLE_FIELDS = { Role: 'markant_roleid', Product: 'markant_productid' } as const;
+
+function onChange(ctx: Xrm.Events.EventContext): void {
+  const fc = ctx.getFormContext();                      // raw FormContext, no cast
+  fc.getControl(ROLE_FIELDS.Role)?.setDisabled(true);   // blank name; a runtime variable is fine here
+}
+```
+
+The validate-form gate counts a named constant as compliant (the violation is the raw inline
+string, not the FormContext itself). Use `typedForm` whenever one form interface fits; fall back to
+raw FormContext + named constants only for true multi-entity / multi-form scripts. For a single
+entity with several forms, a per-entity union FormTypeInfo would be ideal (planned).
+
 ### 2. Fields Enum for ALL getAttribute/getControl AND select() calls
 
 Two types of Fields enums exist:
@@ -343,6 +365,10 @@ form.$context.ui.tabs.get(Tabs.SUMMARYTAB).setVisible(true);
 form.$context.ui.tabs.get(Tabs.SUMMARYTAB).sections.get(SummarySections.General).setVisible(false);
 (form.$context.getControl(Subgrids.Orders) as Xrm.Controls.GridControl).refresh();
 ```
+
+To show/hide a WHOLE section, toggle the section itself via `.sections.get(name).setVisible()`
+(typed through the Sections enum), not each control individually - that is the right tool for
+section-level visibility (F-LMA7-10 typed sections).
 
 ### 12. Notification IDs from NOTIFICATION_IDS
 
