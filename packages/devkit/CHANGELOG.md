@@ -1,5 +1,16 @@
 # @xrmforge/devkit
 
+## 0.7.29
+
+### Patch Changes
+
+- Scaffold pins `@xrmforge/testing` at `^0.6.0` (subgrid `MockControl.refresh()`, Runde 9 F-MK9-01).
+- AGENT.md template: corrected the `XxxNavigationProperties` import path in the Lookup examples from
+  `generated/entities/<entity>.js` to `generated/fields/<entity>.js` (typegen emits NavigationProperties
+  into `fields/`, not `entities/`; Runde 9 F-MK9-04). Added five @types/xrm pitfalls (#11-#15:
+  WebResourceControl, Xrm.WebApi PromiseLike vs Promise, PageInputHtmlWebResource, FormNotificationLevel.Info,
+  StandardControl.setDisabled/setVisible).
+
 ## 0.7.28
 
 ### Patch Changes

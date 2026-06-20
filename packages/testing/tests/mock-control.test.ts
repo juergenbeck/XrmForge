@@ -192,4 +192,12 @@ describe('MockControl', () => {
     ctrl.setFilterXml('<filter><condition/></filter>');
     expect(ctrl.getFilterXml()).toBe('<filter><condition/></filter>');
   });
+
+  it('provides refresh() as a no-op that counts calls (subgrid refresh, not in @types/xrm, F-MK9-01)', () => {
+    const ctrl = new MockControl('Subgrid_orders');
+    expect(ctrl.getRefreshCount()).toBe(0);
+    expect(() => ctrl.refresh()).not.toThrow();
+    ctrl.refresh();
+    expect(ctrl.getRefreshCount()).toBe(2);
+  });
 });

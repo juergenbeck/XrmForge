@@ -41,6 +41,7 @@ export class MockControl {
   private _defaultView: string = '';
   private _filterXml: string | undefined;
   private _showTime: boolean = false;
+  private _refreshCount: number = 0;
 
   /**
    * @param name - Logical name of the control (matches the attribute name)
@@ -290,6 +291,23 @@ export class MockControl {
   /** @internal Returns the FetchXML filter set via setFilterXml (for assertions). */
   getFilterXml(): string | undefined {
     return this._filterXml;
+  }
+
+  /**
+   * Refreshes a subgrid control (no-op in the mock; counts calls for assertions).
+   *
+   * Note: `GridControl.refresh()` is NOT in the public @types/xrm (AGENT.md pitfall #6) -
+   * consumer code casts to call it. This mock provides it so subgrid tests that call
+   * `setFilterXml` + `refresh` need no patch (F-MK9-01: a missing `refresh` previously threw
+   * an unhandled rejection in the test).
+   */
+  refresh(): void {
+    this._refreshCount++;
+  }
+
+  /** @internal Returns how often refresh() was called (for assertions). */
+  getRefreshCount(): number {
+    return this._refreshCount;
   }
 
   // --- DateTime-specific methods ---

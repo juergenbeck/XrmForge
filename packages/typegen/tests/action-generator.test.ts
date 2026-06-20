@@ -182,12 +182,28 @@ describe('generateActionModule', () => {
 
   it('should generate executor for unbound action without params', () => {
     const output = generateActionModule([unboundActionNoParams], false);
-    expect(output).toContain("export const SimpleAction = createUnboundAction('markant_SimpleAction')");
+    expect(output).toContain("export const SimpleAction = /* @__PURE__ */ createUnboundAction('markant_SimpleAction')");
+  });
+
+  it('should prefix every executor with a /* @__PURE__ */ annotation for tree-shaking (F-LMA9-01)', () => {
+    // esbuild treats a top-level `const = call()` as potentially side-effecting unless the call
+    // carries the pure annotation. Without it, importing one action from a large global module
+    // pulls every executor into the bundle (lmapp Runde 9: 200-244 kB form bundles). The factories
+    // only build a closure object (no construction-time side effect), so the annotation is safe.
+    const output = generateActionModule(
+      [unboundActionNoParams, unboundActionWithParams, boundAction, boundActionWithResult],
+      false,
+    );
+    const execLines = output.split('\n').filter((l) => l.startsWith('export const '));
+    expect(execLines.length).toBeGreaterThan(0);
+    for (const line of execLines) {
+      expect(line).toContain('= /* @__PURE__ */ create');
+    }
   });
 
   it('should generate executor with typed params and result', () => {
     const output = generateActionModule([unboundActionWithParams], false);
-    expect(output).toContain("export const NormalizePhone = createUnboundAction<NormalizePhoneParams, NormalizePhoneResult>('markant_NormalizePhone',");
+    expect(output).toContain("export const NormalizePhone = /* @__PURE__ */ createUnboundAction<NormalizePhoneParams, NormalizePhoneResult>('markant_NormalizePhone',");
     expect(output).toContain("Input: { typeName: 'Edm.String', structuralProperty: 1 }");
     expect(output).toContain("AllowSuspicious: { typeName: 'Edm.Boolean', structuralProperty: 1 }");
   });
@@ -195,32 +211,32 @@ describe('generateActionModule', () => {
   it('should generate bound action executor', () => {
     const output = generateActionModule([boundAction], false);
     expect(output).toContain("import { createBoundAction } from '@xrmforge/helpers'");
-    expect(output).toContain("export const Winquote = createBoundAction('markant_winquote', 'quote')");
+    expect(output).toContain("export const Winquote = /* @__PURE__ */ createBoundAction('markant_winquote', 'quote')");
   });
 
   it('should generate unbound function executor with result type', () => {
     const output = generateActionModule([unboundFunction], true);
     expect(output).toContain("import { createUnboundFunction } from '@xrmforge/helpers'");
-    expect(output).toContain("export const WhoAmI = createUnboundFunction<WhoAmIResult>('WhoAmI')");
+    expect(output).toContain("export const WhoAmI = /* @__PURE__ */ createUnboundFunction<WhoAmIResult>('WhoAmI')");
   });
 
   it('should generate bound action with result type only', () => {
     const output = generateActionModule([boundActionWithResult], false);
-    expect(output).toContain("export const ValidateQuote = createBoundAction<ValidateQuoteResult>('markant_ValidateQuote', 'quote')");
+    expect(output).toContain("export const ValidateQuote = /* @__PURE__ */ createBoundAction<ValidateQuoteResult>('markant_ValidateQuote', 'quote')");
     expect(output).toContain('export type ValidateQuoteResult');
     expect(output).not.toContain('ValidateQuoteParams');
   });
 
   it('should generate bound action with params and result types', () => {
     const output = generateActionModule([boundActionWithParamsAndResult], false);
-    expect(output).toContain("export const CloneQuote = createBoundAction<CloneQuoteParams, CloneQuoteResult>('markant_CloneQuote', 'quote',");
+    expect(output).toContain("export const CloneQuote = /* @__PURE__ */ createBoundAction<CloneQuoteParams, CloneQuoteResult>('markant_CloneQuote', 'quote',");
     expect(output).toContain('export type CloneQuoteParams');
     expect(output).toContain('export type CloneQuoteResult');
   });
 
   it('should generate unbound action with result type only (no params)', () => {
     const output = generateActionModule([unboundActionWithResultOnly], false);
-    expect(output).toContain("export const GetServerTime = createUnboundAction<GetServerTimeResult>('markant_GetServerTime')");
+    expect(output).toContain("export const GetServerTime = /* @__PURE__ */ createUnboundAction<GetServerTimeResult>('markant_GetServerTime')");
     expect(output).toContain('export type GetServerTimeResult');
     expect(output).not.toContain('GetServerTimeParams');
   });

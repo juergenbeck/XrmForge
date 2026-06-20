@@ -16,6 +16,10 @@
  * export const NormalizePhone =
  *   createUnboundAction<NormalizePhoneParams, NormalizePhoneResult>('markant_NormalizePhone', { ... });
  * ```
+ *
+ * Each executor assignment is emitted with a leading pure-call annotation (an `@__PURE__`
+ * comment) so esbuild can tree-shake unused executors out of consumer bundles - importing a
+ * single action from a large global module otherwise pulls in all of them (F-LMA9-01).
  */
 
 import type {
@@ -214,28 +218,28 @@ export function generateActionModule(
       // Unbound
       if (isFunction) {
         const funcTypeArg = hasResult ? `<${name}Result>` : '<unknown>';
-        lines.push(`export const ${name} = createUnboundFunction${funcTypeArg}('${apiInfo.api.uniquename}');`);
+        lines.push(`export const ${name} = /* @__PURE__ */ createUnboundFunction${funcTypeArg}('${apiInfo.api.uniquename}');`);
       } else if (hasParams) {
         const paramMeta = generateParameterMetaMap(apiInfo.requestParameters);
-        lines.push(`export const ${name} = createUnboundAction${typeArgs}('${apiInfo.api.uniquename}', ${paramMeta});`);
+        lines.push(`export const ${name} = /* @__PURE__ */ createUnboundAction${typeArgs}('${apiInfo.api.uniquename}', ${paramMeta});`);
       } else if (hasResult) {
-        lines.push(`export const ${name} = createUnboundAction<${name}Result>('${apiInfo.api.uniquename}');`);
+        lines.push(`export const ${name} = /* @__PURE__ */ createUnboundAction<${name}Result>('${apiInfo.api.uniquename}');`);
       } else {
-        lines.push(`export const ${name} = createUnboundAction('${apiInfo.api.uniquename}');`);
+        lines.push(`export const ${name} = /* @__PURE__ */ createUnboundAction('${apiInfo.api.uniquename}');`);
       }
     } else {
       // Bound
       const entity = apiInfo.api.boundentitylogicalname!;
       if (isFunction) {
         const funcTypeArg = hasResult ? `<${name}Result>` : '<unknown>';
-        lines.push(`export const ${name} = createBoundFunction${funcTypeArg}('${apiInfo.api.uniquename}', '${entity}');`);
+        lines.push(`export const ${name} = /* @__PURE__ */ createBoundFunction${funcTypeArg}('${apiInfo.api.uniquename}', '${entity}');`);
       } else if (hasParams) {
         const paramMeta = generateParameterMetaMap(apiInfo.requestParameters);
-        lines.push(`export const ${name} = createBoundAction${typeArgs}('${apiInfo.api.uniquename}', '${entity}', ${paramMeta});`);
+        lines.push(`export const ${name} = /* @__PURE__ */ createBoundAction${typeArgs}('${apiInfo.api.uniquename}', '${entity}', ${paramMeta});`);
       } else if (hasResult) {
-        lines.push(`export const ${name} = createBoundAction<${name}Result>('${apiInfo.api.uniquename}', '${entity}');`);
+        lines.push(`export const ${name} = /* @__PURE__ */ createBoundAction<${name}Result>('${apiInfo.api.uniquename}', '${entity}');`);
       } else {
-        lines.push(`export const ${name} = createBoundAction('${apiInfo.api.uniquename}', '${entity}');`);
+        lines.push(`export const ${name} = /* @__PURE__ */ createBoundAction('${apiInfo.api.uniquename}', '${entity}');`);
       }
     }
 

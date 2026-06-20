@@ -1,5 +1,13 @@
 # @xrmforge/testing
 
+## 0.6.0
+
+### Minor Changes
+
+- `MockControl`: add `refresh()` (a no-op that counts calls, readable via `getRefreshCount()`) for subgrid
+  controls. `GridControl.refresh()` is not in @types/xrm; a missing mock previously threw an unhandled
+  rejection in subgrid tests that call `setFilterXml` + `refresh` (Runde 9 F-MK9-01).
+
 ## 0.5.0
 
 ### Minor Changes

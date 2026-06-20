@@ -1,5 +1,13 @@
 # @xrmforge/cli
 
+## 0.8.14
+
+### Patch Changes
+
+- Propagate `@xrmforge/typegen@0.13.2` (tree-shakeable Custom API executors via `/* @__PURE__ */`,
+  F-LMA9-01) and `@xrmforge/devkit@0.7.29` (scaffold testing `^0.6.0` + AGENT.md NavigationProperties path
+  and pitfalls, F-MK9-01/04). No cli source change.
+
 ## 0.8.13
 
 ### Patch Changes

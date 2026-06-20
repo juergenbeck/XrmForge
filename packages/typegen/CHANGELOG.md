@@ -1,5 +1,17 @@
 # @xrmforge/typegen
 
+## 0.13.2
+
+### Patch Changes
+
+- Generated Custom API executors now carry a `/* @__PURE__ */` annotation before each
+  `createUnboundAction`/`createBoundAction`/`createUnboundFunction`/`createBoundFunction` call. esbuild
+  treats a top-level `const = call()` as potentially side-effecting unless annotated, so importing a single
+  action from a large `actions/global.ts` previously pulled every executor into the bundle (Runde 9
+  F-LMA9-01: lmapp form bundles were 200-244 kB). The factory calls only build a closure object with no
+  construction-time side effect, so the annotation is safe; consumer bundles now tree-shake unused
+  executors (verified: invoice 228 kB -> 28 kB, email 203 kB -> 3.6 kB). Regenerate to pick this up.
+
 ## 0.13.1
 
 ### Patch Changes

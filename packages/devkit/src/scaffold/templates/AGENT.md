@@ -32,7 +32,7 @@ Run `xrmforge generate` to create:
 - `generated/forms/{entity}.ts` - Form interface + Fields/Tabs/Sections/Subgrids enums
 - `generated/optionsets/{entity}.ts` - OptionSet const enums
 - `generated/entities/{entity}.ts` - Entity interface (for Web API response typing)
-- `generated/fields/{entity}.ts` - Entity Fields enum for type-safe $select queries
+- `generated/fields/{entity}.ts` - Entity Fields enum (for $select/$filter) AND the entity `XxxNavigationProperties` enum (for parseLookup/$expand/@odata.bind/$unsafe-lookup). Both live here, NOT in `entities/`
 - `generated/entity-names.ts` - EntityNames const enum
 - `generated/actions/global.ts` - Custom API Action executors (typed params + results)
 - `generated/functions/global.ts` - Custom API Function executors
@@ -210,7 +210,7 @@ import { formLookup, formLookupId, parseLookup } from '@xrmforge/helpers';
 const customer = formLookup(form.parentaccountid);
 const customerId = formLookupId(form.parentaccountid);
 // Web API response (use NavigationProperties enum, NOT raw strings):
-import { AccountNavigationProperties as AccountNav } from '../../generated/entities/account.js';
+import { AccountNavigationProperties as AccountNav } from '../../generated/fields/account.js';
 const parent = parseLookup(apiResponse, AccountNav.ParentAccountId);
 ```
 
@@ -226,7 +226,7 @@ compiles green but breaks at runtime (no tsc/eslint gate catches it):
 
 ```typescript
 import { AccountFields } from '../../generated/fields/account.js';
-import { AccountNavigationProperties as AccountNav } from '../../generated/entities/account.js';
+import { AccountNavigationProperties as AccountNav } from '../../generated/fields/account.js';
 
 // $select / $filter: the Fields value is ALREADY _value-form, use it directly
 select(AccountFields.TransactionCurrencyId);              // -> "_transactioncurrencyid_value"
@@ -588,7 +588,7 @@ form.customerid.setValue([{
 
 // AFTER (parseLookup extracts id, name, entityType automatically):
 import { parseLookup } from '@xrmforge/helpers';
-import { ContactNavigationProperties as ContactNav } from '../../generated/entities/contact.js';
+import { ContactNavigationProperties as ContactNav } from '../../generated/fields/contact.js';
 
 const customer = parseLookup(raw, ContactNav.ParentCustomerId);
 if (customer) {
@@ -806,6 +806,21 @@ IDE autocomplete. Only keep shared helpers that contain actual domain logic
     `getControl(name: string)`. For a runtime/variable name use the RAW form context:
     `ctx.getFormContext().getControl(name)` (real `Xrm.FormContext` has the string overload). Prefer
     constant literals/enums where possible (F-R8-N5).
+11. **`Xrm.Controls.WebResourceControl` does NOT exist** in @types/xrm. For a WebResource control's
+    `getSrc()`/`setSrc()`/`getContentWindow()`, define a structural interface
+    `{ getSrc(): string; setSrc(src: string): void }` and cast the control (F-LMA9-02).
+12. **`Xrm.WebApi.*` (retrieveRecord/updateRecord/...) return `Xrm.Async.PromiseLike<T>`, not a real
+    `Promise<T>`.** Passing one directly to `withProgress(() => Promise<T>)` fails with TS2741
+    (`Symbol.toStringTag` missing). Wrap it: `withProgress(msg, async () => { await Xrm.WebApi.updateRecord(...); })`.
+    The generated Custom-API executors (`.execute()`) DO return real Promises - only the raw Xrm.WebApi
+    calls do not (F-LMA9-03).
+13. **PageInput type name is `PageInputHtmlWebResource`** (not `...WebResource`) for
+    `Xrm.Navigation.navigateTo` with a web resource (F-MK9).
+14. **`FormNotificationLevel.Info`** is the member name (NOT `.Information`) for form notifications; the
+    app-level banner uses `AppNotificationLevel` (F-MK9).
+15. **`setDisabled()`/`setVisible()` live on `StandardControl`, not the base `Control`.** The typedForm
+    `form.controls.x` proxy already returns the typed control; this only bites on a raw `getControl()`
+    result, which you then type/cast as `Xrm.Controls.StandardControl` (F-MK9).
 
 ## Build
 

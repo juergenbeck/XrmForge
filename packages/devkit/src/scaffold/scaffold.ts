@@ -146,13 +146,14 @@ function generatePackageJson(projectName: string): string {
       // getEnvironmentVariable, isUnsavedRecord ship in 0.11.0 (Runde 8: F-LMA8-N1/N2, F-MK8-N4a/b);
       // MultiSelect/submit/app-notification (parseMultiSelect, clearAndSubmit, setUnsafeAndSubmit,
       // addAppNotification) since 0.10.0; void Custom API executors since 0.9.0; isFormType since 0.8.0.
-      // testing ^0.5.0: online.execute override + OptionSet/view/setFilterXml mock methods ship in
-      // 0.5.0 (Runde 8: F-MK8-04b); complex-form mocks (createFormMock formType, getText/getPrecision,
-      // addOnSave/fireOnSave, roles ItemCollection, utilityOverrides) since 0.4.0; tabs since 0.3.0.
+      // testing ^0.6.0: subgrid MockControl.refresh() ships in 0.6.0 (Runde 9: F-MK9-01); online.execute
+      // override + OptionSet/view/setFilterXml mock methods since 0.5.0 (Runde 8: F-MK8-04b); complex-form
+      // mocks (createFormMock formType, getText/getPrecision, addOnSave/fireOnSave, roles ItemCollection,
+      // utilityOverrides) since 0.4.0; tabs since 0.3.0.
       '@xrmforge/cli': '^0.8.0',
       '@xrmforge/eslint-plugin': '^0.3.0',
       '@xrmforge/helpers': '^0.11.0',
-      '@xrmforge/testing': '^0.5.0',
+      '@xrmforge/testing': '^0.6.0',
       eslint: '^9.0.0',
       typescript: '^5.7.0',
       vitest: '^3.0.0',
