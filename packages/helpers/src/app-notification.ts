@@ -16,6 +16,12 @@ export interface AppNotificationOptions {
   showCloseButton?: boolean;
   /** Optional action button. */
   action?: Xrm.App.Action;
+  /**
+   * Auto-clear the banner after this many milliseconds (fire-and-forget). Omit or
+   * set to <= 0 to keep the banner until it is dismissed manually. Saves callers
+   * from wiring up their own `setTimeout` + `clearGlobalNotification`.
+   */
+  autoHideMs?: number;
 }
 
 /**
@@ -32,6 +38,10 @@ export interface AppNotificationOptions {
  *
  * @example
  * const id = await addAppNotification(lang.saved, AppNotificationLevel.Success, { showCloseButton: true });
+ *
+ * @example
+ * // Transient banner that clears itself after 4 seconds:
+ * await addAppNotification(lang.saved, AppNotificationLevel.Success, { autoHideMs: 4000 });
  */
 export async function addAppNotification(
   message: string,
@@ -47,5 +57,12 @@ export async function addAppNotification(
     showCloseButton: options.showCloseButton ?? false,
     ...(options.action ? { action: options.action } : {}),
   };
-  return Xrm.App.addGlobalNotification(notification);
+  const id = await Xrm.App.addGlobalNotification(notification);
+  if (options.autoHideMs !== undefined && options.autoHideMs > 0) {
+    // Fire-and-forget: schedule removal without forcing callers to await it.
+    setTimeout(() => {
+      void Xrm.App.clearGlobalNotification(id);
+    }, options.autoHideMs);
+  }
+  return id;
 }

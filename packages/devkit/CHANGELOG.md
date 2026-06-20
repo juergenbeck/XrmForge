@@ -1,5 +1,13 @@
 # @xrmforge/devkit
 
+## 0.7.31
+
+### Patch Changes
+
+- Scaffold pins `@xrmforge/helpers` at `^0.12.0` (self-clearing app notifications via
+  `addAppNotification(..., { autoHideMs })`, Runde 9 F-MK9-10). AGENT.md template lists the auto-hide
+  option among the helpers a project must not hand-build.
+
 ## 0.7.30
 
 ### Patch Changes

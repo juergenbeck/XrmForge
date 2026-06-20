@@ -1,5 +1,12 @@
 # @xrmforge/cli
 
+## 0.8.16
+
+### Patch Changes
+
+- Propagate devkit 0.7.31 (scaffold pins helpers `^0.12.0` for `addAppNotification` `autoHideMs`,
+  F-MK9-10) and helpers 0.12.0. No cli source change.
+
 ## 0.8.15
 
 ### Patch Changes

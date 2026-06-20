@@ -1,5 +1,13 @@
 # @xrmforge/helpers
 
+## 0.12.0
+
+### Minor Changes
+
+- `addAppNotification` gains an `autoHideMs` option: the banner clears itself after the given delay
+  (fire-and-forget `setTimeout` + `Xrm.App.clearGlobalNotification`), so callers no longer hand-build a
+  transient-notification helper (Runde 9 F-MK9-10).
+
 ## 0.11.0
 
 ### Minor Changes
