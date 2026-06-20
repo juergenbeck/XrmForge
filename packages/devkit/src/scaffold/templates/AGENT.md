@@ -305,6 +305,13 @@ export const onLoad = wrapHandler('Namespace.Entity.onLoad', logger, async (ctx)
 });
 ```
 
+Ribbon/command bar commands use `wrapCommand` (it receives a FormContext, not an
+EventContext). Pass extra command parameters through its `TArgs` type parameter
+instead of widening to `any`. A command registered on a **subgrid** receives a
+`GridControl` as PrimaryControl (which has no form `ui`), so wrap it with
+`wrapGridCommand` - its error surface is an app-level banner, and its default extra
+argument is the selected record ids (`string[]`).
+
 ### 8. Custom API Executors from generated/actions/
 
 Never build your own ExecuteFunctionCall wrapper. Use the generated executors.
@@ -515,8 +522,13 @@ export function createLogger(namespace: string): Logger;
 ### error-handler.ts
 ```typescript
 export function wrapHandler(name: string, logger: Logger, handler: EventHandler): EventHandler;
-export function wrapCommand(name: string, logger: Logger, handler: CommandHandler): CommandHandler;
-// Catches sync+async errors, shows form notification via FormNotificationLevel.Error
+// Ribbon/command bar command on a form. Pass extra command parameters through TArgs (default none).
+export function wrapCommand<TArgs extends unknown[] = []>(name, logger, handler): (formContext, ...args) => unknown;
+// Command registered on a SUBGRID: PrimaryControl may be a GridControl (no form ui).
+// Default extra arg is the selected record ids (string[]).
+export function wrapGridCommand<TArgs extends unknown[] = [string[]]>(name, logger, handler): (primaryControl, ...args) => unknown;
+// Catches sync+async errors. wrapHandler/wrapCommand show a form notification via
+// FormNotificationLevel.Error; wrapGridCommand uses an app-level banner (GridControl has no form ui).
 ```
 
 ### constants.ts
@@ -850,7 +862,7 @@ regenerate and commit.
 ```
 src/forms/{entity}-form.ts       - Form scripts (one per entity)
 src/shared/logger.ts             - Structured logger (only file with console.*)
-src/shared/error-handler.ts      - wrapHandler + wrapCommand
+src/shared/error-handler.ts      - wrapHandler + wrapCommand + wrapGridCommand
 src/shared/constants.ts          - NOTIFICATION_IDS, MESSAGES, pickLang
 generated/                       - Generated types (do not edit manually)
 tests/forms/{entity}.test.ts     - Tests

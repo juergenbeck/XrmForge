@@ -1,5 +1,12 @@
 # @xrmforge/cli
 
+## 0.8.15
+
+### Patch Changes
+
+- Propagate devkit 0.7.30 (scaffold `error-handler.ts`: generic `wrapCommand<TArgs>` + new
+  `wrapGridCommand` for subgrid commands with an app-level error banner, F-MK9-02). No cli source change.
+
 ## 0.8.14
 
 ### Patch Changes

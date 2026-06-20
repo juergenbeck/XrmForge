@@ -1,5 +1,18 @@
 # @xrmforge/devkit
 
+## 0.7.30
+
+### Patch Changes
+
+- `error-handler.ts` scaffold template: `wrapCommand` is now generic
+  (`wrapCommand<TArgs extends unknown[] = []>`) so ribbon command handlers can declare extra command
+  parameters type-safely instead of the old `...args: never[]`. Added
+  `wrapGridCommand<TArgs extends unknown[] = [string[]]>` for commands registered on a subgrid, where the
+  PrimaryControl may be a `GridControl` (which has no form `ui`); its error surface is an app-level banner
+  (`addAppNotification`) instead of a form notification, so grid command failures are no longer silently
+  swallowed (F-MK9-02). AGENT.md template documents both wrappers. Affects newly scaffolded projects only;
+  existing `src/shared/error-handler.ts` files are untouched.
+
 ## 0.7.29
 
 ### Patch Changes

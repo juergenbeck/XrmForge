@@ -255,6 +255,27 @@ describe('scaffoldProject', () => {
     expect(pkg.devDependencies['@xrmforge/testing']).toBeDefined();
     expect(pkg.devDependencies['@types/xrm']).toBeDefined();
   });
+
+  it('should scaffold error-handler with generic wrapCommand and a grid command variant', async () => {
+    const dir = await createTmpDir();
+
+    await scaffoldProject({
+      targetDir: dir,
+      projectName: 'test',
+      prefix: 'contoso',
+      namespace: 'Contoso',
+    });
+
+    const errorHandler = await fs.readFile(path.join(dir, 'src/shared/error-handler.ts'), 'utf-8');
+    // F-MK9-02 (1): extra ribbon command parameters flow through type-safely via a
+    // generic wrapCommand instead of the old `...args: never[]`.
+    expect(errorHandler).toContain('export function wrapCommand<TArgs extends unknown[] = []>');
+    // F-MK9-02 (2): commands registered on a subgrid get a GridControl as PrimaryControl,
+    // which has no form ui - a dedicated variant with an app-level error banner.
+    expect(errorHandler).toContain('export function wrapGridCommand');
+    expect(errorHandler).toContain('Xrm.Controls.GridControl');
+    expect(errorHandler).toContain('addAppNotification');
+  });
 });
 
 describe('loadTemplate', () => {
