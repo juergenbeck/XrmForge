@@ -1,0 +1,33 @@
+{
+  "_comment": "Repo-weiter Umlaut-Check der Python-Hook-Kette (.githooks/pre-commit.py + .claude/hooks/check-umlaute.py). Feldbedeutung: siehe .githooks/README.md.",
+
+  "file_scope": "all_text",
+  "_file_scope_help": "all_text = alle Nicht-Binär-Dateien prüfen (inkl. Code). md_only wäre nur .md.",
+
+  "enforcement": "warn",
+  "_enforcement_help": "Globaler Default warn (nur melden, Exit 0). Pro Endung überstimmbar via block_extensions/warn_extensions.",
+
+  "block_extensions": [".md"],
+  "_block_extensions_help": "Doku (.md) blockt den Commit weiterhin, exakt wie im md_only-Default. Kein Schutzverlust für Markdown.",
+
+  "warn_extensions": [],
+  "_warn_extensions_help": "Leer: alle Nicht-.md-Endungen folgen dem globalen warn. Code (.cs, .ps1, .ts, ...) warnt nur, blockiert nicht.",
+
+  "generated": [
+    "(^|/)(\\.github|\\.claude)/skills/",
+    "(^|/)(handover|changelog|reviews|research|recherche|poc|backlog|planung|jira|output|scans|99_archiv|99_confluence-export)/",
+    "(^|/)_archive/",
+    "(^|/)Wissen/temp/",
+    "(^|/)memory-snapshot[^/]*/",
+    "(feedback|bug-report|alte-notizen|lessons-learned|skeptiker-review)",
+    "(^|/)(bin|obj|publish|node_modules|dist|out|packages|TestResults)/",
+    "\\.Designer\\.cs$",
+    "\\.g\\.cs$",
+    "^\\.githooks/(commit-msg|pre-commit)$",
+    "(^|/)[^/]*(umlaut|surrogate)[^/]*\\.[a-z0-9]+$"
+  ],
+  "_generated_help": "Repliziert die eingebauten md_only-Ausschlüsse (damit .md keinen Regress bekommt), plus Build-Artefakte, generierten C#-Code und das Umlaut-Tooling selbst (führt das Verstoß-Pattern als Daten).",
+
+  "exceptions": [],
+  "_exceptions_help": "Bewusste Einzeldatei-Ausnahmen: { path, reason (deutsch), date (YYYY-MM-DD) }."
+}
