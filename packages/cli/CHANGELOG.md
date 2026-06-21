@@ -1,5 +1,12 @@
 # @xrmforge/cli
 
+## 0.8.18
+
+### Patch Changes
+
+- Propagate `@xrmforge/helpers@0.13.0` (`expanded`/`expandedMany`, F-MK9-08) and `@xrmforge/devkit@0.7.33`
+  (scaffold helpers pin + AGENT.md). No cli source change.
+
 ## 0.8.17
 
 ### Patch Changes

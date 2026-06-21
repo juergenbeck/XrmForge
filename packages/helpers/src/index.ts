@@ -14,6 +14,8 @@
 export {
   select,
   selectExpand,
+  expanded,
+  expandedMany,
   parseLookup,
   parseLookups,
   parseFormattedValue,

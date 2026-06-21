@@ -290,6 +290,24 @@ selectExpand(
 `${select(AccountFields.Name)}&$orderby=${AccountFields.Name} asc`
 ```
 
+**Reading `$expand` results: use `expanded<T>()` / `expandedMany<T>()`, never a hand-cast.** An expanded
+navigation property comes back as a nested object (single-valued lookup) or array (1:N/N:N) under the nav
+property name. Type it with the generated Entity interface; the result is `Partial<T>` because a partial
+`$select` inside the `$expand` only returns the selected fields.
+
+```typescript
+import { expanded, expandedMany } from '@xrmforge/helpers';
+
+// single-valued ($expand on a lookup):
+const contact = expanded<Contact>(account, AccountNav.PrimaryContactId); // Partial<Contact> | null
+contact?.fullname;
+// collection-valued ($expand on a 1:N):
+for (const c of expandedMany<Contact>(account, 'contact_customer_accounts')) { c.fullname; }
+
+// WRONG: hand-cast loses honesty about partial $select and is unchecked
+const c = account['primarycontactid'] as { fullname?: string };
+```
+
 ### 6b. Web API response typing with generated Entity interfaces
 
 Always type Web API responses with generated Entity interfaces. Never access properties with `as string` casts.

@@ -1,5 +1,16 @@
 # @xrmforge/helpers
 
+## 0.13.0
+
+### Minor Changes
+
+- Add `expanded<T>()` and `expandedMany<T>()` (F-MK9-08): read a single-valued or collection-valued
+  `$expand`ed navigation property from a Web API response as a typed `Partial<T>` / `Partial<T>[]`. Parametrize
+  with the generated Entity interface (`expanded<Contact>(account, nav)`). `Partial<T>` is deliberate and
+  honest - a partial `$select` inside the `$expand` only returns the selected fields. Replaces the untyped
+  hand-cast `entity['nav'] as { ... }`, the largest remaining untyped path in form scripts. `expanded` returns
+  `null` for an absent/empty/array value; `expandedMany` returns `[]` for an absent/non-array value.
+
 ## 0.12.0
 
 ### Minor Changes

@@ -1,5 +1,13 @@
 # @xrmforge/devkit
 
+## 0.7.33
+
+### Patch Changes
+
+- Scaffold pins `@xrmforge/helpers` at `^0.13.0` so fresh projects get `expanded<T>()`/`expandedMany<T>()`
+  (F-MK9-08). AGENT.md template documents reading `$expand` results via `expanded<T>()`/`expandedMany<T>()`
+  instead of hand-casting nested objects. Template/pin only.
+
 ## 0.7.32
 
 ### Patch Changes

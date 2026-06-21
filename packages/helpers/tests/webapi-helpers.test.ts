@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { select, selectExpand, parseLookup, parseLookups, parseFormattedValue, parseMultiSelect, formLookup, formLookupId, formLookupIdUnsafe, formLookupUnsafe } from '../src/webapi-helpers.js';
+import { select, selectExpand, expanded, expandedMany, parseLookup, parseLookups, parseFormattedValue, parseMultiSelect, formLookup, formLookupId, formLookupIdUnsafe, formLookupUnsafe } from '../src/webapi-helpers.js';
 
 // select / selectExpand
 
@@ -33,6 +33,54 @@ describe('selectExpand', () => {
   it('should build $select and $expand query string', () => {
     const result = selectExpand(['name'], 'primarycontactid($select=fullname)');
     expect(result).toBe('?$select=name&$expand=primarycontactid($select=fullname)');
+  });
+});
+
+// expanded / expandedMany (F-MK9-08)
+
+interface Contact { fullname?: string; emailaddress1?: string }
+
+describe('expanded', () => {
+  it('should return the single expanded nav object as Partial<T>', () => {
+    const response: Record<string, unknown> = {
+      name: 'Contoso',
+      primarycontactid: { fullname: 'Max Mustermann' },
+    };
+    const contact = expanded<Contact>(response, 'primarycontactid');
+    expect(contact).not.toBeNull();
+    expect(contact!.fullname).toBe('Max Mustermann');
+  });
+
+  it('should return null when the nav property is absent', () => {
+    expect(expanded<Contact>({ name: 'Contoso' }, 'primarycontactid')).toBeNull();
+  });
+
+  it('should return null when the nav property is explicitly null', () => {
+    expect(expanded<Contact>({ primarycontactid: null }, 'primarycontactid')).toBeNull();
+  });
+
+  it('should return null when the nav property is an array (use expandedMany)', () => {
+    expect(expanded<Contact>({ contacts: [{ fullname: 'A' }] }, 'contacts')).toBeNull();
+  });
+});
+
+describe('expandedMany', () => {
+  it('should return the expanded collection as Partial<T>[]', () => {
+    const response: Record<string, unknown> = {
+      name: 'Contoso',
+      contact_customer_accounts: [{ fullname: 'A' }, { fullname: 'B' }],
+    };
+    const contacts = expandedMany<Contact>(response, 'contact_customer_accounts');
+    expect(contacts).toHaveLength(2);
+    expect(contacts[0]!.fullname).toBe('A');
+  });
+
+  it('should return an empty array when the nav property is absent', () => {
+    expect(expandedMany<Contact>({ name: 'Contoso' }, 'contact_customer_accounts')).toEqual([]);
+  });
+
+  it('should return an empty array when the nav property is not an array', () => {
+    expect(expandedMany<Contact>({ x: { fullname: 'A' } }, 'x')).toEqual([]);
   });
 });
 

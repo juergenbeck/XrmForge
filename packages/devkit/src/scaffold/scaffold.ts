@@ -142,7 +142,8 @@ function generatePackageJson(projectName: string): string {
       // 0.7.0) plus the ./.env auto-load and interactive prompt (0.8.0) need cli at
       // that minor; a 0.x caret never crosses a minor boundary, so an older pin
       // would hand fresh projects a cli without these features.
-      // helpers ^0.12.0: addAppNotification autoHideMs (self-clearing transient banners) ships in 0.12.0
+      // helpers ^0.13.0: expanded<T>()/expandedMany<T>() typed $expand readers ship in 0.13.0
+      // (F-MK9-08); addAppNotification autoHideMs (self-clearing transient banners) since 0.12.0
       // (Runde 9 F-MK9-10); on-form setAndSubmit, off-form formLookupIdUnsafe/formLookupUnsafe,
       // getEnvironmentVariable, isUnsavedRecord since 0.11.0 (Runde 8: F-LMA8-N1/N2, F-MK8-N4a/b);
       // MultiSelect/submit/app-notification (parseMultiSelect, clearAndSubmit, setUnsafeAndSubmit,
@@ -153,7 +154,7 @@ function generatePackageJson(projectName: string): string {
       // utilityOverrides) since 0.4.0; tabs since 0.3.0.
       '@xrmforge/cli': '^0.8.0',
       '@xrmforge/eslint-plugin': '^0.3.0',
-      '@xrmforge/helpers': '^0.12.0',
+      '@xrmforge/helpers': '^0.13.0',
       '@xrmforge/testing': '^0.6.0',
       eslint: '^9.0.0',
       typescript: '^5.7.0',

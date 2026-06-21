@@ -191,6 +191,65 @@ export function selectExpand(fields: string[], expand: string): string {
   return parts.length > 0 ? `?${parts.join('&')}` : '';
 }
 
+/**
+ * Read a single-valued expanded navigation property from a Web API response as a
+ * typed object (F-MK9-08).
+ *
+ * When a record is loaded with `$expand` on a single-valued lookup, the nested
+ * record arrives under the navigation property name as a plain object. This
+ * returns it typed as `Partial<T>` (use the generated Entity interface for `T`).
+ * `Partial<T>` is deliberate and honest: a partial `$select` inside the `$expand`
+ * only returns the selected fields, so the others are genuinely absent.
+ *
+ * Replaces the hand-cast `entity['nav'] as { ... }`. There is no compile-time
+ * binding that `nav` matches `T` (same loose binding as {@link parseLookup}).
+ *
+ * @param entity - The raw Web API response object (the parent record)
+ * @param nav - Navigation property name (use a `XxxNavigationProperties` member)
+ * @returns The expanded record as `Partial<T>`, or `null` if absent/empty
+ *
+ * @example
+ * ```typescript
+ * const opp = await Xrm.WebApi.retrieveRecord(EntityNames.Opportunity, id,
+ *   selectExpand([OpportunityFields.Name], `${OpportunityNav.MarkantRoleId}($select=markant_name)`));
+ * const role = expanded<MarkantRole>(opp, OpportunityNav.MarkantRoleId);
+ * role?.markant_name; // string | undefined (Partial)
+ * ```
+ */
+export function expanded<T>(entity: Record<string, unknown>, nav: string): Partial<T> | null {
+  const value = entity[nav];
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Partial<T>;
+}
+
+/**
+ * Read a collection-valued expanded navigation property from a Web API response as
+ * a typed array (F-MK9-08).
+ *
+ * When a record is loaded with `$expand` on a 1:N / N:N navigation property, the
+ * related records arrive under the navigation property name as an array. This
+ * returns them typed as `Partial<T>[]` (use the generated Entity interface for
+ * `T`). `Partial<T>` is deliberate: a partial `$select` only returns the selected
+ * fields. Returns an empty array when the navigation property is absent.
+ *
+ * @param entity - The raw Web API response object (the parent record)
+ * @param nav - Collection navigation property name
+ * @returns The expanded records as `Partial<T>[]` (empty array if absent)
+ *
+ * @example
+ * ```typescript
+ * const account = await Xrm.WebApi.retrieveRecord(EntityNames.Account, id,
+ *   selectExpand([AccountFields.Name], 'contact_customer_accounts($select=fullname)'));
+ * for (const contact of expandedMany<Contact>(account, 'contact_customer_accounts')) {
+ *   contact.fullname; // string | undefined (Partial)
+ * }
+ * ```
+ */
+export function expandedMany<T>(entity: Record<string, unknown>, nav: string): Partial<T>[] {
+  const value = entity[nav];
+  return Array.isArray(value) ? (value as Partial<T>[]) : [];
+}
+
 // ─── Form Lookup Helpers ────────────────────────────────────────────────────
 
 /**
