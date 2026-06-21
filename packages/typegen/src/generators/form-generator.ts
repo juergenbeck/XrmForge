@@ -50,8 +50,9 @@ import {
   getFormControlType,
   getFormMockValueType,
   toPascalCase,
+  toSafeIdentifier,
 } from './type-mapping.js';
-import { transliterateUmlauts, formatDualLabel, getPrimaryLabel, type LabelConfig, DEFAULT_LABEL_CONFIG } from './label-utils.js';
+import { transliterateUmlauts, formatDualLabel, type LabelConfig, DEFAULT_LABEL_CONFIG } from './label-utils.js';
 import { singleQuoted } from './string-escape.js';
 
 /** Dataverse SystemForm type code for Quick Create forms (systemform_type) */
@@ -129,18 +130,6 @@ function buildFormBaseName(entityPascal: string, safeFormName: string): string {
   return `${entityPascal}${safeFormName}`;
 }
 
-/** Convert a label to a PascalCase enum member name */
-function labelToPascalMember(label: string): string {
-  if (!label) return '';
-  const transliterated = transliterateUmlauts(label);
-  const cleaned = transliterated.replace(/[^a-zA-Z0-9\s_]/g, '');
-  const parts = cleaned.split(/[\s_]+/).filter((p) => p.length > 0);
-  if (parts.length === 0) return '';
-  const pascal = parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join('');
-  if (/^\d/.test(pascal)) return `_${pascal}`;
-  return pascal;
-}
-
 /**
  * Collect the unique attribute logical names a form binds to, deduplicated across
  * tabs/sections and sorted for stable output. statuscode/statecode are always
@@ -212,19 +201,17 @@ export function generateFormInterface(
     const attr = attributeMap.get(fieldName);
     if (!attr) continue;
 
-    // Build enum member name from label (English primary)
-    const primaryLabel = getPrimaryLabel(attr.DisplayName, labelConfig);
-    let enumMember = labelToPascalMember(primaryLabel);
-    if (!enumMember) {
-      enumMember = toPascalCase(fieldName);
-    }
+    // Enum member name = SchemaName (deterministic, unique, guessable from the
+    // logical name; same scheme as the entity-level Fields enum). The display
+    // label stays in the JSDoc below. Avoids order-dependent ordinal suffixes
+    // (F-MK9-05) and unguessable label members (F-MK9-07).
+    let enumMember = (attr.SchemaName ? toSafeIdentifier(attr.SchemaName) : '') || toPascalCase(fieldName);
 
-    // Disambiguate enum member names
-    const originalEnumMember = enumMember;
-    let counter = 2;
+    // Defensive deterministic guard. SchemaNames are unique per entity, so this
+    // never fires in practice; if it did, the LogicalName (also unique) keeps the
+    // member unambiguous without an order-dependent ordinal.
     while (usedEnumNames.has(enumMember)) {
-      enumMember = `${originalEnumMember}${counter}`;
-      counter++;
+      enumMember = `${enumMember}_${toSafeIdentifier(fieldName)}`;
     }
     usedEnumNames.add(enumMember);
 

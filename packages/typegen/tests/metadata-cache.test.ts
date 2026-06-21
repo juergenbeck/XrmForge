@@ -31,6 +31,7 @@ function createMockEntityTypeInfo(logicalName: string): EntityTypeInfo {
     entity,
     attributes: [],
     picklistAttributes: [],
+    multiSelectPicklistAttributes: [],
     lookupAttributes: [],
     statusAttributes: [],
     forms: [],

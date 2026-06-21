@@ -18,8 +18,10 @@ import { MetadataError, ErrorCode } from '../errors.js';
 import { createLogger } from '../logger.js';
 import { parseForm } from './form-parser.js';
 import type {
+  AttributeMetadata,
   EntityMetadata,
   PicklistAttributeMetadata,
+  MultiSelectPicklistAttributeMetadata,
   LookupAttributeMetadata,
   StatusAttributeMetadata,
   StateAttributeMetadata,
@@ -85,6 +87,30 @@ const ENTITY_SELECT = 'LogicalName,SchemaName,EntitySetName,DisplayName,PrimaryI
 const ATTRIBUTE_SELECT = 'LogicalName,SchemaName,AttributeType,AttributeTypeName,DisplayName,IsPrimaryId,IsPrimaryName,RequiredLevel,IsValidForRead,IsValidForCreate,IsValidForUpdate,MetadataId';
 const FORM_SELECT = 'name,formid,formxml,description,isdefault,type,formactivationstate';
 
+/**
+ * @odata.type annotation that marks a multi-select choice attribute. Its base
+ * AttributeType is "Virtual", so without this it would not be recognized as an
+ * OptionSet-bearing field (F-MK9-09).
+ */
+const MULTISELECT_ODATA_TYPE = '#Microsoft.Dynamics.CRM.MultiSelectPicklistAttributeMetadata';
+
+/**
+ * Normalize multi-select choice attributes in place: their metadata reports
+ * AttributeType "Virtual" and is only distinguishable via @odata.type. Rewriting
+ * it to "MultiSelectPicklist" lets the type-mapping resolve them correctly
+ * (entity property -> string, form attribute -> MultiSelectOptionSetAttribute)
+ * instead of falling through to "unknown" (F-MK9-09).
+ */
+function normalizeMultiSelectAttributeTypes(attributes: AttributeMetadata[] | undefined): void {
+  if (!attributes) return;
+  for (const attr of attributes) {
+    const odataType = (attr as unknown as Record<string, unknown>)['@odata.type'];
+    if (odataType === MULTISELECT_ODATA_TYPE) {
+      attr.AttributeType = 'MultiSelectPicklist';
+    }
+  }
+}
+
 // ─── Client ──────────────────────────────────────────────────────────────────
 
 export class MetadataClient {
@@ -109,6 +135,8 @@ export class MetadataClient {
     const entity = await this.http.get<EntityMetadata>(
       `/EntityDefinitions(LogicalName='${safeName}')?$select=${ENTITY_SELECT}&$expand=Attributes($select=${ATTRIBUTE_SELECT})`,
     );
+
+    normalizeMultiSelectAttributeTypes(entity.Attributes);
 
     log.info(`Entity "${safeName}": ${entity.Attributes?.length ?? 0} attributes`);
     return entity;
@@ -141,6 +169,22 @@ export class MetadataClient {
 
     return this.http.getAll<PicklistAttributeMetadata>(
       `/EntityDefinitions(LogicalName='${safeName}')/Attributes/Microsoft.Dynamics.CRM.PicklistAttributeMetadata?$select=LogicalName,SchemaName,MetadataId&$expand=OptionSet($select=Options,Name,IsGlobal,MetadataId),GlobalOptionSet($select=Options,Name,MetadataId)`,
+    );
+  }
+
+  /**
+   * Get all MultiSelect Picklist attributes with their OptionSets for an entity.
+   * Multi-select choices are a distinct metadata type (not a Picklist subtype),
+   * so they need their own cast query; otherwise their OptionSet is never loaded
+   * and no enum is generated (F-MK9-09). Includes both local and global OptionSets.
+   */
+  async getMultiSelectPicklistAttributes(logicalName: string): Promise<MultiSelectPicklistAttributeMetadata[]> {
+    const safeName = DataverseHttpClient.sanitizeIdentifier(logicalName);
+
+    log.debug(`Fetching MultiSelect Picklist attributes for: ${safeName}`);
+
+    return this.http.getAll<MultiSelectPicklistAttributeMetadata>(
+      `/EntityDefinitions(LogicalName='${safeName}')/Attributes/Microsoft.Dynamics.CRM.MultiSelectPicklistAttributeMetadata?$select=LogicalName,SchemaName,MetadataId&$expand=OptionSet($select=Options,Name,IsGlobal,MetadataId),GlobalOptionSet($select=Options,Name,MetadataId)`,
     );
   }
 
@@ -380,17 +424,18 @@ export class MetadataClient {
    * Fetch complete metadata for a single entity: all attributes (typed),
    * forms, and relationships. This is the primary method for type generation.
    *
-   * Makes 7 parallel API calls per entity for optimal performance.
+   * Makes 8 parallel API calls per entity for optimal performance.
    */
   async getEntityTypeInfo(logicalName: string): Promise<EntityTypeInfo> {
     const safeName = DataverseHttpClient.sanitizeIdentifier(logicalName);
 
     log.info(`Fetching complete type info for: ${safeName}`);
 
-    const [entity, picklistAttributes, lookupAttributes, statusAttributes, stateAttributes, forms, relationships] =
+    const [entity, picklistAttributes, multiSelectPicklistAttributes, lookupAttributes, statusAttributes, stateAttributes, forms, relationships] =
       await Promise.all([
         this.getEntityWithAttributes(safeName),
         this.getPicklistAttributes(safeName),
+        this.getMultiSelectPicklistAttributes(safeName),
         this.getLookupAttributes(safeName),
         this.getStatusAttributes(safeName),
         this.getStateAttributes(safeName),
@@ -402,6 +447,7 @@ export class MetadataClient {
       entity,
       attributes: entity.Attributes ?? [],
       picklistAttributes,
+      multiSelectPicklistAttributes,
       lookupAttributes,
       statusAttributes,
       stateAttributes,
@@ -412,8 +458,8 @@ export class MetadataClient {
 
     log.info(
       `Type info for "${safeName}": ${result.attributes.length} attrs, ` +
-        `${picklistAttributes.length} picklists, ${lookupAttributes.length} lookups, ` +
-        `${stateAttributes.length} state, ${forms.length} forms, ` +
+        `${picklistAttributes.length} picklists, ${multiSelectPicklistAttributes.length} multi-select, ` +
+        `${lookupAttributes.length} lookups, ${stateAttributes.length} state, ${forms.length} forms, ` +
         `${relationships.oneToMany.length} 1:N, ${relationships.manyToMany.length} N:N`,
     );
 

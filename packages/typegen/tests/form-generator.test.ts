@@ -120,7 +120,7 @@ describe('generateFormInterface', () => {
     expect(result).not.toContain('getControl(name: string)');
   });
 
-  it('should generate Fields const enum with labels', () => {
+  it('should generate Fields const enum with SchemaName members', () => {
     const form = createForm('Account', ['name', 'telephone1']);
     const attrMap = new Map<string, AttributeMetadata>([
       ['name', createAttr('name', 'String', 'Account Name')],
@@ -130,8 +130,9 @@ describe('generateFormInterface', () => {
     const result = generateFormInterface(form, 'account', attrMap);
 
     expect(result).toContain('const enum AccountFormFieldsEnum {');
-    expect(result).toContain("AccountName = 'name',");
-    expect(result).toContain("MainPhone = 'telephone1',");
+    // Member = SchemaName (F-MK9-05/07), label stays in the JSDoc
+    expect(result).toContain("Name = 'name',");
+    expect(result).toContain("Telephone1 = 'telephone1',");
   });
 
   it('should generate dual-language labels in Fields enum', () => {
@@ -206,8 +207,10 @@ describe('generateFormInterface', () => {
     // statuscode and statecode should be included even though they have no FormXml control
     expect(result).toContain('| "statuscode"');
     expect(result).toContain('| "statecode"');
-    expect(result).toContain("StatusReason = 'statuscode',");
-    expect(result).toContain("Status = 'statecode',");
+    // Member = SchemaName (F-MK9-05/07), NOT the display label ('Status Reason' / 'Status')
+    expect(result).toContain("Statuscode = 'statuscode',");
+    expect(result).toContain("Statecode = 'statecode',");
+    expect(result).not.toContain("Status = 'statecode',");
   });
 
   it('should not include statuscode/statecode when not in attribute map', () => {

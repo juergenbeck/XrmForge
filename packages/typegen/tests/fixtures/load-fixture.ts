@@ -81,6 +81,7 @@ export function loadAccountEntityTypeInfo(): EntityTypeInfo {
     entity: fixture.entity,
     attributes,
     picklistAttributes,
+    multiSelectPicklistAttributes: [],
     lookupAttributes,
     statusAttributes: [] as StatusAttributeMetadata[],
     stateAttributes: [] as StateAttributeMetadata[],

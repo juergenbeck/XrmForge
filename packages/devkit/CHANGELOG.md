@@ -1,5 +1,15 @@
 # @xrmforge/devkit
 
+## 0.7.32
+
+### Patch Changes
+
+- AGENT.md scaffold template: document that `XxxFields`/`XxxNavigationProperties`/`XxxFormFieldsEnum` members
+  are named after the attribute SchemaName (the cased logical name, e.g. `statecode` -> `StateCode`), not the
+  display label, and are therefore guessable from the logical name (typegen 0.14.0, F-MK9-05/07). Updated the
+  affected example member casings accordingly (`WebsiteUrl` -> `WebSiteURL`, `Statecode` -> `StateCode`,
+  `Statuscode` -> `StatusCode`, `Fullname` -> `FullName`). Template/docs only.
+
 ## 0.7.31
 
 ### Patch Changes

@@ -90,6 +90,7 @@ function createMockEntityInfo(entityName: string): EntityTypeInfo {
     },
     attributes: [attr],
     picklistAttributes: [picklistAttr],
+    multiSelectPicklistAttributes: [],
     lookupAttributes: [],
     statusAttributes: [],
     stateAttributes: [],

@@ -37,6 +37,7 @@ function createEntityInfo(attributes: AttributeMetadata[], lookupAttributes: Loo
     },
     attributes,
     picklistAttributes: [],
+    multiSelectPicklistAttributes: [],
     lookupAttributes,
     statusAttributes: [],
     stateAttributes: [],

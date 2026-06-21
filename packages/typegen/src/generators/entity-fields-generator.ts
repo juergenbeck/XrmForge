@@ -4,6 +4,15 @@
  * Generates a const enum with ALL entity fields for use with Xrm.WebApi.
  * Unlike form-specific Fields enums, this contains every readable attribute.
  *
+ * Member naming (F-MK9-05/07, Option A): enum members are named after the
+ * attribute SchemaName (the cased form of the LogicalName), NOT the display
+ * label. SchemaNames are unique per entity (Dataverse guarantee), so naming is
+ * deterministic, collision-free and guessable from the LogicalName - the same
+ * scheme pac modelbuilder and XrmDefinitelyTyped use. The display label stays in
+ * the dual-language JSDoc comment (IDE tooltip). This avoids the order-dependent
+ * ordinal disambiguation (F-MK9-05) and the unguessable label members (F-MK9-07)
+ * of the previous label-based naming.
+ *
  * Output pattern (flat ES module):
  * ```typescript
  * export const enum AccountFields {
@@ -15,17 +24,16 @@
  * ```
  */
 
-import type { EntityTypeInfo } from '../metadata/types.js';
+import type { AttributeMetadata, EntityTypeInfo } from '../metadata/types.js';
 import {
   toPascalCase,
+  toSafeIdentifier,
   shouldIncludeInEntityInterface,
   isLookupType,
   toLookupValueProperty,
 } from './type-mapping.js';
 import {
   formatDualLabel,
-  getPrimaryLabel,
-  transliterateUmlauts,
   type LabelConfig,
   DEFAULT_LABEL_CONFIG,
 } from './label-utils.js';
@@ -36,16 +44,17 @@ export interface EntityFieldsGeneratorOptions {
   labelConfig?: LabelConfig;
 }
 
-/** Convert a label to a PascalCase enum member name */
-function labelToPascalMember(label: string): string {
-  if (!label) return '';
-  const transliterated = transliterateUmlauts(label);
-  const cleaned = transliterated.replace(/[^a-zA-Z0-9\s_]/g, '');
-  const parts = cleaned.split(/[\s_]+/).filter((p) => p.length > 0);
-  if (parts.length === 0) return '';
-  const pascal = parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join('');
-  if (/^\d/.test(pascal)) return `_${pascal}`;
-  return pascal;
+/**
+ * Build the enum member name for an attribute from its SchemaName.
+ *
+ * SchemaNames are valid identifiers and unique per entity, so this is
+ * deterministic and collision-free. Falls back to a PascalCased LogicalName
+ * only if the SchemaName is missing (defensive; should not happen with real
+ * metadata).
+ */
+function attributeMemberName(attr: AttributeMetadata): string {
+  const fromSchema = attr.SchemaName ? toSafeIdentifier(attr.SchemaName) : '';
+  return fromSchema || toPascalCase(attr.LogicalName);
 }
 
 /**
@@ -79,23 +88,18 @@ export function generateEntityFieldsEnum(
     const isLookup = isLookupType(attr.AttributeType);
     const propertyName = isLookup ? toLookupValueProperty(attr.LogicalName) : attr.LogicalName;
 
-    // Build enum member name from label
-    const primaryLabel = getPrimaryLabel(attr.DisplayName, labelConfig);
-    let memberName = labelToPascalMember(primaryLabel);
-    if (!memberName) {
-      memberName = toPascalCase(attr.LogicalName);
-    }
+    // Member name = SchemaName (deterministic, unique, guessable)
+    let memberName = attributeMemberName(attr);
 
-    // Disambiguate
-    const originalName = memberName;
-    let counter = 2;
+    // Defensive deterministic guard. SchemaNames are unique per entity, so this
+    // never fires in practice; if it ever did, the LogicalName (also unique)
+    // makes the member unambiguous without an order-dependent ordinal.
     while (usedNames.has(memberName)) {
-      memberName = `${originalName}${counter}`;
-      counter++;
+      memberName = `${memberName}_${toSafeIdentifier(attr.LogicalName)}`;
     }
     usedNames.add(memberName);
 
-    // Dual-language JSDoc
+    // Dual-language JSDoc carries the human-readable label (IDE tooltip)
     const dualLabel = formatDualLabel(attr.DisplayName, labelConfig);
     if (dualLabel) {
       lines.push(`  /** ${dualLabel} */`);
@@ -116,6 +120,8 @@ export function generateEntityFieldsEnum(
  * Unlike EntityFields (which uses _fieldname_value format), this enum
  * contains the plain LogicalName (= navigation property name for non-polymorphic lookups).
  *
+ * Members are named after the SchemaName (same scheme as EntityFields).
+ *
  * @param info - Complete entity metadata
  * @param options - Generator options
  * @returns TypeScript declaration string
@@ -124,12 +130,12 @@ export function generateEntityFieldsEnum(
  * ```typescript
  * // Generated:
  * const enum AccountNavigationProperties {
- *   Country = 'markant_address1_countryid',
- *   PrimaryContact = 'primarycontactid',
+ *   Markant_Address1_CountryId = 'markant_address1_countryid',
+ *   PrimaryContactId = 'primarycontactid',
  * }
  *
  * // Usage:
- * parseLookup(response, AccountNav.Country);
+ * parseLookup(response, AccountNav.PrimaryContactId);
  * ```
  */
 export function generateEntityNavigationProperties(
@@ -155,23 +161,16 @@ export function generateEntityNavigationProperties(
   const usedNames = new Set<string>();
 
   for (const attr of lookupAttrs) {
-    // Build enum member name from label
-    const primaryLabel = getPrimaryLabel(attr.DisplayName, labelConfig);
-    let memberName = labelToPascalMember(primaryLabel);
-    if (!memberName) {
-      memberName = toPascalCase(attr.LogicalName);
-    }
+    // Member name = SchemaName (deterministic, unique, guessable)
+    let memberName = attributeMemberName(attr);
 
-    // Disambiguate
-    const originalName = memberName;
-    let counter = 2;
+    // Defensive deterministic guard (see generateEntityFieldsEnum)
     while (usedNames.has(memberName)) {
-      memberName = `${originalName}${counter}`;
-      counter++;
+      memberName = `${memberName}_${toSafeIdentifier(attr.LogicalName)}`;
     }
     usedNames.add(memberName);
 
-    // Dual-language JSDoc
+    // Dual-language JSDoc carries the human-readable label (IDE tooltip)
     const dualLabel = formatDualLabel(attr.DisplayName, labelConfig);
     if (dualLabel) {
       lines.push(`  /** ${dualLabel} */`);

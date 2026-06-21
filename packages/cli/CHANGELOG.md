@@ -1,5 +1,12 @@
 # @xrmforge/cli
 
+## 0.8.17
+
+### Patch Changes
+
+- Propagate `@xrmforge/typegen@0.14.0` (SchemaName-based Fields enum members, F-MK9-05/07; MultiSelect choice
+  resolution, F-MK9-09) and `@xrmforge/devkit@0.7.32` (AGENT.md naming note). No cli source change.
+
 ## 0.8.16
 
 ### Patch Changes

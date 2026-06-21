@@ -1,5 +1,28 @@
 # @xrmforge/typegen
 
+## 0.14.0
+
+### Minor Changes
+
+- **BREAKING (generated output): Fields/NavigationProperties enum members are now named after the attribute
+  SchemaName, not the display label (F-MK9-05/07).** Members were derived from the field's label and
+  disambiguated with an order-dependent ordinal suffix (`Foo`, `Foo2`, ...). That suffix was fragile: adding
+  or reordering a same-labelled field could silently shift `Foo5` onto a different field, and label-derived
+  members (`AccountFields.Status` for `statecode`) were not guessable from the logical name. Members now use
+  the SchemaName (the cased logical name, e.g. `statecode` -> `StateCode`), which is unique per entity,
+  deterministic, stable and guessable - the same scheme pac modelbuilder and XrmDefinitelyTyped use. The
+  display label moves to the member's JSDoc (IDE tooltip). This applies to the entity-level `XxxFields` and
+  `XxxNavigationProperties` enums and the form-level `XxxFormFieldsEnum`; OptionSet enum members are
+  unchanged (they remain label-based with stable value-based disambiguation). **Regenerate and update any
+  references to label-based members (e.g. `.Status` -> `.StateCode`).**
+
+- **MultiSelect choice fields are now resolved (F-MK9-09).** A multi-select choice attribute reports
+  AttributeType `Virtual` in the metadata and was therefore typed `unknown` in the entity interface and never
+  got an OptionSet enum. typegen now identifies these via `@odata.type`, normalizes the type to
+  `MultiSelectPicklist` (entity property -> `string`, form attribute -> `MultiSelectOptionSetAttribute`), and
+  fetches their OptionSets through a dedicated `MultiSelectPicklistAttributeMetadata` cast query so the enum
+  is generated. Adds one metadata API call per entity.
+
 ## 0.13.2
 
 ### Patch Changes

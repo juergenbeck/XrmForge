@@ -162,13 +162,13 @@ form.$context.getAttribute(Fields.Name).addOnChange(() => { ... });
 // Web API queries (entity-level Fields):
 import { AccountFields } from '../../generated/fields/account.js';
 Xrm.WebApi.retrieveRecord(EntityNames.Account, id,
-  select(AccountFields.Name, AccountFields.WebsiteUrl));
+  select(AccountFields.Name, AccountFields.WebSiteURL));
 ```
 
 **NEVER use raw strings in select():**
 ```typescript
 select('name', 'websiteurl')                     // BUG - raw strings
-select(AccountFields.Name, AccountFields.WebsiteUrl) // CORRECT
+select(AccountFields.Name, AccountFields.WebSiteURL) // CORRECT
 ```
 
 ### 3. OptionSet Enum for ALL value comparisons AND FetchXML
@@ -183,7 +183,7 @@ if (status === InvoiceStatusCode.Gebucht) { ... }     // CORRECT
 if (status === 105710002) { ... }                       // BUG
 
 // FetchXML:
-`<condition attribute='${InvoiceFields.Statuscode}' operator='in'>
+`<condition attribute='${InvoiceFields.StatusCode}' operator='in'>
   <value>${InvoiceStatusCode.Aktiv}</value>
   <value>${InvoiceStatusCode.Gebucht}</value>
 </condition>`                                          // CORRECT
@@ -223,6 +223,13 @@ compiles green but breaks at runtime (no tsc/eslint gate catches it):
 |---|---|---|
 | `XxxFields` | `'_transactioncurrencyid_value'` (already `_value`-form) | `$select`, `$filter` |
 | `XxxNavigationProperties` | `'transactioncurrencyid'` (blank) | `parseLookup`, `$expand`, `@odata.bind`, `$unsafe` (lookup) |
+
+**Member naming:** `XxxFields`, `XxxNavigationProperties` and the form-level `XxxFormFieldsEnum` name their
+members after the attribute **SchemaName** (the cased logical name, e.g. `statecode` -> `StateCode`,
+`markant_kin` -> `markant_kin`), NOT the display label. The member is therefore guessable from the logical
+name and stable across regenerations (renaming a field's label never shifts it, and two fields with the same
+label never collide). The human-readable label lives in the member's JSDoc (IDE tooltip). When unsure of a
+member name, derive it from the logical name (not the UI label).
 
 ```typescript
 import { AccountFields } from '../../generated/fields/account.js';
@@ -271,12 +278,12 @@ import { AccountFields } from '../../generated/fields/account.js';
 select(AccountFields.Name, AccountFields.Revenue)
 
 // $filter (field names via template literal):
-`${select(AccountFields.Name)}&$filter=${AccountFields.Statecode} eq 0`
+`${select(AccountFields.Name)}&$filter=${AccountFields.StateCode} eq 0`
 
 // $expand (navigation properties):
 selectExpand(
   [AccountFields.Name, AccountFields.Revenue],
-  `primarycontactid($select=${ContactFields.Fullname})`,
+  `primarycontactid($select=${ContactFields.FullName})`,
 )
 
 // $orderby:
@@ -576,7 +583,7 @@ if (form.statuscode.getValue() === StatusCode.Gebucht) { ... }
 // AFTER:
 import { LmBestellungFields } from '../../generated/fields/lm_bestellung.js';
 import { LmBestellungStatusCode } from '../../generated/optionsets/lm_bestellung.js';
-`<condition attribute='${LmBestellungFields.Statuscode}' operator='in'>
+`<condition attribute='${LmBestellungFields.StatusCode}' operator='in'>
   <value>${LmBestellungStatusCode.Aktiv}</value>
   <value>${LmBestellungStatusCode.InArbeit}</value>
 </condition>`

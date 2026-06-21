@@ -37,6 +37,7 @@ function createEntityInfo(attributes: AttributeMetadata[]): EntityTypeInfo {
     },
     attributes,
     picklistAttributes: [],
+    multiSelectPicklistAttributes: [],
     lookupAttributes: [],
     statusAttributes: [],
     stateAttributes: [],
@@ -49,37 +50,37 @@ function createEntityInfo(attributes: AttributeMetadata[]): EntityTypeInfo {
 // ─── generateEntityNavigationProperties ─────────────────────────────────────
 
 describe('generateEntityNavigationProperties', () => {
-  it('should generate navigation properties for lookup fields', () => {
+  it('should generate navigation properties for lookup fields (SchemaName members)', () => {
     const info = createEntityInfo([
-      createAttr({ LogicalName: 'name', AttributeType: 'String', DisplayName: { LocalizedLabels: [{ Label: 'Name', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
-      createAttr({ LogicalName: 'primarycontactid', AttributeType: 'Lookup', DisplayName: { LocalizedLabels: [{ Label: 'Primary Contact', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
-      createAttr({ LogicalName: 'ownerid', AttributeType: 'Owner', DisplayName: { LocalizedLabels: [{ Label: 'Owner', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+      createAttr({ LogicalName: 'name', SchemaName: 'Name', AttributeType: 'String', DisplayName: { LocalizedLabels: [{ Label: 'Name', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+      createAttr({ LogicalName: 'primarycontactid', SchemaName: 'PrimaryContactId', AttributeType: 'Lookup', DisplayName: { LocalizedLabels: [{ Label: 'Primary Contact', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+      createAttr({ LogicalName: 'ownerid', SchemaName: 'OwnerId', AttributeType: 'Owner', DisplayName: { LocalizedLabels: [{ Label: 'Owner', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
     ]);
 
     const result = generateEntityNavigationProperties(info);
 
     expect(result).toContain('const enum AccountNavigationProperties {');
-    expect(result).toContain("PrimaryContact = 'primarycontactid',");
-    expect(result).toContain("Owner = 'ownerid',");
+    expect(result).toContain("PrimaryContactId = 'primarycontactid',");
+    expect(result).toContain("OwnerId = 'ownerid',");
   });
 
   it('should use LogicalName as value (NOT _value format)', () => {
     const info = createEntityInfo([
-      createAttr({ LogicalName: 'parentaccountid', AttributeType: 'Lookup', DisplayName: { LocalizedLabels: [{ Label: 'Parent Account', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+      createAttr({ LogicalName: 'parentaccountid', SchemaName: 'ParentAccountId', AttributeType: 'Lookup', DisplayName: { LocalizedLabels: [{ Label: 'Parent Account', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
     ]);
 
     const result = generateEntityNavigationProperties(info);
 
     // LogicalName direkt, NICHT _parentaccountid_value
-    expect(result).toContain("ParentAccount = 'parentaccountid',");
+    expect(result).toContain("ParentAccountId = 'parentaccountid',");
     expect(result).not.toContain('_parentaccountid_value');
   });
 
   it('should exclude non-lookup fields', () => {
     const info = createEntityInfo([
-      createAttr({ LogicalName: 'name', AttributeType: 'String', DisplayName: { LocalizedLabels: [{ Label: 'Name', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
-      createAttr({ LogicalName: 'revenue', AttributeType: 'Money', DisplayName: { LocalizedLabels: [{ Label: 'Revenue', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
-      createAttr({ LogicalName: 'statecode', AttributeType: 'State', DisplayName: { LocalizedLabels: [{ Label: 'Status', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+      createAttr({ LogicalName: 'name', SchemaName: 'Name', AttributeType: 'String', DisplayName: { LocalizedLabels: [{ Label: 'Name', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+      createAttr({ LogicalName: 'revenue', SchemaName: 'Revenue', AttributeType: 'Money', DisplayName: { LocalizedLabels: [{ Label: 'Revenue', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+      createAttr({ LogicalName: 'statecode', SchemaName: 'StateCode', AttributeType: 'State', DisplayName: { LocalizedLabels: [{ Label: 'Status', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
     ]);
 
     const result = generateEntityNavigationProperties(info);
@@ -90,18 +91,19 @@ describe('generateEntityNavigationProperties', () => {
 
   it('should include Customer type lookups', () => {
     const info = createEntityInfo([
-      createAttr({ LogicalName: 'customerid', AttributeType: 'Customer', DisplayName: { LocalizedLabels: [{ Label: 'Customer', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+      createAttr({ LogicalName: 'customerid', SchemaName: 'CustomerId', AttributeType: 'Customer', DisplayName: { LocalizedLabels: [{ Label: 'Customer', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
     ]);
 
     const result = generateEntityNavigationProperties(info);
 
-    expect(result).toContain("Customer = 'customerid',");
+    expect(result).toContain("CustomerId = 'customerid',");
   });
 
-  it('should generate dual-language labels', () => {
+  it('should generate dual-language labels in JSDoc (member stays SchemaName)', () => {
     const info = createEntityInfo([
       createAttr({
         LogicalName: 'markant_countryid',
+        SchemaName: 'markant_CountryId',
         AttributeType: 'Lookup',
         DisplayName: {
           LocalizedLabels: [
@@ -118,28 +120,32 @@ describe('generateEntityNavigationProperties', () => {
     });
 
     expect(result).toContain('/** Country | Land */');
-    expect(result).toContain("Country = 'markant_countryid',");
+    expect(result).toContain("markant_CountryId = 'markant_countryid',");
   });
 
-  it('should disambiguate duplicate member names', () => {
+  it('should give distinct SchemaName members for lookups with the same label (no ordinal)', () => {
+    // createdby and modifiedby both carry the label "Created By" in this fixture.
+    // Label-based naming would have produced CreatedBy / CreatedBy2 (order-fragile).
+    // SchemaName-based naming keeps them distinct and guessable.
     const info = createEntityInfo([
-      createAttr({ LogicalName: 'createdby', AttributeType: 'Lookup', DisplayName: { LocalizedLabels: [{ Label: 'Created By', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
-      createAttr({ LogicalName: 'modifiedby', AttributeType: 'Lookup', DisplayName: { LocalizedLabels: [{ Label: 'Created By', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+      createAttr({ LogicalName: 'createdby', SchemaName: 'CreatedBy', AttributeType: 'Lookup', DisplayName: { LocalizedLabels: [{ Label: 'Created By', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+      createAttr({ LogicalName: 'modifiedby', SchemaName: 'ModifiedBy', AttributeType: 'Lookup', DisplayName: { LocalizedLabels: [{ Label: 'Created By', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
     ]);
 
     const result = generateEntityNavigationProperties(info);
 
     expect(result).toContain("CreatedBy = 'createdby',");
-    expect(result).toContain("CreatedBy2 = 'modifiedby',");
+    expect(result).toContain("ModifiedBy = 'modifiedby',");
+    expect(result).not.toContain('CreatedBy2');
   });
 });
 
-// ─── generateEntityFieldsEnum (bestehende Funktionalität) ───────────────────
+// ─── generateEntityFieldsEnum ───────────────────────────────────────────────
 
 describe('generateEntityFieldsEnum', () => {
   it('should generate export const enum syntax (not declare namespace)', () => {
     const info = createEntityInfo([
-      createAttr({ LogicalName: 'name', AttributeType: 'String', DisplayName: { LocalizedLabels: [{ Label: 'Name', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+      createAttr({ LogicalName: 'name', SchemaName: 'Name', AttributeType: 'String', DisplayName: { LocalizedLabels: [{ Label: 'Name', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
     ]);
 
     const result = generateEntityFieldsEnum(info);
@@ -148,15 +154,63 @@ describe('generateEntityFieldsEnum', () => {
     expect(result).not.toContain('declare namespace');
   });
 
-  it('should generate fields enum with _value format for lookups', () => {
+  it('should generate fields enum with _value format for lookups (SchemaName member)', () => {
     const info = createEntityInfo([
-      createAttr({ LogicalName: 'name', AttributeType: 'String', DisplayName: { LocalizedLabels: [{ Label: 'Name', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
-      createAttr({ LogicalName: 'primarycontactid', AttributeType: 'Lookup', DisplayName: { LocalizedLabels: [{ Label: 'Primary Contact', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+      createAttr({ LogicalName: 'name', SchemaName: 'Name', AttributeType: 'String', DisplayName: { LocalizedLabels: [{ Label: 'Name', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+      createAttr({ LogicalName: 'primarycontactid', SchemaName: 'PrimaryContactId', AttributeType: 'Lookup', DisplayName: { LocalizedLabels: [{ Label: 'Primary Contact', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
     ]);
 
     const result = generateEntityFieldsEnum(info);
 
     expect(result).toContain("Name = 'name',");
-    expect(result).toContain("PrimaryContact = '_primarycontactid_value',");
+    expect(result).toContain("PrimaryContactId = '_primarycontactid_value',");
+  });
+
+  it('F-MK9-07: member is the SchemaName, not the display label', () => {
+    // statecode has label "Status"; label-based naming produced AccountFields.Status
+    // (unguessable). SchemaName-based naming produces StateCode (guessable from the
+    // logical name).
+    const info = createEntityInfo([
+      createAttr({ LogicalName: 'statecode', SchemaName: 'StateCode', AttributeType: 'State', DisplayName: { LocalizedLabels: [{ Label: 'Status', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+    ]);
+
+    const result = generateEntityFieldsEnum(info);
+
+    expect(result).toContain("StateCode = 'statecode',");
+    expect(result).toContain('/** Status */'); // label preserved in JSDoc
+    expect(result).not.toContain('Status =');
+  });
+
+  it('F-MK9-05: identical labels on distinct fields stay distinct and ordinal-free', () => {
+    // Ten *_israted fields share the label "Take into account in overall rating".
+    // Label-based naming produced TakeIntoAccountInOverallRating / ...2 / ...3
+    // (order-fragile). SchemaName-based naming keeps each field's stable identifier.
+    const label = { LocalizedLabels: [{ Label: 'Take into account in overall rating', LanguageCode: 1033 }], UserLocalizedLabel: null };
+    const info = createEntityInfo([
+      createAttr({ LogicalName: 'markant_afeedback_israted', SchemaName: 'markant_AFeedback_IsRated', AttributeType: 'Boolean', DisplayName: label }),
+      createAttr({ LogicalName: 'markant_bfeedback_israted', SchemaName: 'markant_BFeedback_IsRated', AttributeType: 'Boolean', DisplayName: label }),
+    ]);
+
+    const result = generateEntityFieldsEnum(info);
+
+    expect(result).toContain("markant_AFeedback_IsRated = 'markant_afeedback_israted',");
+    expect(result).toContain("markant_BFeedback_IsRated = 'markant_bfeedback_israted',");
+    // No order-dependent ordinal suffix anywhere
+    expect(result).not.toMatch(/IsRated2\b/);
+  });
+
+  it('defensive guard: pathological identical SchemaNames are disambiguated deterministically via LogicalName', () => {
+    // Cannot happen with real Dataverse metadata (SchemaNames are unique), but the
+    // guard must be deterministic if it ever does.
+    const info = createEntityInfo([
+      createAttr({ LogicalName: 'foo_a', SchemaName: 'Dup', AttributeType: 'String', DisplayName: { LocalizedLabels: [{ Label: 'A', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+      createAttr({ LogicalName: 'foo_b', SchemaName: 'Dup', AttributeType: 'String', DisplayName: { LocalizedLabels: [{ Label: 'B', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+    ]);
+
+    const result = generateEntityFieldsEnum(info);
+
+    // foo_a sorts before foo_b, so 'Dup' goes to foo_a, the suffix to foo_b
+    expect(result).toContain("Dup = 'foo_a',");
+    expect(result).toContain("Dup_foo_b = 'foo_b',");
   });
 });

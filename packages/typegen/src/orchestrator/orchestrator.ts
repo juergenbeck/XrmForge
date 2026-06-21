@@ -644,6 +644,17 @@ export class TypeGenerationOrchestrator {
       });
     }
 
+    // Also include MultiSelect Picklist attributes (F-MK9-09): their OptionSet
+    // is fetched separately because they are a distinct metadata type.
+    // Guard with ?? [] for metadata cached by an older typegen version.
+    for (const attr of entityInfo.multiSelectPicklistAttributes ?? []) {
+      result.push({
+        SchemaName: attr.SchemaName,
+        OptionSet: attr.OptionSet ?? null,
+        GlobalOptionSet: attr.GlobalOptionSet ?? null,
+      });
+    }
+
     // Also include State and Status attributes
     for (const attr of entityInfo.stateAttributes) {
       result.push({

@@ -89,6 +89,17 @@ export interface PicklistAttributeMetadata extends AttributeMetadata {
   GlobalOptionSet: OptionSetMetadata | null;
 }
 
+/**
+ * Multi-select choice attribute. In the metadata its base AttributeType is
+ * "Virtual"; it is identified by @odata.type and normalized to
+ * "MultiSelectPicklist" on load (F-MK9-09). Like Picklist it carries a local or
+ * global OptionSet.
+ */
+export interface MultiSelectPicklistAttributeMetadata extends AttributeMetadata {
+  OptionSet: OptionSetMetadata | null;
+  GlobalOptionSet: OptionSetMetadata | null;
+}
+
 export interface StatusAttributeMetadata extends AttributeMetadata {
   OptionSet: OptionSetMetadata | null;
 }
@@ -229,6 +240,7 @@ export interface EntityTypeInfo {
   entity: EntityMetadata;
   attributes: AttributeMetadata[];
   picklistAttributes: PicklistAttributeMetadata[];
+  multiSelectPicklistAttributes: MultiSelectPicklistAttributeMetadata[];
   lookupAttributes: LookupAttributeMetadata[];
   statusAttributes: StatusAttributeMetadata[];
   stateAttributes: StateAttributeMetadata[];

@@ -28,6 +28,7 @@ function createMinimalEntityInfo(entityName: string): EntityTypeInfo {
     attributes: [],
     lookupAttributes: [],
     picklistAttributes: [],
+    multiSelectPicklistAttributes: [],
     stateAttributes: [],
     statusAttributes: [],
     oneToManyRelationships: [],

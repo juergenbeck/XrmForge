@@ -168,6 +168,70 @@ describe('MetadataClient.getPicklistAttributes', () => {
   });
 });
 
+// ─── MultiSelect Picklist Attributes (F-MK9-09) ─────────────────────────────
+
+describe('MetadataClient.getMultiSelectPicklistAttributes', () => {
+  it('should fetch multi-select picklist attributes with their option sets', async () => {
+    mockFetchSequence({
+      status: 200,
+      body: {
+        value: [
+          {
+            LogicalName: 'markant_contenttobelinkedmulticode',
+            SchemaName: 'markant_ContentToBeLinkedMultiCode',
+            MetadataId: 'ms-1',
+            OptionSet: {
+              Name: 'markant_contenttobelinkedmulticode',
+              IsGlobal: false,
+              Options: [
+                { Value: 595300000, Label: { UserLocalizedLabel: { Label: 'A', LanguageCode: 1033 } } },
+                { Value: 595300001, Label: { UserLocalizedLabel: { Label: 'B', LanguageCode: 1033 } } },
+              ],
+            },
+            GlobalOptionSet: null,
+          },
+        ],
+      },
+    });
+
+    const client = createClient();
+    const multiSelects = await client.getMultiSelectPicklistAttributes('markant_projectgroup');
+
+    expect(multiSelects).toHaveLength(1);
+    expect(multiSelects[0]!.LogicalName).toBe('markant_contenttobelinkedmulticode');
+    expect(multiSelects[0]!.OptionSet!.Options).toHaveLength(2);
+  });
+});
+
+describe('MetadataClient.getEntityWithAttributes - multi-select normalization (F-MK9-09)', () => {
+  it('should rewrite a Virtual multi-select attribute type to MultiSelectPicklist', async () => {
+    mockFetchSequence({
+      status: 200,
+      body: {
+        LogicalName: 'markant_projectgroup', SchemaName: 'markant_ProjectGroup', EntitySetName: 'markant_projectgroups',
+        DisplayName: { UserLocalizedLabel: { Label: 'Project Group', LanguageCode: 1033 }, LocalizedLabels: [] },
+        PrimaryIdAttribute: 'markant_projectgroupid', PrimaryNameAttribute: 'markant_name', MetadataId: 'e-1',
+        Attributes: [
+          { LogicalName: 'markant_name', SchemaName: 'markant_Name', AttributeType: 'String', MetadataId: 'a-1' },
+          {
+            '@odata.type': '#Microsoft.Dynamics.CRM.MultiSelectPicklistAttributeMetadata',
+            LogicalName: 'markant_contenttobelinkedmulticode', SchemaName: 'markant_ContentToBeLinkedMultiCode',
+            AttributeType: 'Virtual', MetadataId: 'a-2',
+          },
+        ],
+      },
+    });
+
+    const client = createClient();
+    const entity = await client.getEntityWithAttributes('markant_projectgroup');
+
+    const multi = entity.Attributes!.find((a) => a.LogicalName === 'markant_contenttobelinkedmulticode');
+    expect(multi!.AttributeType).toBe('MultiSelectPicklist'); // normalized from 'Virtual'
+    // unrelated attributes are untouched
+    expect(entity.Attributes!.find((a) => a.LogicalName === 'markant_name')!.AttributeType).toBe('String');
+  });
+});
+
 // ─── Lookup Attributes ───────────────────────────────────────────────────────
 
 describe('MetadataClient.getLookupAttributes', () => {
@@ -470,8 +534,9 @@ describe('MetadataClient.listGlobalOptionSets', () => {
 
 describe('MetadataClient.getEntityTypeInfo', () => {
   it('should aggregate all metadata in parallel', async () => {
-    // 7 parallel API calls: entity+attrs, picklists, lookups, status, state, forms, relationships (2 calls)
-    // The HTTP client makes these in order due to concurrency, but they're all Promise.all'd
+    // 8 parallel API calls: entity+attrs, picklists, multi-select picklists, lookups,
+    // status, state, forms, relationships (2 calls). The HTTP client makes these in
+    // order due to concurrency, but they're all Promise.all'd.
     const mockFetch = vi.fn()
       // Call 1: getEntityWithAttributes
       .mockResolvedValueOnce({
@@ -493,37 +558,43 @@ describe('MetadataClient.getEntityTypeInfo', () => {
         json: () => Promise.resolve({ value: [{ LogicalName: 'accountcategorycode', MetadataId: 'p-1' }] }),
         text: () => Promise.resolve('{}'),
       })
-      // Call 3: getLookupAttributes
+      // Call 3: getMultiSelectPicklistAttributes
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({ value: [{ LogicalName: 'markant_multicode', SchemaName: 'markant_MultiCode', MetadataId: 'ms-1', OptionSet: { Name: 'markant_multicode', Options: [] } }] }),
+        text: () => Promise.resolve('{}'),
+      })
+      // Call 4: getLookupAttributes
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [{ LogicalName: 'primarycontactid', Targets: ['contact'], MetadataId: 'l-1' }] }),
         text: () => Promise.resolve('{}'),
       })
-      // Call 4: getStatusAttributes
+      // Call 5: getStatusAttributes
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [{ LogicalName: 'statuscode', MetadataId: 's-1' }] }),
         text: () => Promise.resolve('{}'),
       })
-      // Call 5: getStateAttributes
+      // Call 6: getStateAttributes
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [{ LogicalName: 'statecode', MetadataId: 'st-1' }] }),
         text: () => Promise.resolve('{}'),
       })
-      // Call 6: getForms (Main + active Quick Create)
+      // Call 7: getForms (Main + active Quick Create)
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [] }),
         text: () => Promise.resolve('{}'),
       })
-      // Call 7: getOneToManyRelationships
+      // Call 8: getOneToManyRelationships
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [{ SchemaName: 'account_contacts', MetadataId: 'r-1' }] }),
         text: () => Promise.resolve('{}'),
       })
-      // Call 8: getManyToManyRelationships
+      // Call 9: getManyToManyRelationships
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [] }),
@@ -537,6 +608,7 @@ describe('MetadataClient.getEntityTypeInfo', () => {
     expect(info.entity.LogicalName).toBe('account');
     expect(info.attributes).toHaveLength(1);
     expect(info.picklistAttributes).toHaveLength(1);
+    expect(info.multiSelectPicklistAttributes).toHaveLength(1);
     expect(info.lookupAttributes).toHaveLength(1);
     expect(info.statusAttributes).toHaveLength(1);
     expect(info.stateAttributes).toHaveLength(1);
@@ -544,8 +616,8 @@ describe('MetadataClient.getEntityTypeInfo', () => {
     expect(info.oneToManyRelationships).toHaveLength(1);
     expect(info.manyToManyRelationships).toHaveLength(0);
 
-    // Should have made 8 fetch calls (7 parallel via Promise.all, relationships = 2 sub-calls)
-    expect(mockFetch).toHaveBeenCalledTimes(8);
+    // Should have made 9 fetch calls (8 parallel via Promise.all, relationships = 2 sub-calls)
+    expect(mockFetch).toHaveBeenCalledTimes(9);
   });
 });
 
@@ -668,9 +740,10 @@ describe('MetadataClient.getCustomApis', () => {
 
 describe('MetadataClient.getMultipleEntityTypeInfos', () => {
   it('should fetch type info for multiple entities in parallel', async () => {
-    // Need 2x8 calls (one per entity, each with 8 sub-calls)
+    // Need 2x9 calls (one per entity, each with 9 sub-calls incl. multi-select picklists)
     const makeEntityResponses = (name: string) => [
       { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ LogicalName: name, SchemaName: name, EntitySetName: name + 's', DisplayName: { LocalizedLabels: [] }, PrimaryIdAttribute: name + 'id', PrimaryNameAttribute: 'name', MetadataId: 'e', Attributes: [] }), text: () => Promise.resolve('{}') },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
       { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
       { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
       { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
