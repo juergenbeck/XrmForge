@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { addAppNotification } from '../src/app-notification.js';
+import { addAppNotification, clearAppNotification } from '../src/app-notification.js';
 import { AppNotificationLevel } from '../src/xrm-constants.js';
 
 const addGlobalNotification = vi.fn();
@@ -71,5 +71,31 @@ describe('addAppNotification', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('clearAppNotification', () => {
+  it('clears the banner via Xrm.App.clearGlobalNotification with the given id', async () => {
+    await clearAppNotification('notif-1');
+
+    expect(clearGlobalNotification).toHaveBeenCalledTimes(1);
+    expect(clearGlobalNotification).toHaveBeenCalledWith('notif-1');
+  });
+
+  it('clears the id returned by addAppNotification (round-trip)', async () => {
+    const id = await addAppNotification('Polling', AppNotificationLevel.Information);
+    await clearAppNotification(id);
+
+    expect(clearGlobalNotification).toHaveBeenCalledWith('notif-1');
+  });
+
+  it('does not throw when Xrm.App is undefined at runtime (mobile/older UCI)', async () => {
+    (globalThis as Record<string, unknown>).Xrm = {};
+    await expect(clearAppNotification('notif-1')).resolves.toBeUndefined();
+  });
+
+  it('does not throw when clearGlobalNotification is missing', async () => {
+    (globalThis as Record<string, unknown>).Xrm = { App: {} };
+    await expect(clearAppNotification('notif-1')).resolves.toBeUndefined();
   });
 });

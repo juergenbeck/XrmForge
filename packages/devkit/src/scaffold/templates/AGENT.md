@@ -21,7 +21,7 @@ functions with domain-specific names, not in anonymous chains of API calls.
 ## Packages
 
 - `@xrmforge/typegen` - Generates typed declarations from Dataverse metadata (Node.js CLI only, NEVER import in browser code)
-- `@xrmforge/helpers` - Browser-safe runtime: typedForm(), select(), parseLookup(), parseMultiSelect(), formLookup()/formLookupId()/formLookupIdUnsafe(), setAndSubmit()/clearAndSubmit()/setUnsafeAndSubmit(), addAppNotification(), isUnsavedRecord(), getEnvironmentVariable(), Xrm constants, Action executors, callCloudFlow()
+- `@xrmforge/helpers` - Browser-safe runtime: typedForm(), select(), parseLookup(), parseFormattedValue(), parseMultiSelect(), formLookup()/formLookupId()/formLookupIdUnsafe(), setAndSubmit()/clearAndSubmit()/setUnsafeAndSubmit(), addAppNotification()/clearAppNotification(), parentXrm()/getWebResourceContext(), isUnsavedRecord(), getEnvironmentVariable(), Xrm constants, Action executors, callCloudFlow()
 - `@xrmforge/testing` - Type-safe form mocks: createFormMock(), fireOnChange(), setupXrmMock()
 - `@xrmforge/devkit` - esbuild IIFE bundles via xrmforge build
 - `@xrmforge/eslint-plugin` - D365-specific ESLint rules
@@ -231,6 +231,14 @@ name and stable across regenerations (renaming a field's label never shifts it, 
 label never collide). The human-readable label lives in the member's JSDoc (IDE tooltip). When unsure of a
 member name, derive it from the logical name (not the UI label).
 
+**Casing can be unexpected - read it, do not guess** (Runde 10 FW-6/F-LMA10-05): the SchemaName is Microsoft's,
+not normalized, so the casing is sometimes surprising - `emailaddress1` -> `EMailAddress1`, `lm_sprache` ->
+`lm_Sprache` (prefix lower, rest PascalCase), while a sibling field is all-lowercase (`lm_shipto_name`), and the
+SAME logical field can be cased differently per entity (`statecode` -> `StateCode` on quote, `statuscode` ->
+`Statuscode` elsewhere). This is deliberate: 1:1 SchemaName keeps members deterministic and collision-free
+(normalizing would reintroduce the ordinal-disambiguation fragility). Do not guess the casing - read the member
+from `generated/forms/<entity>.ts` / `generated/fields/<entity>.ts` or let IDE autocomplete complete it.
+
 ```typescript
 import { AccountFields } from '../../generated/fields/account.js';
 import { AccountNavigationProperties as AccountNav } from '../../generated/fields/account.js';
@@ -355,6 +363,13 @@ instead of widening to `any`. A command registered on a **subgrid** receives a
 `wrapGridCommand` - its error surface is an app-level banner, and its default extra
 argument is the selected record ids (`string[]`).
 
+An **HTML WebResource entry point** (`init`, not a form handler) wraps with
+`wrapWebResource(name, logger, init, { errorTarget? })`. It logs the error and shows it in a
+local DOM element on the WebResource's OWN page (default `#error`, then `#message`, then
+`document.body`) - NOT an app-level banner (no banner spam per embedded frame). The exported
+entry becomes `export const init = wrapWebResource('MyApp.ShowImages.init', logger, async () => { ... });`.
+The quality gate (Check 3l) accepts `wrapHandler` / `wrapCommand` / `wrapGridCommand` / `wrapWebResource`.
+
 ### 8. Custom API Executors from generated/actions/
 
 Never build your own ExecuteFunctionCall wrapper. Use the generated executors.
@@ -377,6 +392,23 @@ const result = await withProgress(
 // Action WITHOUT a typed result (void): just await it, there is no return value.
 await CancelInvoice.execute({ InvoiceId: recordId });
 // WRONG: if (!(await CancelInvoice.execute(...)).ok) { ... }  -> void result has no .ok
+```
+
+**Workflow / System actions have NO generated executor** (Runde 10 FW-7). typegen reads only the
+`customapi` table, so a classic Workflow action (e.g. `markant_WFCreateProjectFromOpportunity`) or an OOB
+system message (e.g. `SendEmail`) has no entry under `generated/actions/` - this is by design, not a
+generation gap (generating every OOB message would bloat `generated/`). Build it by hand with
+`createBoundAction`/`createUnboundAction` and pass the parameter metadata explicitly:
+
+```typescript
+import { createBoundAction, StructuralProperty } from '@xrmforge/helpers';
+
+// OOB SendEmail, bound to the email entity, primitive Boolean parameter.
+const sendEmail = createBoundAction<{ IssueSend: boolean }>('SendEmail', 'email', {
+  IssueSend: { typeName: 'Edm.Boolean', structuralProperty: StructuralProperty.PrimitiveType },
+});
+await sendEmail.execute(emailId, { IssueSend: true });
+// An EntityType parameter uses { typeName: 'mscrm.<entitylogicalname>', structuralProperty: StructuralProperty.EntityType }.
 ```
 
 ### 9. Named constants for ALL non-obvious values
@@ -508,7 +540,7 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 - Never pass a `XxxFields` value to `parseLookup()` (use `XxxNavigationProperties`; a `XxxFields` value is already `_value`-form, so parseLookup double-wraps the key and always returns `null`)
 - Never wrap a `XxxFields` lookup value again as `` `_${XxxFields.X}_value` `` (it is already `_value`-form; double-wrap -> `__..._value_value` -> OData 400). Use the Fields value directly in `$select`/`$filter`; use `XxxNavigationProperties` for `parseLookup`/`$expand`/`@odata.bind`
 - Never raw strings in `$unsafe()` (use Entity-level Fields Enum: `form.$unsafe(AccountFields.X)`)
-- Never manual OData annotation access (`_value`, `@OData.Community.Display.V1.FormattedValue`, `@Microsoft.Dynamics.CRM.lookuplogicalname`). Use `parseLookup()` which extracts all three.
+- Never manual OData annotation access (`_value`, `@OData.Community.Display.V1.FormattedValue`, `@Microsoft.Dynamics.CRM.lookuplogicalname`), and never hand-assemble the annotation key as a concatenated string to sneak past the gate. For a LOOKUP use `parseLookup()` (extracts id + name + entityType). For a non-lookup display label (OptionSet/Virtual/DateTime/Money, e.g. `statecode`, `activitytypecode`) use `parseFormattedValue(response, fieldName)` from `@xrmforge/helpers` - the single allowed place that reads `@OData.Community.Display.V1.FormattedValue`. Useful in read-only HTML WebResources that show a label instead of the raw value.
 - Never hardcode an `@odata.bind` EntitySet plural - the set name is NOT the entity logical name. Resolve it via `(await Xrm.Utility.getEntityMetadata(logicalName)).EntitySetName`, then build `` `${navProperty}@odata.bind`: `/${entitySetName}(${id})` `` (there is no helper: the plural needs a metadata lookup, which is project-specific and worth caching)
 
 **Code quality:**
@@ -516,7 +548,7 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 - Never `eval()`, never synchronous XMLHttpRequest
 - Never hand-write `fetch`/`XMLHttpRequest` for Power Automate cloud-flow HTTP-trigger calls (use `callCloudFlow(flowUrl, body)` from `@xrmforge/helpers`)
 - Never check `.ok`/`.status` or call `.json()` on a Custom API executor result (`execute()` throws on failure; a void action returns nothing, so `if (!resp.ok)` crashes at runtime with `response.json is not a function`)
-- Never hand-build a MultiSelect parser, a set-and-submit (on-form `setAndSubmit`, off-form `setUnsafeAndSubmit`, clear `clearAndSubmit`), an off-form lookup-id read (`formLookupIdUnsafe`/`formLookupUnsafe`), an app notification or self-clearing banner (`addAppNotification`, incl. `{ autoHideMs }`; `AppNotificationLevel`), an environment-variable read (`getEnvironmentVariable`), or an unsaved-record check (`isUnsavedRecord`, handles "" AND null GUID) - all from `@xrmforge/helpers`
+- Never hand-build a MultiSelect parser, a set-and-submit (on-form `setAndSubmit`, off-form `setUnsafeAndSubmit`, clear `clearAndSubmit`), an off-form lookup-id read (`formLookupIdUnsafe`/`formLookupUnsafe`), an app notification or self-clearing banner (`addAppNotification`, incl. `{ autoHideMs }`; clear a persistent one with `clearAppNotification(id)`; `AppNotificationLevel`), an environment-variable read (`getEnvironmentVariable`), or an unsaved-record check (`isUnsavedRecord`, handles "" AND null GUID) - all from `@xrmforge/helpers`
 - Never `getAttribute`/`getControl` with a `XxxFields` lookup value (it is `_value`-form and resolves to `null`); use the form-level `XxxFormFieldsEnum` or `XxxNavigationProperties` (blank). For a runtime/variable control name use the raw `ctx.getFormContext().getControl(name)` (typed `$context` has no string overload)
 - Never `window.X = ...` (use module exports)
 - Never `console.log/warn/error` in form scripts (use shared logger)
@@ -876,6 +908,10 @@ IDE autocomplete. Only keep shared helpers that contain actual domain logic
 15. **`setDisabled()`/`setVisible()` live on `StandardControl`, not the base `Control`.** The typedForm
     `form.controls.x` proxy already returns the typed control; this only bites on a raw `getControl()`
     result, which you then type/cast as `Xrm.Controls.StandardControl` (F-MK9).
+16. **`Xrm.App` is typed non-optional but can be `undefined` at runtime** (mobile clients, older UCI), so a
+    defensive `Xrm.App.clearGlobalNotification(id)` needs a cast to an optional type. Do not hand-cast: use
+    `clearAppNotification(id)` from `@xrmforge/helpers` (it encapsulates the optional access) - the counterpart
+    to `addAppNotification` (which returns the id). Runde 10 FW-4.
 
 ## Build
 
@@ -896,8 +932,17 @@ script) follows the same TypeScript-first split as a form script:
   inline code, no jQuery. esbuild does NOT build the `.html` (static asset); deploy it as its
   own WebResource next to the built JS, which it references via `<script src>`.
 - **Xrm access:** an embedded HTML WebResource reaches the form API via `window.parent.Xrm`
-  (it gets no `executionContext` parameter, unlike a form script). The form script may also
-  inject the context actively (export a `setClientApiContext(...)` the form script calls on open).
+  (it gets no `executionContext` parameter, unlike a form script). Use `parentXrm()` from
+  `@xrmforge/helpers` instead of hand-casting `window.parent` - it returns the parent frame's
+  `Xrm`. The form script may also inject the context actively (export a `setClientApiContext(...)`
+  the form script calls on open).
+- **Hosting record:** `getWebResourceContext()` from `@xrmforge/helpers` returns
+  `{ entityId, entityName }` of the hosting record (brace-stripped id), reading the parent page
+  context once instead of casting `getPageContext().input`.
+- **Entry point:** wrap `init` with `wrapWebResource('Contoso.ShowImages.init', logger, async () => { ... })`
+  (see section 7). Errors surface in a local DOM element, not an app banner.
+- **Display labels:** read OptionSet/Virtual labels (e.g. `statecode`, `activitytypecode`) with
+  `parseFormattedValue(record, fieldName)` - never hand-build the `@OData...FormattedValue` key.
 
 `xrmforge.config.json` entry - same shape as any other module:
 
@@ -911,6 +956,23 @@ raw OData strings). **Modernize legacy HTML WebResources instead of porting 1:1:
 instead of the old `OrganizationData.svc`/2011 endpoints, `fetch` instead of jQuery `$.ajax`,
 `Xrm`/`formContext` instead of `Xrm.Page`, generated enums instead of raw OData strings, no
 `document.all`.
+
+**Testing a WebResource (DOM):** a WebResource `init` touches `document`, so its test needs a DOM
+environment. happy-dom ships as a scaffold devDependency; opt in PER TEST with a pragma so the
+node-default form-script tests stay fast:
+
+```typescript
+// @vitest-environment happy-dom
+import { describe, it, expect, beforeEach } from 'vitest';
+import { setupXrmMock, teardownXrmMock } from '@xrmforge/testing';
+
+beforeEach(() => { document.body.innerHTML = '<div id="content"></div>'; setupXrmMock(); });
+// ... drive init(), then assert on document / mock state; teardownXrmMock() after.
+```
+
+Mock the parent frame by assigning `globalThis.parent` (what `parentXrm()` reads). happy-dom quirk:
+a bare `<tr>` inserted via `insertAdjacentHTML` into a `<tbody>` is not parsed as a `tr` node - assert
+on the row's content, not on the `tr` count.
 
 ## Drift Check (generated/ vs. live environment)
 
@@ -933,7 +995,7 @@ regenerate and commit.
 ```
 src/forms/{entity}-form.ts       - Form scripts (one per entity)
 src/shared/logger.ts             - Structured logger (only file with console.*)
-src/shared/error-handler.ts      - wrapHandler + wrapCommand + wrapGridCommand
+src/shared/error-handler.ts      - wrapHandler + wrapCommand + wrapGridCommand + wrapWebResource
 src/shared/constants.ts          - NOTIFICATION_IDS, MESSAGES, pickLang
 generated/                       - Generated types (do not edit manually)
 tests/forms/{entity}.test.ts     - Tests

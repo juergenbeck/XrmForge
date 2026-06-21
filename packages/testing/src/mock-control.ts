@@ -42,6 +42,7 @@ export class MockControl {
   private _filterXml: string | undefined;
   private _showTime: boolean = false;
   private _refreshCount: number = 0;
+  private _contentWindow: Window = {} as Window;
 
   /**
    * @param name - Logical name of the control (matches the attribute name)
@@ -329,11 +330,30 @@ export class MockControl {
   // --- WebResource/IFrame-specific methods ---
 
   /**
-   * Returns a mock content window for a WebResource or IFrame control.
+   * Returns the mock content window for a WebResource or IFrame control.
    *
-   * @returns Promise resolving to an empty mock Window object
+   * Defaults to an empty object, which does NOT carry the custom methods a
+   * WebResource page exports (e.g. `setClientApiContext`, `getlm_bestellungid`).
+   * Inject a stub that has them via {@link setContentWindow} for WebResource tests
+   * (F-LMA10-06).
+   *
+   * @returns Promise resolving to the configured mock Window (empty by default)
    */
   getContentWindow(): Promise<Window> {
-    return Promise.resolve({} as Window);
+    return Promise.resolve(this._contentWindow);
+  }
+
+  /**
+   * Sets the mock content window returned by {@link getContentWindow}.
+   *
+   * A WebResource page exposes custom methods on its content window (the functions
+   * the form script calls after `getContentWindow()`); the default empty window
+   * does not have them, which previously caused unhandled rejections in
+   * WebResource init tests. Pass a plain object stub carrying those methods.
+   *
+   * @param win - The mock content window (a plain object stub is fine)
+   */
+  setContentWindow(win: Partial<Window> & Record<string, unknown>): void {
+    this._contentWindow = win as Window;
   }
 }

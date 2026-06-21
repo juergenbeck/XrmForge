@@ -1,5 +1,13 @@
 # @xrmforge/cli
 
+## 0.8.21
+
+### Patch Changes
+
+- Propagate `@xrmforge/devkit@0.7.35` (HTML WebResources first-class in the scaffold: `wrapWebResource`,
+  Check-3l wrapper list, `lint`/`validate:form` scripts, happy-dom, AGENT.md updates; Runde 10 OE-14). No cli
+  source change.
+
 ## 0.8.20
 
 ### Patch Changes

@@ -76,8 +76,11 @@ export type { CloudFlowOptions } from './cloud-flow.js';
 export { clearAndSubmit, setUnsafeAndSubmit, setAndSubmit } from './form-submit.js';
 
 // App-level (global) notification helper
-export { addAppNotification } from './app-notification.js';
+export { addAppNotification, clearAppNotification } from './app-notification.js';
 export type { AppNotificationOptions } from './app-notification.js';
+
+// HTML WebResource context helpers (parent Xrm + hosting record)
+export { parentXrm, getWebResourceContext } from './webresource.js';
 
 // Environment variable reader (definition + value, cached)
 export { getEnvironmentVariable, clearEnvironmentVariableCache } from './environment.js';

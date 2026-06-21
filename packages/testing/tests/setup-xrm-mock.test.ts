@@ -245,3 +245,50 @@ describe('teardownXrmMock', () => {
     await expect(res.json()).resolves.toEqual({ IsValid: true });
   });
 });
+
+describe('setupXrmMock Xrm.App', () => {
+  it('provides add/clearGlobalNotification and assigns a unique id per add', async () => {
+    setupXrmMock();
+    const app = (globalThis as any).Xrm.App;
+
+    const id1 = await app.addGlobalNotification({ message: 'Polling A', level: 4, type: 2 });
+    const id2 = await app.addGlobalNotification({ message: 'Polling B', level: 4, type: 2 });
+
+    expect(id1).not.toBe(id2);
+    expect(app.getGlobalNotifications()).toHaveLength(2);
+    expect(app.getGlobalNotifications()[0].notification.message).toBe('Polling A');
+  });
+
+  it('clearGlobalNotification removes the tracked notification by id', async () => {
+    setupXrmMock();
+    const app = (globalThis as any).Xrm.App;
+
+    const id = await app.addGlobalNotification({ message: 'Done soon', level: 4, type: 2 });
+    expect(app.getGlobalNotifications()).toHaveLength(1);
+
+    await app.clearGlobalNotification(id);
+    expect(app.getGlobalNotifications()).toHaveLength(0);
+  });
+
+  it('resets tracking between setup cycles', async () => {
+    setupXrmMock();
+    await (globalThis as any).Xrm.App.addGlobalNotification({ message: 'first cycle' });
+    teardownXrmMock();
+
+    setupXrmMock();
+    expect((globalThis as any).Xrm.App.getGlobalNotifications()).toHaveLength(0);
+  });
+
+  it('applies appOverrides (replacement does not track)', async () => {
+    setupXrmMock({
+      appOverrides: {
+        addGlobalNotification: async () => 'fixed-id',
+      },
+    });
+    const app = (globalThis as any).Xrm.App;
+
+    const id = await app.addGlobalNotification({ message: 'X' });
+    expect(id).toBe('fixed-id');
+    expect(app.getGlobalNotifications()).toHaveLength(0);
+  });
+});

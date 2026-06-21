@@ -66,3 +66,29 @@ export async function addAppNotification(
   }
   return id;
 }
+
+/**
+ * Clear a global app-level notification banner by its id.
+ *
+ * The additive counterpart to {@link addAppNotification} (which already returns
+ * the id). Use it for persistent status banners (polling, long-running cloud
+ * flows) that have to be removed explicitly - the `autoHideMs` option covers the
+ * fire-and-forget case, so the three lifecycles (auto-hide / manual-clear /
+ * fire-and-forget) are now all covered without a hand-rolled `setTimeout`.
+ *
+ * `Xrm.App` is typed as non-optional in @types/xrm but can be `undefined` at
+ * runtime (mobile clients, older UCI). The defensive optional access is
+ * encapsulated here, once, so callers never cast it (see AGENT.md pitfall).
+ *
+ * @param id - The notification id returned by {@link addAppNotification}
+ *
+ * @example
+ * const id = await addAppNotification(lang.polling, AppNotificationLevel.Information);
+ * // ... later, when the long-running operation finishes:
+ * await clearAppNotification(id);
+ */
+export async function clearAppNotification(id: string): Promise<void> {
+  // Xrm.App is non-optional in the typings but may be undefined at runtime.
+  const app = (Xrm as { App?: { clearGlobalNotification?: (uniqueId: string) => Xrm.Async.PromiseLike<unknown> } }).App;
+  await app?.clearGlobalNotification?.(id);
+}

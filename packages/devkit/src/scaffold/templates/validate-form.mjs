@@ -22,6 +22,13 @@ const GREEN = '\x1b[32m';
 const YELLOW = '\x1b[33m';
 const NC = '\x1b[0m';
 
+// Error-handling wrappers an exported entry point may use (Check 3l). Single
+// source of truth - keep in sync with src/shared/error-handler.ts. wrapGridCommand
+// (subgrid ribbon commands, F-MK9-02) and wrapWebResource (HTML WebResource init,
+// Runde 10 F-LMA10-02) are NOT substrings of wrapCommand, so they must be listed
+// explicitly or the gate false-flags correct code (FW-3 / F-LMA10-02).
+const HANDLER_WRAPPERS = ['wrapHandler', 'wrapCommand', 'wrapGridCommand', 'wrapWebResource'];
+
 let totalErrors = 0;
 
 // ============================================================
@@ -249,11 +256,11 @@ checkPattern(
 
 // ── Handler Pattern ──────────────────────────────────────────────────────────
 
-// 3l. Exported handlers without wrapHandler or wrapCommand
+// 3l. Exported handlers/commands/WebResource entries without an error-handling wrapper
 checkPattern(
-  'Exported handlers without wrapHandler/wrapCommand',
+  `Exported entry without an error-handling wrapper (${HANDLER_WRAPPERS.join('/')})`,
   formFiles,
-  /^export\s+(const|async\s+function|function)\s+\w+(?!.*(?:wrapHandler|wrapCommand))/,
+  new RegExp(`^export\\s+(const|async\\s+function|function)\\s+\\w+(?!.*(?:${HANDLER_WRAPPERS.join('|')}))`),
   [],
   [
     // Re-exports: `export const form_OnLoad = onLoad;` (alias for a wrapped handler)

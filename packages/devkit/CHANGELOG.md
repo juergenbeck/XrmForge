@@ -1,5 +1,24 @@
 # @xrmforge/devkit
 
+## 0.7.35
+
+### Patch Changes
+
+- Make HTML WebResources first-class in the scaffold (Runde 10, OE-14). Template/scaffold only:
+  - `error-handler.ts`: add `wrapWebResource(name, logger, init, { errorTarget? })` - wraps a WebResource
+    `init` entry point, surfacing errors in a local DOM element (default `#error`/`#message`/`document.body`),
+    not an app banner.
+  - `validate-form.mjs`: Check 3l now accepts `wrapHandler|wrapCommand|wrapGridCommand|wrapWebResource` from a
+    single shared list, fixing the false positives on `wrapGridCommand` (FW-3) and on a wrapped WebResource
+    `init` (F-LMA10-02).
+  - `package.json` scripts: add `lint` (`eslint . --max-warnings=0`) and rename `validate` -> `validate:form`
+    (FW-1). Add `happy-dom` (^16, the newest Node-18-compatible major) as a test devDependency for WebResource
+    DOM tests (F-LMA10-07). Bump scaffold pins to `@xrmforge/helpers@^0.14.0` and `@xrmforge/testing@^0.7.0`.
+  - `AGENT.md`: document `parseFormattedValue` (the one allowed place for non-lookup display labels, F-LMA10-01),
+    `parentXrm()`/`getWebResourceContext()`, `wrapWebResource`, the per-test happy-dom pragma, `clearAppNotification`
+    + the `Xrm.App` optional-at-runtime pitfall (FW-4), the SchemaName-casing "read, do not guess" rule (FW-6),
+    and that Workflow/System actions have no generated executor (FW-7, with a hand-built `createBoundAction` example).
+
 ## 0.7.34
 
 ### Patch Changes

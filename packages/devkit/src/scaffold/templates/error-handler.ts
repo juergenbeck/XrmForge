@@ -111,6 +111,44 @@ export function wrapGridCommand<TArgs extends unknown[] = [string[]]>(
   };
 }
 
+/**
+ * Wrap an HTML WebResource entry point (`init`) with error handling.
+ *
+ * An embedded HTML WebResource has no form `ui` and should not spam the app-level
+ * notification banner (one per embedded frame). Errors are logged and shown in a
+ * local DOM element on the WebResource's own page: the first of `errorTarget`,
+ * `#error`, `#message`, or `document.body` that exists.
+ *
+ * The entry point becomes:
+ * `export const init = wrapWebResource('MyApp.ShowImages.init', logger, async () => { ... });`
+ *
+ * @param name - WebResource name for logging (e.g. 'MyApp.ShowImages.init')
+ * @param logger - Logger instance for error reporting
+ * @param init - The WebResource init function (sync or async)
+ * @param options - Optional settings; `errorTarget` is a CSS selector for the element
+ *   that receives the error text (default: `#error`, then `#message`, then `document.body`)
+ */
+export function wrapWebResource(
+  name: string,
+  logger: Logger,
+  init: () => unknown,
+  options: { errorTarget?: string } = {},
+): () => unknown {
+  return () => {
+    try {
+      const result = init();
+      if (result && typeof (result as Promise<unknown>).then === 'function') {
+        return (result as Promise<unknown>).catch((err: unknown) => {
+          logAndShowInPage(name, logger, err, options.errorTarget);
+        });
+      }
+      return result;
+    } catch (err: unknown) {
+      logAndShowInPage(name, logger, err, options.errorTarget);
+    }
+  };
+}
+
 function logAndNotify(
   ctx: Xrm.Events.EventContext,
   name: string,
@@ -155,4 +193,26 @@ function logAndNotifyApp(name: string, logger: Logger, err: unknown): void {
   void addAppNotification(message, AppNotificationLevel.Error).catch(() => {
     /* ignore */
   });
+}
+
+/**
+ * Log an error and show it in a local DOM element on the WebResource page.
+ *
+ * Used by {@link wrapWebResource}: an embedded WebResource reports its own errors
+ * in its own page (no form `ui`, no app-banner spam). Picks the first existing of
+ * `errorTarget`, `#error`, `#message`, or `document.body`.
+ */
+function logAndShowInPage(name: string, logger: Logger, err: unknown, errorTarget?: string): void {
+  const message = err instanceof Error ? err.message : String(err);
+  logger.error(`${name} failed`, { err });
+  try {
+    const el =
+      (errorTarget ? document.querySelector(errorTarget) : null) ??
+      document.querySelector('#error') ??
+      document.querySelector('#message') ??
+      document.body;
+    if (el) el.textContent = message;
+  } catch {
+    /* no DOM available */
+  }
 }

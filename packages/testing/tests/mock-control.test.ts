@@ -200,4 +200,18 @@ describe('MockControl', () => {
     ctrl.refresh();
     expect(ctrl.getRefreshCount()).toBe(2);
   });
+
+  it('getContentWindow defaults to an empty window (WebResource/IFrame)', async () => {
+    const ctrl = new MockControl('WebResource_images');
+    await expect(ctrl.getContentWindow()).resolves.toEqual({});
+  });
+
+  it('setContentWindow injects a stub carrying the WebResource custom methods (F-LMA10-06)', async () => {
+    const ctrl = new MockControl('WebResource_terminassistent');
+    const setClientApiContext = (): void => undefined;
+    ctrl.setContentWindow({ setClientApiContext });
+
+    const win = (await ctrl.getContentWindow()) as unknown as { setClientApiContext: () => void };
+    expect(win.setClientApiContext).toBe(setClientApiContext);
+  });
 });

@@ -1,5 +1,20 @@
 # @xrmforge/helpers
 
+## 0.14.0
+
+### Minor Changes
+
+- Add `clearAppNotification(id)` (Runde 10 FW-4): the additive, non-breaking counterpart to
+  `addAppNotification` (which already returns the id). Removes a persistent status banner explicitly
+  (polling, long-running cloud flows); together with `autoHideMs` it covers all three banner lifecycles
+  (auto-hide / manual-clear / fire-and-forget). Encapsulates the defensive `Xrm.App` access once - `Xrm.App`
+  is typed non-optional but can be `undefined` at runtime (mobile, older UCI), so callers no longer cast.
+- Add `parentXrm()` and `getWebResourceContext()` (Runde 10 F-LMA10-03): browser-safe helpers for embedded
+  HTML WebResources. `parentXrm()` returns the host form API reached via `window.parent.Xrm` (a WebResource in
+  a form IFrame gets no `executionContext`); `getWebResourceContext()` returns the hosting record
+  `{ entityId, entityName }` from the parent page context (brace-stripped id). Both encapsulate a cast that
+  @types/xrm does not type tightly enough, so WebResource code stays cast-free.
+
 ## 0.13.1
 
 ### Patch Changes

@@ -71,6 +71,17 @@ export interface SetupXrmMockOptions {
     getEntityMetadata: (entityName: string, attributes?: string[]) => Promise<Record<string, unknown>>;
     lookupObjects: (lookupOptions: unknown) => Promise<Record<string, unknown>[]>;
   }>;
+  /** Override specific Xrm.App methods (the tracking default is replaced when overridden). */
+  appOverrides?: Partial<{
+    addGlobalNotification: (notification: unknown) => Promise<string>;
+    clearGlobalNotification: (uniqueId: string) => Promise<void>;
+  }>;
+}
+
+/** A tracked global (app-level) notification: its assigned id and the raw notification object. */
+export interface TrackedAppNotification {
+  id: string;
+  notification: unknown;
 }
 
 /**
@@ -160,9 +171,29 @@ export function setupXrmMock(options?: SetupXrmMockOptions): void {
     }),
   };
 
+  // Track app-level notifications so polling/cloud-flow tests can assert on them
+  // (analogous to mock.ui.getFormNotification). Each add gets a unique id; clear
+  // removes it. getGlobalNotifications() returns the currently active ones.
+  const notifications: TrackedAppNotification[] = [];
+  let notificationCounter = 0;
   const app = {
-    addGlobalNotification: async () => '1',
-    clearGlobalNotification: async () => undefined,
+    addGlobalNotification: options?.appOverrides?.addGlobalNotification
+      ?? (async (notification: unknown) => {
+        const id = `app-notification-${++notificationCounter}`;
+        notifications.push({ id, notification });
+        return id;
+      }),
+    clearGlobalNotification: options?.appOverrides?.clearGlobalNotification
+      ?? (async (uniqueId: string) => {
+        const index = notifications.findIndex((n) => n.id === uniqueId);
+        if (index >= 0) notifications.splice(index, 1);
+      }),
+    /**
+     * Tracking accessor (not part of @types/xrm `Xrm.App`): the currently active
+     * tracked notifications. Cast `Xrm.App` to reach it in a test. Only meaningful
+     * with the default add/clear (an `appOverrides` replacement does not track).
+     */
+    getGlobalNotifications: (): TrackedAppNotification[] => notifications.map((n) => ({ ...n })),
   };
 
   const xrmMock = {
