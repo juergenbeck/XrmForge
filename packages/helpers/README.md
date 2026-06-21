@@ -25,11 +25,16 @@ Install as a regular **dependency** (not `devDependency`): generated Custom API 
 
 | Area | Exports |
 |------|---------|
-| Web API query strings | `select`, `selectExpand`, `parseLookup`, `parseLookups`, `parseFormattedValue`, `parseMultiSelect`, `formLookup`, `formLookupId` |
-| Typed form proxy | `typedForm`, `normalizeGuid`, types `TypedForm`, `FormTypeInfoProtocol` |
+| Web API query strings | `select`, `selectExpand`, `parseLookup`, `parseLookups`, `parseFormattedValue`, `parseMultiSelect`, `expanded`, `expandedMany` |
+| Form lookups | `formLookup`, `formLookupId`, `formLookupIdUnsafe`, `formLookupUnsafe` |
+| Typed form proxy | `typedForm`, `normalizeGuid`, `isUnsavedRecord`, types `TypedForm`, `FormFields`, `FormTypeInfoProtocol` |
 | Xrm constants (`const enum`) | `DisplayState`, `FormType`, `isFormType`, `FormNotificationLevel`, `AppNotificationLevel`, `RequiredLevel`, `SubmitMode`, `SaveMode`, `ClientType`, `ClientState`, `OperationType`, `StructuralProperty`, `BindingType` |
 | Custom API runtime | `createBoundAction`, `createUnboundAction`, `createBoundFunction`, `createUnboundFunction`, `executeRequest`, `executeMultiple` |
-| Convenience | `withProgress`, `callCloudFlow`, `clearAndSubmit`, `setUnsafeAndSubmit`, `addAppNotification` |
+| Attribute submit | `setAndSubmit`, `setUnsafeAndSubmit`, `clearAndSubmit` |
+| App notifications | `addAppNotification`, `clearAppNotification` |
+| HTML WebResource context | `parentXrm`, `getWebResourceContext` |
+| Environment variables | `getEnvironmentVariable`, `clearEnvironmentVariableCache` |
+| Convenience | `withProgress`, `callCloudFlow` |
 
 ---
 
@@ -137,7 +142,7 @@ You can also build executors by hand with `createBoundAction` / `createUnboundAc
 ## Convenience helpers
 
 ```typescript
-import { withProgress, callCloudFlow, clearAndSubmit, setUnsafeAndSubmit, addAppNotification, AppNotificationLevel } from '@xrmforge/helpers';
+import { withProgress, callCloudFlow, clearAndSubmit, setUnsafeAndSubmit, addAppNotification, clearAppNotification, AppNotificationLevel } from '@xrmforge/helpers';
 
 // Progress spinner around an async operation (errors propagate to your handler wrapper)
 await withProgress('Processing...', () => WinQuote.execute(quoteId));
@@ -149,9 +154,29 @@ const price = await callCloudFlow<{ quoteId: string }, { total: number }>(FLOW_U
 clearAndSubmit(form.revenue);
 setUnsafeAndSubmit(form, OpportunityFields.VslBeauftragung, closeDate);
 
-// Global banner notification
-await addAppNotification('Saved.', AppNotificationLevel.Success, { showCloseButton: true });
+// Global banner notification - addAppNotification returns the id, clearAppNotification removes it.
+// (Use { autoHideMs } for a self-clearing banner; clearAppNotification handles the persistent case.)
+const id = await addAppNotification('Saved.', AppNotificationLevel.Success, { showCloseButton: true });
+await clearAppNotification(id);
 ```
+
+---
+
+## HTML WebResource context
+
+An embedded HTML WebResource (a page in a form IFrame or the sitemap) gets no `executionContext`. These
+helpers reach the host form API and the hosting record without hand-casting `window.parent` or the page context:
+
+```typescript
+import { parentXrm, getWebResourceContext, select } from '@xrmforge/helpers';
+
+const { entityId, entityName } = getWebResourceContext();   // hosting record (brace-stripped id)
+if (entityId) {
+  const record = await parentXrm().WebApi.retrieveRecord(entityName, entityId, select(/* ... */));
+}
+```
+
+Both are browser-safe (zero Node.js dependencies, fine in esbuild IIFE bundles).
 
 ---
 

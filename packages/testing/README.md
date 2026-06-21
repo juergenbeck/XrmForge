@@ -104,13 +104,24 @@ setupXrmMock({
 });
 ```
 
-Override groups: `webApiOverrides`, `navigationOverrides`, `utilityOverrides`, and `globalContextOverrides` (client URL, language, user, security roles). Methods are plain functions, not spies -- wrap them in `vi.fn()` yourself if you need call assertions.
+Override groups: `webApiOverrides`, `navigationOverrides`, `utilityOverrides`, `appOverrides`, and `globalContextOverrides` (client URL, language, user, security roles). Methods are plain functions, not spies -- wrap them in `vi.fn()` yourself if you need call assertions.
+
+`Xrm.App` notifications are tracked: the default `addGlobalNotification` assigns a unique id per call and records the notification, `clearGlobalNotification` removes it by id, and `Xrm.App.getGlobalNotifications()` returns the active ones -- so polling / cloud-flow tests can assert on banners without stubbing `Xrm.App` themselves:
+
+```typescript
+setupXrmMock();
+const id = await (globalThis as any).Xrm.App.addGlobalNotification({ message: 'Polling...' });
+// ... code under test runs, then finishes and clears the banner ...
+expect((globalThis as any).Xrm.App.getGlobalNotifications()).toHaveLength(0);
+```
+
+For an HTML WebResource / IFrame control, inject the content window your code expects with `control.setContentWindow({ setClientApiContext, /* ... */ })`; `getContentWindow()` returns it (default: an empty window).
 
 ---
 
 ## Exports
 
-`createFormMock`, `setupXrmMock`, `teardownXrmMock`, the mock classes `MockAttribute`, `MockControl`, `MockEntity`, `MockUi`, `MockEventContext`, and the types `FormMock`, `CreateFormMockOptions`, `MockTabConfig`, `MockSectionConfig`, `FormNotification`, `SetupXrmMockOptions`.
+`createFormMock`, `setupXrmMock`, `teardownXrmMock`, the mock classes `MockAttribute`, `MockControl`, `MockEntity`, `MockUi`, `MockEventContext`, and the types `FormMock`, `CreateFormMockOptions`, `MockTabConfig`, `MockSectionConfig`, `FormNotification`, `SetupXrmMockOptions`, `TrackedAppNotification`.
 
 ## Documentation
 

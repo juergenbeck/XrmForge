@@ -6,10 +6,10 @@
 
 - `setupXrmMock` now tracks app-level notifications (Runde 10 FW-5): the default `Xrm.App.addGlobalNotification`
   assigns a unique id per call and records the notification, `clearGlobalNotification` removes it by id, and
-  `Xrm.App.getGlobalNotifications()` returns the active ones - so polling / cloud-flow tests can assert on
-  banners (analogous to `mock.ui.getFormNotification`). The previous default returned a constant `'1'` and did
-  not track. New `appOverrides` option to replace add/clear. Existing behaviour for callers that ignored the
-  return value is unchanged.
+  `Xrm.App.getGlobalNotifications()` returns the active ones (typed `TrackedAppNotification[]`, now exported) -
+  so polling / cloud-flow tests can assert on banners (analogous to `mock.ui.getFormNotification`). The previous
+  default returned a constant `'1'` and did not track. New `appOverrides` option to replace add/clear. Existing
+  behaviour for callers that ignored the return value is unchanged.
 - `MockControl`: add `setContentWindow(win)` (Runde 10 F-LMA10-06): inject a content-window stub carrying the
   custom methods a WebResource page exports (`setClientApiContext` etc.). `getContentWindow()` returns it
   instead of always an empty object, which previously caused unhandled rejections in WebResource init tests.
