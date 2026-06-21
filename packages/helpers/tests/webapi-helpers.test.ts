@@ -62,6 +62,13 @@ describe('expanded', () => {
   it('should return null when the nav property is an array (use expandedMany)', () => {
     expect(expanded<Contact>({ contacts: [{ fullname: 'A' }] }, 'contacts')).toBeNull();
   });
+
+  it('should return the object (not null) when the nav property is an empty object', () => {
+    // A literal {} is a valid Partial<T> (all fields absent). Dataverse returns
+    // null for an empty single-valued expansion, so this is an edge case; the
+    // contract is that ONLY absent/null/array map to null, never an object.
+    expect(expanded<Contact>({ primarycontactid: {} }, 'primarycontactid')).toEqual({});
+  });
 });
 
 describe('expandedMany', () => {

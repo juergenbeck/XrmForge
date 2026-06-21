@@ -1,5 +1,12 @@
 # @xrmforge/cli
 
+## 0.8.19
+
+### Patch Changes
+
+- Propagate `@xrmforge/typegen@0.14.1` (metadata cache version bump, invalidates stale pre-0.14.0 caches so
+  the F-MK9-09 MultiSelect fix is not masked, R46-01). No cli source change.
+
 ## 0.8.18
 
 ### Patch Changes

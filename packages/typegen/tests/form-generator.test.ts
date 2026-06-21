@@ -135,6 +135,46 @@ describe('generateFormInterface', () => {
     expect(result).toContain("Telephone1 = 'telephone1',");
   });
 
+  it('Fields enum: multi-part SchemaName is used verbatim as member', () => {
+    const form = createForm('Account', ['markant_afeedback_israted']);
+    const attrMap = new Map<string, AttributeMetadata>([
+      ['markant_afeedback_israted', { ...createAttr('markant_afeedback_israted', 'Boolean'), SchemaName: 'markant_AFeedback_IsRated' }],
+    ]);
+
+    const result = generateFormInterface(form, 'account', attrMap);
+
+    expect(result).toContain("markant_AFeedback_IsRated = 'markant_afeedback_israted',");
+  });
+
+  it('Fields enum: empty SchemaName falls back to the PascalCased field name', () => {
+    // Defensive: real metadata always provides SchemaName; an empty one must still
+    // yield a valid, guessable member (same fallback as the entity-level enum).
+    const form = createForm('Account', ['markant_foo']);
+    const attrMap = new Map<string, AttributeMetadata>([
+      ['markant_foo', { ...createAttr('markant_foo', 'String'), SchemaName: '' }],
+    ]);
+
+    const result = generateFormInterface(form, 'account', attrMap);
+
+    expect(result).toContain("MarkantFoo = 'markant_foo',");
+  });
+
+  it('Fields enum: defensive guard disambiguates colliding SchemaNames via field name', () => {
+    // Cannot happen with real metadata (SchemaNames unique per entity), but the
+    // guard must stay deterministic. Both fields carry SchemaName 'Dup'; foo_a
+    // sorts first, so it keeps 'Dup' and foo_b gets the field-name suffix.
+    const form = createForm('Account', ['foo_a', 'foo_b']);
+    const attrMap = new Map<string, AttributeMetadata>([
+      ['foo_a', { ...createAttr('foo_a', 'String'), SchemaName: 'Dup' }],
+      ['foo_b', { ...createAttr('foo_b', 'String'), SchemaName: 'Dup' }],
+    ]);
+
+    const result = generateFormInterface(form, 'account', attrMap);
+
+    expect(result).toContain("Dup = 'foo_a',");
+    expect(result).toContain("Dup_foo_b = 'foo_b',");
+  });
+
   it('should generate dual-language labels in Fields enum', () => {
     const form = createForm('Account', ['name']);
     const attrMap = new Map<string, AttributeMetadata>([

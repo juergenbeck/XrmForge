@@ -230,6 +230,33 @@ describe('MetadataClient.getEntityWithAttributes - multi-select normalization (F
     // unrelated attributes are untouched
     expect(entity.Attributes!.find((a) => a.LogicalName === 'markant_name')!.AttributeType).toBe('String');
   });
+
+  it('should NOT rewrite a Virtual attribute without the multi-select @odata.type', async () => {
+    // Several attribute types share AttributeType 'Virtual' (image, file, calculated);
+    // only the MultiSelect @odata.type may be normalized. A genuine Virtual attribute,
+    // and a Virtual one carrying a DIFFERENT @odata.type, must both stay 'Virtual'.
+    mockFetchSequence({
+      status: 200,
+      body: {
+        LogicalName: 'markant_projectgroup', SchemaName: 'markant_ProjectGroup', EntitySetName: 'markant_projectgroups',
+        DisplayName: { UserLocalizedLabel: { Label: 'Project Group', LanguageCode: 1033 }, LocalizedLabels: [] },
+        PrimaryIdAttribute: 'markant_projectgroupid', PrimaryNameAttribute: 'markant_name', MetadataId: 'e-1',
+        Attributes: [
+          { LogicalName: 'markant_image', SchemaName: 'markant_Image', AttributeType: 'Virtual', MetadataId: 'a-1' },
+          {
+            '@odata.type': '#Microsoft.Dynamics.CRM.ImageAttributeMetadata',
+            LogicalName: 'markant_photo', SchemaName: 'markant_Photo', AttributeType: 'Virtual', MetadataId: 'a-2',
+          },
+        ],
+      },
+    });
+
+    const client = createClient();
+    const entity = await client.getEntityWithAttributes('markant_projectgroup');
+
+    expect(entity.Attributes!.find((a) => a.LogicalName === 'markant_image')!.AttributeType).toBe('Virtual');
+    expect(entity.Attributes!.find((a) => a.LogicalName === 'markant_photo')!.AttributeType).toBe('Virtual');
+  });
 });
 
 // ─── Lookup Attributes ───────────────────────────────────────────────────────

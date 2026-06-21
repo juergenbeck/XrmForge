@@ -42,7 +42,14 @@ interface CacheData {
 
 const CACHE_DIR = '.xrmforge/cache';
 const CACHE_FILE = 'metadata.json';
-const CACHE_VERSION = '1';
+// Bump whenever the cached EntityTypeInfo shape or the on-load normalization
+// semantics change, so stale caches from an older typegen are discarded (full
+// reload) instead of silently masking new behaviour.
+// '2' (typegen 0.14.1, R46-01): EntityTypeInfo gained multiSelectPicklistAttributes
+// and MultiSelect attributes are normalized Virtual -> MultiSelectPicklist on load
+// (F-MK9-09). A '1' cache lacks the field and keeps MultiSelect attributes as
+// 'Virtual', so an unchanged-from-cache entity would miss the fix.
+const CACHE_VERSION = '2';
 
 // ─── Cache Manager ───────────────────────────────────────────────────────────
 

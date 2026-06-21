@@ -1,5 +1,17 @@
 # @xrmforge/typegen
 
+## 0.14.1
+
+### Patch Changes
+
+- **Bump metadata cache version to invalidate pre-0.14.0 caches (R46-01).** 0.14.0 added
+  `multiSelectPicklistAttributes` to the cached `EntityTypeInfo` and started normalizing MultiSelect
+  attributes (`Virtual` -> `MultiSelectPicklist`) on load. The cache manifest version was not bumped, so with
+  `useCache: true` a cache written by an older typegen was accepted as compatible and an unchanged-from-cache
+  entity silently missed the F-MK9-09 fix (no MultiSelect OptionSet enum, the field stayed `unknown` instead
+  of `string`). `CACHE_VERSION` is now `'2'`, so stale caches are discarded and fully reloaded. No API or
+  output change for non-cache or fresh-cache runs.
+
 ## 0.14.0
 
 ### Minor Changes

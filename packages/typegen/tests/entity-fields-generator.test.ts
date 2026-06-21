@@ -213,4 +213,16 @@ describe('generateEntityFieldsEnum', () => {
     expect(result).toContain("Dup = 'foo_a',");
     expect(result).toContain("Dup_foo_b = 'foo_b',");
   });
+
+  it('SchemaName fallback: empty SchemaName falls back to the PascalCased LogicalName', () => {
+    // Real Dataverse always provides SchemaName (typed required). This guards an
+    // incomplete API response so the member stays a valid, guessable identifier.
+    const info = createEntityInfo([
+      createAttr({ LogicalName: 'markant_foo', SchemaName: '', AttributeType: 'String', DisplayName: { LocalizedLabels: [{ Label: 'Foo', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+    ]);
+
+    const result = generateEntityFieldsEnum(info);
+
+    expect(result).toContain("MarkantFoo = 'markant_foo',");
+  });
 });
