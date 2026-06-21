@@ -24,16 +24,16 @@
  * ```
  */
 
-import type { AttributeMetadata, EntityTypeInfo } from '../metadata/types.js';
+import type { EntityTypeInfo } from '../metadata/types.js';
 import {
   toPascalCase,
-  toSafeIdentifier,
   shouldIncludeInEntityInterface,
   isLookupType,
   toLookupValueProperty,
 } from './type-mapping.js';
 import {
   formatDualLabel,
+  buildAttributeMemberName,
   type LabelConfig,
   DEFAULT_LABEL_CONFIG,
 } from './label-utils.js';
@@ -42,19 +42,6 @@ import {
 export interface EntityFieldsGeneratorOptions {
   /** Label configuration for dual-language JSDoc comments */
   labelConfig?: LabelConfig;
-}
-
-/**
- * Build the enum member name for an attribute from its SchemaName.
- *
- * SchemaNames are valid identifiers and unique per entity, so this is
- * deterministic and collision-free. Falls back to a PascalCased LogicalName
- * only if the SchemaName is missing (defensive; should not happen with real
- * metadata).
- */
-function attributeMemberName(attr: AttributeMetadata): string {
-  const fromSchema = attr.SchemaName ? toSafeIdentifier(attr.SchemaName) : '';
-  return fromSchema || toPascalCase(attr.LogicalName);
 }
 
 /**
@@ -88,16 +75,8 @@ export function generateEntityFieldsEnum(
     const isLookup = isLookupType(attr.AttributeType);
     const propertyName = isLookup ? toLookupValueProperty(attr.LogicalName) : attr.LogicalName;
 
-    // Member name = SchemaName (deterministic, unique, guessable)
-    let memberName = attributeMemberName(attr);
-
-    // Defensive deterministic guard. SchemaNames are unique per entity, so this
-    // never fires in practice; if it ever did, the LogicalName (also unique)
-    // makes the member unambiguous without an order-dependent ordinal.
-    while (usedNames.has(memberName)) {
-      memberName = `${memberName}_${toSafeIdentifier(attr.LogicalName)}`;
-    }
-    usedNames.add(memberName);
+    // Member name = SchemaName (deterministic, unique, guessable), shared helper (R46-07)
+    const memberName = buildAttributeMemberName(attr.SchemaName, attr.LogicalName, usedNames);
 
     // Dual-language JSDoc carries the human-readable label (IDE tooltip)
     const dualLabel = formatDualLabel(attr.DisplayName, labelConfig);
@@ -161,14 +140,8 @@ export function generateEntityNavigationProperties(
   const usedNames = new Set<string>();
 
   for (const attr of lookupAttrs) {
-    // Member name = SchemaName (deterministic, unique, guessable)
-    let memberName = attributeMemberName(attr);
-
-    // Defensive deterministic guard (see generateEntityFieldsEnum)
-    while (usedNames.has(memberName)) {
-      memberName = `${memberName}_${toSafeIdentifier(attr.LogicalName)}`;
-    }
-    usedNames.add(memberName);
+    // Member name = SchemaName (deterministic, unique, guessable), shared helper (R46-07)
+    const memberName = buildAttributeMemberName(attr.SchemaName, attr.LogicalName, usedNames);
 
     // Dual-language JSDoc carries the human-readable label (IDE tooltip)
     const dualLabel = formatDualLabel(attr.DisplayName, labelConfig);

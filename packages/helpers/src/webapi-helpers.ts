@@ -206,7 +206,8 @@ export function selectExpand(fields: string[], expand: string): string {
  *
  * @param entity - The raw Web API response object (the parent record)
  * @param nav - Navigation property name (use a `XxxNavigationProperties` member)
- * @returns The expanded record as `Partial<T>`, or `null` if absent/empty
+ * @returns The expanded record as `Partial<T>`, or `null` if the nav property is
+ *   absent, `null`, or an array (a present object, even `{}`, is returned as-is)
  *
  * @example
  * ```typescript

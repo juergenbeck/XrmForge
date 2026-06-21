@@ -308,6 +308,24 @@ for (const c of expandedMany<Contact>(account, 'contact_customer_accounts')) { c
 const c = account['primarycontactid'] as { fullname?: string };
 ```
 
+**Polymorphic lookups (`customerid`, `ownerid`, `regardingobjectid`) need a target-qualified
+`$expand` name, not the blank `XxxNavigationProperties` value.** A polymorphic lookup can resolve to
+several entity types, so Dataverse exposes one single-valued navigation property PER target, named
+`<lookup>_<targetentity>` (e.g. `customerid_account`, `customerid_contact`). The generated
+`XxxNavigationProperties` enum carries only the blank logical name (`customerid`) - correct for
+`parseLookup`, `@odata.bind` and `$unsafe`, but NOT a valid `$expand` path for a polymorphic lookup.
+Name the target-qualified property directly and read it back with that same key (the blank value
+stays correct for `parseLookup` on the parent record):
+
+```typescript
+// customerid (account | contact): expand the concrete target, not AccountNav.CustomerId
+const order = await Xrm.WebApi.retrieveRecord(EntityNames.SalesOrder, id,
+  selectExpand([SalesOrderFields.Name], `customerid_account($select=${AccountFields.Name})`));
+const customer = expanded<Account>(order, 'customerid_account'); // target-qualified key
+```
+
+(Single-target lookups like `primarycontactid` keep using the blank `XxxNavigationProperties` value.)
+
 ### 6b. Web API response typing with generated Entity interfaces
 
 Always type Web API responses with generated Entity interfaces. Never access properties with `as string` casts.
@@ -865,6 +883,34 @@ IDE autocomplete. Only keep shared helpers that contain actual domain logic
 npx xrmforge build               # IIFE bundles for D365
 npx xrmforge build --watch        # Watch mode (~10ms rebuilds)
 ```
+
+## HTML WebResources (standalone HTML pages)
+
+An HTML WebResource (a standalone page in a form IFrame or the sitemap, not a form
+script) follows the same TypeScript-first split as a form script:
+
+- **TypeScript module** (`src/<name>.ts`): all logic, built as its own esbuild IIFE
+  entry with its own `globalName` (e.g. `Contoso.ShowImages`) - exactly like a form-script entry.
+- **HTML shell** (`src/<name>.html`): markup only, plus a `<script src="...">` to the
+  built JS and a small call to the exported init function (`Contoso.ShowImages.init()`). No
+  inline code, no jQuery. esbuild does NOT build the `.html` (static asset); deploy it as its
+  own WebResource next to the built JS, which it references via `<script src>`.
+- **Xrm access:** an embedded HTML WebResource reaches the form API via `window.parent.Xrm`
+  (it gets no `executionContext` parameter, unlike a form script). The form script may also
+  inject the context actively (export a `setClientApiContext(...)` the form script calls on open).
+
+`xrmforge.config.json` entry - same shape as any other module:
+
+```json
+"showimages": { "input": "./src/showimages.ts", "namespace": "Contoso.ShowImages", "out": "ShowImages.js" }
+```
+
+All the MANDATORY rules above still apply to the `.ts` logic (typedForm where a form context
+is available, EntityNames/Fields enums, `select`/`parseLookup`, generated Entity interfaces, no
+raw OData strings). **Modernize legacy HTML WebResources instead of porting 1:1:** `Xrm.WebApi`
+instead of the old `OrganizationData.svc`/2011 endpoints, `fetch` instead of jQuery `$.ajax`,
+`Xrm`/`formContext` instead of `Xrm.Page`, generated enums instead of raw OData strings, no
+`document.all`.
 
 ## Drift Check (generated/ vs. live environment)
 

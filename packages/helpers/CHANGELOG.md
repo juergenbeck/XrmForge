@@ -1,5 +1,14 @@
 # @xrmforge/helpers
 
+## 0.13.1
+
+### Patch Changes
+
+- Clarify the `expanded<T>()` JSDoc: it returns `null` only when the nav property is absent, `null`, or an
+  array - a present object (even `{}`) is returned as-is. The previous "absent/empty" wording was misleading
+  (an empty object is NOT mapped to `null`; this is the documented contract, asserted by a unit test).
+  Doc/`.d.ts` only, no behaviour change (R46-06).
+
 ## 0.13.0
 
 ### Minor Changes

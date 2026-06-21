@@ -1,5 +1,14 @@
 # @xrmforge/typegen
 
+## 0.14.2
+
+### Patch Changes
+
+- Refactor: the attribute enum-member naming (SchemaName -> safe identifier, with the defensive collision
+  guard) is now a single shared `buildAttributeMemberName()` in `label-utils`, used by the entity Fields enum,
+  the NavigationProperties enum and the form Fields enum. Removes the threefold duplication that risked drift
+  between the three call sites (R46-07). No output change (verified by the existing generator tests).
+
 ## 0.14.1
 
 ### Patch Changes

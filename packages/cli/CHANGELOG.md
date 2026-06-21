@@ -1,5 +1,13 @@
 # @xrmforge/cli
 
+## 0.8.20
+
+### Patch Changes
+
+- Propagate `@xrmforge/typegen@0.14.2` (shared enum-member-naming refactor, R46-07) and
+  `@xrmforge/devkit@0.7.34` (AGENT.md template: polymorphic `$expand` + HTML WebResources, R46-02). No cli
+  source change.
+
 ## 0.8.19
 
 ### Patch Changes

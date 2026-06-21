@@ -38,6 +38,7 @@ export function getSecondaryLabel(label: Label, config: LabelConfig): string | u
 // ─── Generator-specific: Enum Member Names ──────────────────────────────────
 
 import { transliterateUmlauts } from '../metadata/labels.js';
+import { toSafeIdentifier, toPascalCase } from './type-mapping.js';
 
 /**
  * Convert a label to a valid PascalCase TypeScript identifier for enum members.
@@ -70,6 +71,41 @@ export function labelToEnumMember(labelText: string): string {
   }
 
   return pascal;
+}
+
+/**
+ * Build the enum member name for an attribute from its SchemaName.
+ *
+ * Shared by the entity Fields enum, the NavigationProperties enum and the form
+ * Fields enum so the three stay in lock-step (R46-07, no per-call-site drift).
+ * The member is derived from the SchemaName (a valid identifier, unique per
+ * entity), so it is deterministic, collision-free and guessable from the
+ * LogicalName - the same scheme pac modelbuilder and XrmDefinitelyTyped use.
+ * Falls back to a PascalCased LogicalName when the SchemaName is missing
+ * (defensive; real metadata always provides one).
+ *
+ * `usedNames` carries state across the calls for one enum: on a (practically
+ * impossible) collision the LogicalName is appended so the member stays
+ * unambiguous without an order-dependent ordinal. The chosen name is added to
+ * the set before returning.
+ *
+ * @example
+ * const used = new Set<string>();
+ * buildAttributeMemberName('markant_AFeedback_IsRated', 'markant_afeedback_israted', used);
+ * // "markant_AFeedback_IsRated"
+ * buildAttributeMemberName('', 'markant_foo', used); // "MarkantFoo" (SchemaName fallback)
+ */
+export function buildAttributeMemberName(
+  schemaName: string | undefined,
+  logicalName: string,
+  usedNames: Set<string>,
+): string {
+  let member = (schemaName ? toSafeIdentifier(schemaName) : '') || toPascalCase(logicalName);
+  while (usedNames.has(member)) {
+    member = `${member}_${toSafeIdentifier(logicalName)}`;
+  }
+  usedNames.add(member);
+  return member;
 }
 
 // ─── Generator-specific: Disambiguate Duplicate Enum Members ─────────────────

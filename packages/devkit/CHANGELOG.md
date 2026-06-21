@@ -1,5 +1,14 @@
 # @xrmforge/devkit
 
+## 0.7.34
+
+### Patch Changes
+
+- AGENT.md template: document that polymorphic lookups (`customerid`/`ownerid`/`regardingobjectid`) need a
+  target-qualified `$expand` name (`customerid_account`), not the blank `XxxNavigationProperties` value
+  (R46-02). Add an "HTML WebResources" section describing the TypeScript-logic + HTML-shell split, the
+  `window.parent.Xrm` access pattern and legacy-modernization guidance. Template only.
+
 ## 0.7.33
 
 ### Patch Changes

@@ -50,9 +50,8 @@ import {
   getFormControlType,
   getFormMockValueType,
   toPascalCase,
-  toSafeIdentifier,
 } from './type-mapping.js';
-import { transliterateUmlauts, formatDualLabel, type LabelConfig, DEFAULT_LABEL_CONFIG } from './label-utils.js';
+import { transliterateUmlauts, formatDualLabel, buildAttributeMemberName, type LabelConfig, DEFAULT_LABEL_CONFIG } from './label-utils.js';
 import { singleQuoted } from './string-escape.js';
 
 /** Dataverse SystemForm type code for Quick Create forms (systemform_type) */
@@ -204,16 +203,8 @@ export function generateFormInterface(
     // Enum member name = SchemaName (deterministic, unique, guessable from the
     // logical name; same scheme as the entity-level Fields enum). The display
     // label stays in the JSDoc below. Avoids order-dependent ordinal suffixes
-    // (F-MK9-05) and unguessable label members (F-MK9-07).
-    let enumMember = (attr.SchemaName ? toSafeIdentifier(attr.SchemaName) : '') || toPascalCase(fieldName);
-
-    // Defensive deterministic guard. SchemaNames are unique per entity, so this
-    // never fires in practice; if it did, the LogicalName (also unique) keeps the
-    // member unambiguous without an order-dependent ordinal.
-    while (usedEnumNames.has(enumMember)) {
-      enumMember = `${enumMember}_${toSafeIdentifier(fieldName)}`;
-    }
-    usedEnumNames.add(enumMember);
+    // (F-MK9-05) and unguessable label members (F-MK9-07). Shared helper (R46-07).
+    const enumMember = buildAttributeMemberName(attr.SchemaName, fieldName, usedEnumNames);
 
     const dualLabel = formatDualLabel(attr.DisplayName, labelConfig);
 
