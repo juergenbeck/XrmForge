@@ -99,6 +99,7 @@ function createMockEntityInfo(entityName: string): EntityTypeInfo {
       allControls: [{ id: 'name', datafieldname: 'name', classid: '' }],
     }],
     oneToManyRelationships: [],
+    manyToOneRelationships: [],
     manyToManyRelationships: [],
   };
 }

@@ -318,6 +318,22 @@ export class MetadataClient {
   }
 
   /**
+   * Get all N:1 relationships where this entity is the referencing (child) entity,
+   * i.e. one per lookup target. Selects `ReferencingEntityNavigationPropertyName` -
+   * the authoritative, case-sensitive `$expand` navigation property name for each
+   * (lookup, target) pair (needed for polymorphic lookups; must not be guessed).
+   */
+  async getManyToOneRelationships(logicalName: string): Promise<OneToManyRelationshipMetadata[]> {
+    const safeName = DataverseHttpClient.sanitizeIdentifier(logicalName);
+
+    log.debug(`Fetching N:1 relationships for: ${safeName}`);
+
+    return this.http.getAll<OneToManyRelationshipMetadata>(
+      `/EntityDefinitions(LogicalName='${safeName}')/ManyToOneRelationships?$select=SchemaName,ReferencingEntity,ReferencingAttribute,ReferencedEntity,ReferencedAttribute,ReferencingEntityNavigationPropertyName,MetadataId`,
+    );
+  }
+
+  /**
    * Get all N:N relationships for an entity.
    */
   async getManyToManyRelationships(logicalName: string): Promise<ManyToManyRelationshipMetadata[]> {
@@ -453,6 +469,7 @@ export class MetadataClient {
       stateAttributes,
       forms,
       oneToManyRelationships: relationships.oneToMany,
+      manyToOneRelationships: relationships.manyToOne,
       manyToManyRelationships: relationships.manyToMany,
     };
 
@@ -460,7 +477,7 @@ export class MetadataClient {
       `Type info for "${safeName}": ${result.attributes.length} attrs, ` +
         `${picklistAttributes.length} picklists, ${multiSelectPicklistAttributes.length} multi-select, ` +
         `${lookupAttributes.length} lookups, ${stateAttributes.length} state, ${forms.length} forms, ` +
-        `${relationships.oneToMany.length} 1:N, ${relationships.manyToMany.length} N:N`,
+        `${relationships.oneToMany.length} 1:N, ${relationships.manyToOne.length} N:1, ${relationships.manyToMany.length} N:N`,
     );
 
     return result;
@@ -567,12 +584,14 @@ export class MetadataClient {
 
   private async getRelationships(logicalName: string): Promise<{
     oneToMany: OneToManyRelationshipMetadata[];
+    manyToOne: OneToManyRelationshipMetadata[];
     manyToMany: ManyToManyRelationshipMetadata[];
   }> {
-    const [oneToMany, manyToMany] = await Promise.all([
+    const [oneToMany, manyToOne, manyToMany] = await Promise.all([
       this.getOneToManyRelationships(logicalName),
+      this.getManyToOneRelationships(logicalName),
       this.getManyToManyRelationships(logicalName),
     ]);
-    return { oneToMany, manyToMany };
+    return { oneToMany, manyToOne, manyToMany };
   }
 }

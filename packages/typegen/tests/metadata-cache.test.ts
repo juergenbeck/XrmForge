@@ -36,6 +36,7 @@ function createMockEntityTypeInfo(logicalName: string): EntityTypeInfo {
     statusAttributes: [],
     forms: [],
     oneToManyRelationships: [],
+    manyToOneRelationships: [],
     manyToManyRelationships: [],
   };
 }

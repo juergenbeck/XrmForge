@@ -103,6 +103,7 @@ function createMockEntityInfo(entityName: string): EntityTypeInfo {
       allSpecialControls: [],
     }],
     oneToManyRelationships: [],
+    manyToOneRelationships: [],
     manyToManyRelationships: [],
   };
 }

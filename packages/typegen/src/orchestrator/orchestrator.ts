@@ -21,7 +21,7 @@ import { generateEntityInterface } from '../generators/entity-generator.js';
 import { generateEntityOptionSets } from '../generators/optionset-generator.js';
 import { generateEntityForms, type FormGenerationMeta } from '../generators/form-generator.js';
 import { generateActionModule, groupCustomApis } from '../generators/action-generator.js';
-import { generateEntityFieldsEnum, generateEntityNavigationProperties } from '../generators/entity-fields-generator.js';
+import { generateEntityFieldsEnum, generateEntityNavigationProperties, generateEntityExpands } from '../generators/entity-fields-generator.js';
 import { generateEntityNamesEnum } from '../generators/entity-names-generator.js';
 import { generateActivityPartyInterface } from '../generators/activity-party.js';
 import { isPartyListType } from '../generators/type-mapping.js';
@@ -562,11 +562,15 @@ export class TypeGenerationOrchestrator {
       const navPropsContent = generateEntityNavigationProperties(entityInfo, {
         labelConfig: this.config.labelConfig,
       });
+      const expandsContent = generateEntityExpands(entityInfo, {
+        labelConfig: this.config.labelConfig,
+      });
 
-      // Combine both outputs into a single file (navProps may be empty if no lookups)
-      const combinedFieldsContent = navPropsContent
-        ? `${fieldsEnumContent}\n${navPropsContent}`
-        : fieldsEnumContent;
+      // Combine outputs into a single file. navProps is empty when there are no
+      // lookups; expands is empty when there are no (resolvable) polymorphic lookups.
+      const combinedFieldsContent = [fieldsEnumContent, navPropsContent, expandsContent]
+        .filter((part) => part)
+        .join('\n');
 
       files.push({
         relativePath: `fields/${entityName}.ts`,

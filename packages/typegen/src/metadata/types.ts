@@ -215,6 +215,15 @@ export interface OneToManyRelationshipMetadata {
   ReferencingAttribute: string;
   ReferencedEntity: string;
   ReferencedAttribute: string;
+  /**
+   * The case-sensitive name of the single-valued navigation property (the `$expand`
+   * path). For a multi-table (polymorphic) lookup, each target has its own
+   * relationship with its own value here (e.g. `customerid_account`, `owninguser`).
+   * Only populated for the ManyToOne fetch (`getManyToOneRelationships`); the
+   * OneToMany fetch does not select it, so it is `undefined` there. Microsoft warns
+   * that this value must NOT be guessed/constructed - it is the authoritative source.
+   */
+  ReferencingEntityNavigationPropertyName?: string;
   MetadataId: string;
 }
 
@@ -246,5 +255,12 @@ export interface EntityTypeInfo {
   stateAttributes: StateAttributeMetadata[];
   forms: ParsedForm[];
   oneToManyRelationships: OneToManyRelationshipMetadata[];
+  /**
+   * N:1 relationships where THIS entity is the referencing (child) entity, i.e. one
+   * per lookup target. Source of the authoritative, case-sensitive navigation
+   * property names for `$expand` on polymorphic lookups
+   * (`ReferencingEntityNavigationPropertyName`).
+   */
+  manyToOneRelationships: OneToManyRelationshipMetadata[];
   manyToManyRelationships: ManyToManyRelationshipMetadata[];
 }

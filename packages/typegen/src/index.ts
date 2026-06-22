@@ -124,6 +124,7 @@ export {
   generateEntityForms,
   generateEntityFieldsEnum,
   generateEntityNavigationProperties,
+  generateEntityExpands,
   generateActivityPartyInterface,
   generateEntityNamesEnum,
 } from './generators/index.js';

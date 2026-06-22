@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { generateEntityFieldsEnum, generateEntityNavigationProperties } from '../src/generators/entity-fields-generator.js';
-import type { EntityTypeInfo, AttributeMetadata } from '../src/metadata/types.js';
+import { generateEntityFieldsEnum, generateEntityNavigationProperties, generateEntityExpands } from '../src/generators/entity-fields-generator.js';
+import type { EntityTypeInfo, AttributeMetadata, LookupAttributeMetadata, OneToManyRelationshipMetadata } from '../src/metadata/types.js';
 
 // ─── Test Helpers ────────────────────────────────────────────────────────────
 
@@ -21,7 +21,11 @@ function createAttr(overrides: Partial<AttributeMetadata>): AttributeMetadata {
   };
 }
 
-function createEntityInfo(attributes: AttributeMetadata[]): EntityTypeInfo {
+function createEntityInfo(
+  attributes: AttributeMetadata[],
+  lookupAttributes: LookupAttributeMetadata[] = [],
+  manyToOneRelationships: OneToManyRelationshipMetadata[] = [],
+): EntityTypeInfo {
   return {
     entity: {
       LogicalName: 'account',
@@ -38,12 +42,31 @@ function createEntityInfo(attributes: AttributeMetadata[]): EntityTypeInfo {
     attributes,
     picklistAttributes: [],
     multiSelectPicklistAttributes: [],
-    lookupAttributes: [],
+    lookupAttributes,
     statusAttributes: [],
     stateAttributes: [],
     forms: [],
     oneToManyRelationships: [],
+    manyToOneRelationships,
     manyToManyRelationships: [],
+  };
+}
+
+/** Build a lookup attribute (carries Targets) from a base attribute. */
+function createLookupAttr(logicalName: string, schemaName: string, attributeType: string, targets: string[]): LookupAttributeMetadata {
+  return { ...createAttr({ LogicalName: logicalName, SchemaName: schemaName, AttributeType: attributeType }), Targets: targets };
+}
+
+/** Build an N:1 relationship carrying the authoritative navigation property name. */
+function createN1(referencingAttribute: string, referencedEntity: string, navName: string): OneToManyRelationshipMetadata {
+  return {
+    SchemaName: `rel_${referencingAttribute}_${referencedEntity}`,
+    ReferencingEntity: 'account',
+    ReferencingAttribute: referencingAttribute,
+    ReferencedEntity: referencedEntity,
+    ReferencedAttribute: `${referencedEntity}id`,
+    ReferencingEntityNavigationPropertyName: navName,
+    MetadataId: `rel-${referencingAttribute}-${referencedEntity}`,
   };
 }
 
@@ -137,6 +160,121 @@ describe('generateEntityNavigationProperties', () => {
     expect(result).toContain("CreatedBy = 'createdby',");
     expect(result).toContain("ModifiedBy = 'modifiedby',");
     expect(result).not.toContain('CreatedBy2');
+  });
+});
+
+// ─── generateEntityExpands ──────────────────────────────────────────────────
+
+describe('generateEntityExpands', () => {
+  it('generates target-qualified members for a polymorphic Customer lookup', () => {
+    const info = createEntityInfo(
+      [createAttr({ LogicalName: 'customerid', SchemaName: 'CustomerId', AttributeType: 'Customer', DisplayName: { LocalizedLabels: [{ Label: 'Customer', LanguageCode: 1033 }], UserLocalizedLabel: null } })],
+      [createLookupAttr('customerid', 'CustomerId', 'Customer', ['account', 'contact'])],
+      [createN1('customerid', 'account', 'customerid_account'), createN1('customerid', 'contact', 'customerid_contact')],
+    );
+
+    const result = generateEntityExpands(info);
+
+    expect(result).toContain('export const enum AccountExpands {');
+    expect(result).toContain("CustomerId_Account = 'customerid_account',");
+    expect(result).toContain("CustomerId_Contact = 'customerid_contact',");
+  });
+
+  it('excludes Owner-type lookups (ownerid expands via the separate owninguser/owningteam lookups)', () => {
+    // Verified live on markant-dev: ownerid has Targets [systemuser, team] but NO
+    // ownerid_<target> navigation properties - its only N:1 relationship points to the
+    // `owner` abstraction (nav name `ownerid`). The real expand paths owninguser/owningteam/
+    // owningbusinessunit are SEPARATE single-target lookup fields (own ReferencingAttribute),
+    // already covered by XxxNavigationProperties. So Owner yields no XxxExpands members.
+    const info = createEntityInfo(
+      [createAttr({ LogicalName: 'ownerid', SchemaName: 'OwnerId', AttributeType: 'Owner', DisplayName: { LocalizedLabels: [{ Label: 'Owner', LanguageCode: 1033 }], UserLocalizedLabel: null } })],
+      [createLookupAttr('ownerid', 'OwnerId', 'Owner', ['systemuser', 'team'])],
+      [createN1('ownerid', 'owner', 'ownerid')], // the real shape: one relationship to the owner abstraction
+    );
+
+    expect(generateEntityExpands(info)).toBe('');
+  });
+
+  it('preserves SchemaName casing of a custom polymorphic lookup (value is read, not constructed)', () => {
+    const info = createEntityInfo(
+      [createAttr({ LogicalName: 'sample_mediapolymorphiclookup', SchemaName: 'sample_MediaPolymorphicLookup', AttributeType: 'Lookup', DisplayName: { LocalizedLabels: [{ Label: 'Media', LanguageCode: 1033 }], UserLocalizedLabel: null } })],
+      [createLookupAttr('sample_mediapolymorphiclookup', 'sample_MediaPolymorphicLookup', 'Lookup', ['sample_book', 'sample_audio'])],
+      [
+        createN1('sample_mediapolymorphiclookup', 'sample_book', 'sample_MediaPolymorphicLookup_sample_book'),
+        createN1('sample_mediapolymorphiclookup', 'sample_audio', 'sample_MediaPolymorphicLookup_sample_audio'),
+      ],
+    );
+
+    const result = generateEntityExpands(info);
+
+    expect(result).toContain("= 'sample_MediaPolymorphicLookup_sample_book',");
+    expect(result).toContain("= 'sample_MediaPolymorphicLookup_sample_audio',");
+    // lowercase logical-name construction must NOT leak in
+    expect(result).not.toContain("'sample_mediapolymorphiclookup_sample_book'");
+  });
+
+  it('emits nothing for a single-target lookup (those use NavigationProperties)', () => {
+    const info = createEntityInfo(
+      [createAttr({ LogicalName: 'primarycontactid', SchemaName: 'PrimaryContactId', AttributeType: 'Lookup', DisplayName: { LocalizedLabels: [{ Label: 'Primary Contact', LanguageCode: 1033 }], UserLocalizedLabel: null } })],
+      [createLookupAttr('primarycontactid', 'PrimaryContactId', 'Lookup', ['contact'])],
+      [createN1('primarycontactid', 'contact', 'primarycontactid')],
+    );
+
+    expect(generateEntityExpands(info)).toBe('');
+  });
+
+  it('skips a target whose navigation property name is missing (never constructs it)', () => {
+    const info = createEntityInfo(
+      [createAttr({ LogicalName: 'customerid', SchemaName: 'CustomerId', AttributeType: 'Customer', DisplayName: { LocalizedLabels: [{ Label: 'Customer', LanguageCode: 1033 }], UserLocalizedLabel: null } })],
+      [createLookupAttr('customerid', 'CustomerId', 'Customer', ['account', 'contact'])],
+      [createN1('customerid', 'account', 'customerid_account')], // contact relationship missing
+    );
+
+    const result = generateEntityExpands(info);
+
+    expect(result).toContain("CustomerId_Account = 'customerid_account',");
+    expect(result).not.toContain('CustomerId_Contact');
+    expect(result).not.toContain('customerid_contact');
+  });
+
+  it('returns empty string when no polymorphic lookup target can be resolved', () => {
+    const info = createEntityInfo(
+      [createAttr({ LogicalName: 'customerid', SchemaName: 'CustomerId', AttributeType: 'Customer', DisplayName: { LocalizedLabels: [{ Label: 'Customer', LanguageCode: 1033 }], UserLocalizedLabel: null } })],
+      [createLookupAttr('customerid', 'CustomerId', 'Customer', ['account', 'contact'])],
+      [], // no relationship metadata at all
+    );
+
+    expect(generateEntityExpands(info)).toBe('');
+  });
+
+  it('emits the dual-language label plus target in the JSDoc', () => {
+    const info = createEntityInfo(
+      [createAttr({ LogicalName: 'customerid', SchemaName: 'CustomerId', AttributeType: 'Customer', DisplayName: { LocalizedLabels: [{ Label: 'Customer', LanguageCode: 1033 }, { Label: 'Kunde', LanguageCode: 1031 }], UserLocalizedLabel: null } })],
+      [createLookupAttr('customerid', 'CustomerId', 'Customer', ['account', 'contact'])],
+      [createN1('customerid', 'account', 'customerid_account'), createN1('customerid', 'contact', 'customerid_contact')],
+    );
+
+    const result = generateEntityExpands(info, { labelConfig: { primaryLanguage: 1033, secondaryLanguage: 1031 } });
+
+    expect(result).toContain('/** Customer | Kunde -> account */');
+    expect(result).toContain('/** Customer | Kunde -> contact */');
+  });
+
+  it('is deterministic across renders (lookups and targets sorted regardless of input order)', () => {
+    const build = () => createEntityInfo(
+      [
+        createAttr({ LogicalName: 'customerid', SchemaName: 'CustomerId', AttributeType: 'Customer', DisplayName: { LocalizedLabels: [{ Label: 'Customer', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+        createAttr({ LogicalName: 'markant_relatedpartyid', SchemaName: 'markant_RelatedPartyId', AttributeType: 'Lookup', DisplayName: { LocalizedLabels: [{ Label: 'Related Party', LanguageCode: 1033 }], UserLocalizedLabel: null } }),
+      ],
+      [createLookupAttr('customerid', 'CustomerId', 'Customer', ['contact', 'account']), createLookupAttr('markant_relatedpartyid', 'markant_RelatedPartyId', 'Lookup', ['contact', 'account'])],
+      [
+        createN1('customerid', 'account', 'customerid_account'),
+        createN1('customerid', 'contact', 'customerid_contact'),
+        createN1('markant_relatedpartyid', 'account', 'markant_RelatedPartyId_account'),
+        createN1('markant_relatedpartyid', 'contact', 'markant_RelatedPartyId_contact'),
+      ],
+    );
+    expect(generateEntityExpands(build())).toBe(generateEntityExpands(build()));
   });
 });
 

@@ -27,6 +27,7 @@
 import type { EntityTypeInfo } from '../metadata/types.js';
 import {
   toPascalCase,
+  toSafeIdentifier,
   shouldIncludeInEntityInterface,
   isLookupType,
   toLookupValueProperty,
@@ -37,6 +38,9 @@ import {
   type LabelConfig,
   DEFAULT_LABEL_CONFIG,
 } from './label-utils.js';
+import { createLogger } from '../logger.js';
+
+const log = createLogger('entity-fields-generator');
 
 /** Options for entity fields enum generation */
 export interface EntityFieldsGeneratorOptions {
@@ -152,6 +156,134 @@ export function generateEntityNavigationProperties(
     lines.push(`  ${memberName} = '${attr.LogicalName}',`);
   }
 
+  lines.push('}');
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+/**
+ * Generate a const enum with target-qualified `$expand` navigation property names for
+ * POLYMORPHIC (multi-table) lookups (F-MK9-08-Sub).
+ *
+ * A polymorphic lookup exposes one single-valued navigation property PER target table,
+ * and its name is NOT reliably constructible: `ownerid` resolves to
+ * `owninguser`/`owningteam`/`owningbusinessunit`, `regardingobjectid` to
+ * `regardingobjectid_account_task`, custom lookups carry the SchemaName casing, etc.
+ * Microsoft documents that this case-sensitive value must not be guessed. The
+ * authoritative source is `OneToManyRelationshipMetadata.ReferencingEntityNavigationPropertyName`,
+ * read here from the entity's N:1 relationships (`info.manyToOneRelationships`).
+ *
+ * Only polymorphic lookups (`Targets.length > 1`) get members; a single-target lookup
+ * keeps using the blank `XxxNavigationProperties` value (which is the navigation
+ * property name in those cases). A target whose navigation property name cannot be
+ * resolved from the relationship metadata is SKIPPED with a warning - never constructed.
+ *
+ * Members are named `<LookupSchemaName>_<PascalTarget>` (guessable from lookup + target);
+ * the value is the real, case-sensitive navigation property name.
+ *
+ * @param info - Complete entity metadata
+ * @param options - Generator options
+ * @returns TypeScript declaration string (empty when no resolvable polymorphic lookup)
+ *
+ * @example
+ * ```typescript
+ * // Generated:
+ * export const enum SalesOrderExpands {
+ *   /** Customer -> account *\/
+ *   CustomerId_Account = 'customerid_account',
+ *   /** Customer -> contact *\/
+ *   CustomerId_Contact = 'customerid_contact',
+ * }
+ *
+ * // Usage (target-qualified name for $expand, read back with the same key):
+ * const order = await Xrm.WebApi.retrieveRecord(EntityNames.SalesOrder, id,
+ *   selectExpand([SalesOrderFields.Name], `${SalesOrderExpands.CustomerId_Account}($select=${AccountFields.Name})`));
+ * const customer = expanded<Account>(order, SalesOrderExpands.CustomerId_Account);
+ * ```
+ */
+export function generateEntityExpands(
+  info: EntityTypeInfo,
+  options: EntityFieldsGeneratorOptions = {},
+): string {
+  const labelConfig = options.labelConfig || DEFAULT_LABEL_CONFIG;
+  const entityName = toPascalCase(info.entity.LogicalName);
+  const enumName = `${entityName}Expands`;
+
+  // Targets per lookup (only lookupAttributes carry Targets)
+  const lookupTargets = new Map<string, string[]>();
+  for (const la of info.lookupAttributes) {
+    if (la.Targets && la.Targets.length > 0) {
+      lookupTargets.set(la.LogicalName, la.Targets);
+    }
+  }
+
+  // Authoritative navigation property name per (lookup logical name, target entity),
+  // from the N:1 relationship metadata. NUL-separated key avoids name collisions.
+  const navNameByLookupTarget = new Map<string, string>();
+  for (const rel of info.manyToOneRelationships ?? []) {
+    if (rel.ReferencingAttribute && rel.ReferencedEntity && rel.ReferencingEntityNavigationPropertyName) {
+      navNameByLookupTarget.set(`${rel.ReferencingAttribute} ${rel.ReferencedEntity}`, rel.ReferencingEntityNavigationPropertyName);
+    }
+  }
+
+  // Polymorphic lookups only (Targets.length > 1), in deterministic order. Uses the
+  // attributes list for SchemaName/DisplayName/read-filter, joined to Targets by name.
+  // Owner lookups are EXCLUDED: verified live on markant-dev, `ownerid` has no
+  // `ownerid_<target>` navigation properties - it expands via the separate `owninguser`/
+  // `owningteam`/`owningbusinessunit` lookup fields (own ReferencingAttribute), which the
+  // blank XxxNavigationProperties enum already covers as single-target lookups. Including
+  // Owner here would only emit "unresolvable target" warnings on nearly every entity.
+  const polymorphicLookups = info.attributes
+    .filter(shouldIncludeInEntityInterface)
+    .filter((a) => isLookupType(a.AttributeType) && a.AttributeType !== 'Owner')
+    .filter((a) => (lookupTargets.get(a.LogicalName)?.length ?? 0) > 1)
+    .sort((a, b) => a.LogicalName.localeCompare(b.LogicalName));
+
+  if (polymorphicLookups.length === 0) return '';
+
+  const body: string[] = [];
+  const usedNames = new Set<string>();
+
+  for (const attr of polymorphicLookups) {
+    const lookupBase = toSafeIdentifier(attr.SchemaName) || toPascalCase(attr.LogicalName);
+    const dualLabel = formatDualLabel(attr.DisplayName, labelConfig);
+    // Sort targets for deterministic output (the nav name is matched by relationship, not order)
+    const targets = [...(lookupTargets.get(attr.LogicalName) ?? [])].sort((a, b) => a.localeCompare(b));
+
+    for (const target of targets) {
+      const navName = navNameByLookupTarget.get(`${attr.LogicalName} ${target}`);
+      if (!navName) {
+        log.warn(
+          `No navigation property name for polymorphic lookup "${attr.LogicalName}" -> "${target}" ` +
+            `on "${info.entity.LogicalName}"; skipping (N:1 relationship metadata missing ` +
+            `ReferencingEntityNavigationPropertyName). The name must not be guessed.`,
+        );
+        continue;
+      }
+
+      let member = `${lookupBase}_${toPascalCase(target)}`;
+      while (usedNames.has(member)) {
+        member = `${member}_${toSafeIdentifier(navName)}`;
+      }
+      usedNames.add(member);
+
+      const jsdoc = dualLabel ? `${dualLabel} -> ${target}` : `-> ${target}`;
+      body.push(`  /** ${jsdoc} */`);
+      body.push(`  ${member} = '${navName}',`);
+    }
+  }
+
+  // Every target was unresolvable -> emit nothing (honest: no half-built constants).
+  if (body.length === 0) return '';
+
+  const lines: string[] = [];
+  lines.push(
+    `/** Polymorphic-lookup $expand navigation properties of ${entityName} ` +
+      `(target-qualified; single-target lookups use ${entityName}NavigationProperties) */`,
+  );
+  lines.push(`export const enum ${enumName} {`);
+  lines.push(...body);
   lines.push('}');
   lines.push('');
 

@@ -19,7 +19,7 @@ import { loadAccountEntityTypeInfo } from './fixtures/load-fixture.js';
 import { generateEntityInterface } from '../src/generators/entity-generator.js';
 import { generateEntityOptionSets } from '../src/generators/optionset-generator.js';
 import { generateEntityForms } from '../src/generators/form-generator.js';
-import { generateEntityFieldsEnum, generateEntityNavigationProperties } from '../src/generators/entity-fields-generator.js';
+import { generateEntityFieldsEnum, generateEntityNavigationProperties, generateEntityExpands } from '../src/generators/entity-fields-generator.js';
 import { generateEntityNamesEnum } from '../src/generators/entity-names-generator.js';
 import { generateActivityPartyInterface } from '../src/generators/activity-party.js';
 import { generateActionModule, generateActionDeclarations, groupCustomApis } from '../src/generators/action-generator.js';
@@ -106,11 +106,12 @@ describe('determinism audit: double run is byte-identical', () => {
     expect(render()).toBe(render());
   });
 
-  it('entity fields enum and navigation properties generator', () => {
+  it('entity fields enum, navigation properties and expands generator', () => {
     const info = loadAccountEntityTypeInfo();
     const render = () =>
       generateEntityFieldsEnum(info, { labelConfig: DUAL_LABEL }) +
-      generateEntityNavigationProperties(info, { labelConfig: DUAL_LABEL });
+      generateEntityNavigationProperties(info, { labelConfig: DUAL_LABEL }) +
+      generateEntityExpands(info, { labelConfig: DUAL_LABEL });
     expect(render()).toBe(render());
   });
 

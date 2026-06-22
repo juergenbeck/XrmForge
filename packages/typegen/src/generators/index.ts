@@ -39,7 +39,7 @@ export { generateFormInterface, generateEntityForms } from './form-generator.js'
 export type { FormGeneratorOptions } from './form-generator.js';
 
 // Entity Fields Enum Generator (for Web API $select)
-export { generateEntityFieldsEnum, generateEntityNavigationProperties } from './entity-fields-generator.js';
+export { generateEntityFieldsEnum, generateEntityNavigationProperties, generateEntityExpands } from './entity-fields-generator.js';
 export type { EntityFieldsGeneratorOptions } from './entity-fields-generator.js';
 
 // Entity Names Enum Generator (for Xrm.WebApi entity name parameters)

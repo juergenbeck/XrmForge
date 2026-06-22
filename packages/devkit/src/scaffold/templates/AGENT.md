@@ -32,7 +32,7 @@ Run `xrmforge generate` to create:
 - `generated/forms/{entity}.ts` - Form interface + Fields/Tabs/Sections/Subgrids enums
 - `generated/optionsets/{entity}.ts` - OptionSet const enums
 - `generated/entities/{entity}.ts` - Entity interface (for Web API response typing)
-- `generated/fields/{entity}.ts` - Entity Fields enum (for $select/$filter) AND the entity `XxxNavigationProperties` enum (for parseLookup/$expand/@odata.bind/$unsafe-lookup). Both live here, NOT in `entities/`
+- `generated/fields/{entity}.ts` - Entity Fields enum (for $select/$filter), the entity `XxxNavigationProperties` enum (for parseLookup/@odata.bind/$unsafe-lookup and single-target $expand) AND, when the entity has a polymorphic lookup, the `XxxExpands` enum (target-qualified $expand names). All live here, NOT in `entities/`
 - `generated/entity-names.ts` - EntityNames const enum
 - `generated/actions/global.ts` - Custom API Action executors (typed params + results)
 - `generated/functions/global.ts` - Custom API Function executors
@@ -222,7 +222,8 @@ compiles green but breaks at runtime (no tsc/eslint gate catches it):
 | Enum | Value for a lookup (e.g. `transactioncurrencyid`) | Use for |
 |---|---|---|
 | `XxxFields` | `'_transactioncurrencyid_value'` (already `_value`-form) | `$select`, `$filter` |
-| `XxxNavigationProperties` | `'transactioncurrencyid'` (blank) | `parseLookup`, `$expand`, `@odata.bind`, `$unsafe` (lookup) |
+| `XxxNavigationProperties` | `'transactioncurrencyid'` (blank) | `parseLookup`, `@odata.bind`, `$unsafe` (lookup), single-target `$expand` |
+| `XxxExpands` (polymorphic only) | `'customerid_account'` (target-qualified, metadata-sourced) | `$expand` on a polymorphic lookup |
 
 **Member naming:** `XxxFields`, `XxxNavigationProperties` and the form-level `XxxFormFieldsEnum` name their
 members after the attribute **SchemaName** (the cased logical name, e.g. `statecode` -> `StateCode`,
@@ -316,23 +317,33 @@ for (const c of expandedMany<Contact>(account, 'contact_customer_accounts')) { c
 const c = account['primarycontactid'] as { fullname?: string };
 ```
 
-**Polymorphic lookups (`customerid`, `ownerid`, `regardingobjectid`) need a target-qualified
-`$expand` name, not the blank `XxxNavigationProperties` value.** A polymorphic lookup can resolve to
-several entity types, so Dataverse exposes one single-valued navigation property PER target, named
-`<lookup>_<targetentity>` (e.g. `customerid_account`, `customerid_contact`). The generated
-`XxxNavigationProperties` enum carries only the blank logical name (`customerid`) - correct for
-`parseLookup`, `@odata.bind` and `$unsafe`, but NOT a valid `$expand` path for a polymorphic lookup.
-Name the target-qualified property directly and read it back with that same key (the blank value
-stays correct for `parseLookup` on the parent record):
+**A genuine polymorphic lookup (e.g. `customerid`, Customer type) needs a target-qualified `$expand`
+name from the generated `XxxExpands` enum - never the blank `XxxNavigationProperties` value and never a
+hand-built string.** Such a lookup exposes one single-valued navigation property PER target; that name
+is case-sensitive and NOT reliably constructible, so typegen reads the real names from the relationship
+metadata and emits them as `XxxExpands` (members `<LookupSchemaName>_<Target>`):
+
+| Lookup | `$expand` via |
+|---|---|
+| `customerid` (Customer) | `XxxExpands.CustomerId_Account` / `.CustomerId_Contact` (values `customerid_account` / `customerid_contact`) |
+| custom polymorphic | `XxxExpands.<Lookup>_<Target>` - real metadata name with SchemaName casing (e.g. `sample_MediaPolymorphicLookup_sample_book`) |
+| `ownerid` (Owner) | NO `XxxExpands` member. Expand the SEPARATE `owninguser` / `owningteam` / `owningbusinessunit` lookups via their blank `XxxNavigationProperties` value (there is no `ownerid_systemuser`) |
+
+The blank `XxxNavigationProperties` value stays correct for `parseLookup`, `@odata.bind` and `$unsafe`
+on the parent record, but is NOT a valid `$expand` path for a genuine polymorphic lookup. Use `XxxExpands`:
 
 ```typescript
-// customerid (account | contact): expand the concrete target, not AccountNav.CustomerId
+import { SalesOrderExpands } from '../../generated/fields/salesorder.js';
+
+// customerid (account | contact): use the generated target-qualified member, never a raw string
 const order = await Xrm.WebApi.retrieveRecord(EntityNames.SalesOrder, id,
-  selectExpand([SalesOrderFields.Name], `customerid_account($select=${AccountFields.Name})`));
-const customer = expanded<Account>(order, 'customerid_account'); // target-qualified key
+  selectExpand([SalesOrderFields.Name], `${SalesOrderExpands.CustomerId_Account}($select=${AccountFields.Name})`));
+const customer = expanded<Account>(order, SalesOrderExpands.CustomerId_Account); // same key to read back
 ```
 
-(Single-target lookups like `primarycontactid` keep using the blank `XxxNavigationProperties` value.)
+`XxxExpands` only exists for entities that actually have a polymorphic lookup (members `<LookupSchemaName>_<Target>`).
+Single-target lookups like `primarycontactid` keep using the blank `XxxNavigationProperties` value, which is
+the navigation property name in those cases.
 
 ### 6b. Web API response typing with generated Entity interfaces
 
@@ -539,6 +550,7 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 - Never raw strings in `parseLookup()` (use NavigationProperties enum)
 - Never pass a `XxxFields` value to `parseLookup()` (use `XxxNavigationProperties`; a `XxxFields` value is already `_value`-form, so parseLookup double-wraps the key and always returns `null`)
 - Never wrap a `XxxFields` lookup value again as `` `_${XxxFields.X}_value` `` (it is already `_value`-form; double-wrap -> `__..._value_value` -> OData 400). Use the Fields value directly in `$select`/`$filter`; use `XxxNavigationProperties` for `parseLookup`/`$expand`/`@odata.bind`
+- Never hand-build or construct a polymorphic-lookup `$expand` name (use the generated `XxxExpands` member). The name is case-sensitive and not constructible: `ownerid` -> `owninguser`/`owningteam` (NOT `ownerid_systemuser`), `regardingobjectid` -> `regardingobjectid_account_task` (three-segment), custom lookups carry SchemaName casing. A guessed name fails at runtime with OData 400
 - Never raw strings in `$unsafe()` (use Entity-level Fields Enum: `form.$unsafe(AccountFields.X)`)
 - Never manual OData annotation access (`_value`, `@OData.Community.Display.V1.FormattedValue`, `@Microsoft.Dynamics.CRM.lookuplogicalname`), and never hand-assemble the annotation key as a concatenated string to sneak past the gate. For a LOOKUP use `parseLookup()` (extracts id + name + entityType). For a non-lookup display label (OptionSet/Virtual/DateTime/Money, e.g. `statecode`, `activitytypecode`) use `parseFormattedValue(response, fieldName)` from `@xrmforge/helpers` - the single allowed place that reads `@OData.Community.Display.V1.FormattedValue`. Useful in read-only HTML WebResources that show a label instead of the raw value.
 - Never hardcode an `@odata.bind` EntitySet plural - the set name is NOT the entity logical name. Resolve it via `(await Xrm.Utility.getEntityMetadata(logicalName)).EntitySetName`, then build `` `${navProperty}@odata.bind`: `/${entitySetName}(${id})` `` (there is no helper: the plural needs a metadata lookup, which is project-specific and worth caching)

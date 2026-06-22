@@ -87,6 +87,7 @@ export function loadAccountEntityTypeInfo(): EntityTypeInfo {
     stateAttributes: [] as StateAttributeMetadata[],
     forms: parsedForms,
     oneToManyRelationships: [],
+    manyToOneRelationships: [],
     manyToManyRelationships: [],
   };
 }

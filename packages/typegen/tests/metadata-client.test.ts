@@ -561,9 +561,9 @@ describe('MetadataClient.listGlobalOptionSets', () => {
 
 describe('MetadataClient.getEntityTypeInfo', () => {
   it('should aggregate all metadata in parallel', async () => {
-    // 8 parallel API calls: entity+attrs, picklists, multi-select picklists, lookups,
-    // status, state, forms, relationships (2 calls). The HTTP client makes these in
-    // order due to concurrency, but they're all Promise.all'd.
+    // 8 parallel top-level API calls: entity+attrs, picklists, multi-select picklists,
+    // lookups, status, state, forms, relationships (3 sub-calls: 1:N, N:1, N:N -> 10 total).
+    // The HTTP client makes these in order due to concurrency, but they're all Promise.all'd.
     const mockFetch = vi.fn()
       // Call 1: getEntityWithAttributes
       .mockResolvedValueOnce({
@@ -621,7 +621,13 @@ describe('MetadataClient.getEntityTypeInfo', () => {
         json: () => Promise.resolve({ value: [{ SchemaName: 'account_contacts', MetadataId: 'r-1' }] }),
         text: () => Promise.resolve('{}'),
       })
-      // Call 9: getManyToManyRelationships
+      // Call 9: getManyToOneRelationships
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({ value: [{ SchemaName: 'contact_primarycontact_account', ReferencingAttribute: 'primarycontactid', ReferencedEntity: 'contact', ReferencingEntityNavigationPropertyName: 'primarycontactid', MetadataId: 'r-2' }] }),
+        text: () => Promise.resolve('{}'),
+      })
+      // Call 10: getManyToManyRelationships
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [] }),
@@ -641,10 +647,11 @@ describe('MetadataClient.getEntityTypeInfo', () => {
     expect(info.stateAttributes).toHaveLength(1);
     expect(info.forms).toHaveLength(0);
     expect(info.oneToManyRelationships).toHaveLength(1);
+    expect(info.manyToOneRelationships).toHaveLength(1);
     expect(info.manyToManyRelationships).toHaveLength(0);
 
-    // Should have made 9 fetch calls (8 parallel via Promise.all, relationships = 2 sub-calls)
-    expect(mockFetch).toHaveBeenCalledTimes(9);
+    // Should have made 10 fetch calls (8 parallel via Promise.all, relationships = 3 sub-calls)
+    expect(mockFetch).toHaveBeenCalledTimes(10);
   });
 });
 
@@ -767,9 +774,11 @@ describe('MetadataClient.getCustomApis', () => {
 
 describe('MetadataClient.getMultipleEntityTypeInfos', () => {
   it('should fetch type info for multiple entities in parallel', async () => {
-    // Need 2x9 calls (one per entity, each with 9 sub-calls incl. multi-select picklists)
+    // Need 2x10 calls (one per entity, each with 10 sub-calls: entity+attrs, picklists,
+    // multi-select picklists, lookups, status, state, forms, 1:N, N:1, N:N)
     const makeEntityResponses = (name: string) => [
       { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ LogicalName: name, SchemaName: name, EntitySetName: name + 's', DisplayName: { LocalizedLabels: [] }, PrimaryIdAttribute: name + 'id', PrimaryNameAttribute: 'name', MetadataId: 'e', Attributes: [] }), text: () => Promise.resolve('{}') },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
       { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
       { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
       { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },

@@ -49,7 +49,10 @@ const CACHE_FILE = 'metadata.json';
 // and MultiSelect attributes are normalized Virtual -> MultiSelectPicklist on load
 // (F-MK9-09). A '1' cache lacks the field and keeps MultiSelect attributes as
 // 'Virtual', so an unchanged-from-cache entity would miss the fix.
-const CACHE_VERSION = '2';
+// '3' (F-MK9-08-Sub): EntityTypeInfo gained manyToOneRelationships (source of the
+// polymorphic-lookup $expand navigation property names). A '2' cache lacks the field,
+// so an unchanged-from-cache entity would emit no XxxExpands enum.
+const CACHE_VERSION = '3';
 
 // ─── Cache Manager ───────────────────────────────────────────────────────────
 

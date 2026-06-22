@@ -43,6 +43,7 @@ function createEntityInfo(attributes: AttributeMetadata[], lookupAttributes: Loo
     stateAttributes: [],
     forms: [],
     oneToManyRelationships: [],
+    manyToOneRelationships: [],
     manyToManyRelationships: [],
   };
 }
