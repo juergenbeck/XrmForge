@@ -64,6 +64,46 @@ importers:
         specifier: ^3.0.0
         version: 3.2.4(@types/node@22.19.15)
 
+  packages/dataverse-client:
+    dependencies:
+      '@types/xrm':
+        specifier: '>=9.0.0'
+        version: 9.0.90
+      '@xrmforge/dataverse-core':
+        specifier: workspace:*
+        version: link:../dataverse-core
+    devDependencies:
+      '@vitest/coverage-v8':
+        specifier: ^3.2.4
+        version: 3.2.4(vitest@3.2.4(@types/node@22.19.15))
+      tsup:
+        specifier: ^8.3.0
+        version: 8.5.1(postcss@8.5.8)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.4(@types/node@22.19.15)
+
+  packages/dataverse-core:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.15
+      '@vitest/coverage-v8':
+        specifier: ^3.2.4
+        version: 3.2.4(vitest@3.2.4(@types/node@22.19.15))
+      tsup:
+        specifier: ^8.3.0
+        version: 8.5.1(postcss@8.5.8)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.4(@types/node@22.19.15)
+
   packages/devkit:
     dependencies:
       esbuild:
@@ -141,6 +181,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^3.2.4
         version: 3.2.4(vitest@3.2.4(@types/node@22.19.15))
+      '@xrmforge/dataverse-core':
+        specifier: workspace:*
+        version: link:../dataverse-core
       tsup:
         specifier: ^8.3.0
         version: 8.5.1(postcss@8.5.8)(typescript@5.9.3)

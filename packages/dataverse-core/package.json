@@ -1,23 +1,22 @@
 {
-  "name": "@xrmforge/testing",
-  "version": "0.8.0",
-  "description": "Type-safe testing utilities for Dynamics 365 form scripts",
+  "name": "@xrmforge/dataverse-core",
+  "version": "0.1.0",
+  "description": "Runtime-neutral Dataverse Web API core: transport interface, resilient runner, and OData sanitizers",
   "keywords": [
     "dynamics-365",
+    "dataverse",
+    "odata",
+    "web-api",
     "typescript",
-    "xrm",
-    "testing",
-    "mock",
-    "form-scripts",
-    "dataverse"
+    "fetch"
   ],
   "license": "MIT",
   "author": "XrmForge Contributors",
-  "homepage": "https://github.com/juergenbeck/XrmForge/tree/main/packages/testing",
+  "homepage": "https://github.com/juergenbeck/XrmForge/tree/main/packages/dataverse-core",
   "repository": {
     "type": "git",
     "url": "https://github.com/juergenbeck/XrmForge.git",
-    "directory": "packages/testing"
+    "directory": "packages/dataverse-core"
   },
   "bugs": {
     "url": "https://github.com/juergenbeck/XrmForge/issues"
@@ -41,7 +40,6 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
-    "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
     "clean": "rm -rf dist"
@@ -49,19 +47,9 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^3.2.4",
-    "@xrmforge/dataverse-core": "workspace:*",
     "tsup": "^8.3.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
-  },
-  "peerDependencies": {
-    "@types/xrm": ">=9.0.0",
-    "@xrmforge/dataverse-core": ">=0.1.0"
-  },
-  "peerDependenciesMeta": {
-    "@xrmforge/dataverse-core": {
-      "optional": true
-    }
   },
   "engines": {
     "node": ">=20.0.0"

@@ -17,3 +17,5 @@ export { MockEventContext } from './mock-event-context.js';
 export type { CreateFormMockOptions, FormMock, MockTabConfig, MockSectionConfig } from './types.js';
 export { setupXrmMock, teardownXrmMock } from './setup-xrm-mock.js';
 export type { SetupXrmMockOptions, TrackedAppNotification } from './setup-xrm-mock.js';
+export { FakeTransport } from './fake-transport.js';
+export type { FakeReply, FakeTransportOptions } from './fake-transport.js';
