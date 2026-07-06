@@ -52,7 +52,11 @@ const CACHE_FILE = 'metadata.json';
 // '3' (F-MK9-08-Sub): EntityTypeInfo gained manyToOneRelationships (source of the
 // polymorphic-lookup $expand navigation property names). A '2' cache lacks the field,
 // so an unchanged-from-cache entity would emit no XxxExpands enum.
-const CACHE_VERSION = '3';
+// '4' (F-LMA11-04): AttributeMetadata gained AttributeOf, now fetched in ATTRIBUTE_SELECT
+// and used to keep standalone EntityName fields (e.g. activitytypecode) while still excluding
+// lookup companions (e.g. owneridtype). A '3' cache lacks AttributeOf, so every EntityName
+// attribute would read as undefined (no companion) and companions would leak into the interface.
+const CACHE_VERSION = '4';
 
 // ─── Cache Manager ───────────────────────────────────────────────────────────
 

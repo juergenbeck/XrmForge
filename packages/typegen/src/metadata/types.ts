@@ -42,6 +42,14 @@ export interface AttributeMetadata {
   SchemaName: string;
   AttributeType: string;
   AttributeTypeName?: { Value: string };
+  /**
+   * For a companion attribute (one that extends another), the LogicalName of the attribute it
+   * extends; null/undefined for a standalone attribute. Dataverse sets this on the EntityName
+   * type-discriminator of a polymorphic lookup (e.g. `owneridtype` -> `AttributeOf: 'ownerid'`),
+   * which lets typegen tell a lookup companion apart from a genuine standalone EntityName field
+   * (e.g. `activitytypecode`, AttributeOf null). See shouldIncludeInEntityInterface (F-LMA11-04).
+   */
+  AttributeOf?: string | null;
   DisplayName: Label;
   IsPrimaryId: boolean;
   IsPrimaryName: boolean;

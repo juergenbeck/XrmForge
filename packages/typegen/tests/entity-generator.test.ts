@@ -143,17 +143,21 @@ describe('generateEntityInterface', () => {
     expect(result).toContain('statuscode: number | null;');
   });
 
-  it('should exclude Virtual and EntityName attributes', () => {
+  it('should exclude Virtual, ManagedProperty and EntityName lookup companions, but keep standalone EntityName fields', () => {
     const info = createEntityInfo([
       createAttr({ LogicalName: 'name', AttributeType: 'String' }),
       createAttr({ LogicalName: 'entityimage', AttributeType: 'Virtual' }),
-      createAttr({ LogicalName: 'owneridtype', AttributeType: 'EntityName' }),
+      // EntityName lookup companion: AttributeOf points at its lookup -> excluded
+      createAttr({ LogicalName: 'owneridtype', AttributeType: 'EntityName', AttributeOf: 'ownerid' }),
+      // Standalone EntityName field (no AttributeOf) -> kept (F-LMA11-04)
+      createAttr({ LogicalName: 'activitytypecode', AttributeType: 'EntityName' }),
       createAttr({ LogicalName: 'iscustomizable', AttributeType: 'ManagedProperty' }),
     ]);
 
     const result = generateEntityInterface(info);
 
     expect(result).toContain('name: string | null;');
+    expect(result).toContain('activitytypecode: string | null;');
     expect(result).not.toContain('entityimage');
     expect(result).not.toContain('owneridtype');
     expect(result).not.toContain('iscustomizable');

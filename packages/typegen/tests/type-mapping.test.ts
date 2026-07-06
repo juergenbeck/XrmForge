@@ -295,10 +295,20 @@ describe('shouldIncludeInEntityInterface', () => {
     expect(shouldIncludeInEntityInterface(createAttr({ AttributeType: 'ManagedProperty' }))).toBe(false);
   });
 
-  it('should exclude EntityName (internal lookup companion fields)', () => {
-    // EntityName fields like owneridtype are not standalone Web API properties.
-    // Entity type info comes from @Microsoft.Dynamics.CRM.lookuplogicalname annotation.
-    expect(shouldIncludeInEntityInterface(createAttr({ AttributeType: 'EntityName' }))).toBe(false);
+  it('should exclude an EntityName lookup companion (AttributeOf set, e.g. owneridtype)', () => {
+    // A polymorphic-lookup type discriminator is a companion of its lookup; entity type info
+    // comes from the @Microsoft.Dynamics.CRM.lookuplogicalname annotation, not a standalone property.
+    expect(shouldIncludeInEntityInterface(
+      createAttr({ AttributeType: 'EntityName', AttributeOf: 'ownerid' }),
+    )).toBe(false);
+  });
+
+  it('should include a standalone EntityName field (AttributeOf null, e.g. activitytypecode) - F-LMA11-04', () => {
+    // A genuine EntityName field with no AttributeOf is $select/FormattedValue-readable.
+    expect(shouldIncludeInEntityInterface(createAttr({ AttributeType: 'EntityName' }))).toBe(true);
+    expect(shouldIncludeInEntityInterface(
+      createAttr({ AttributeType: 'EntityName', AttributeOf: null }),
+    )).toBe(true);
   });
 
   it('should include attributes even if not valid for create/update', () => {

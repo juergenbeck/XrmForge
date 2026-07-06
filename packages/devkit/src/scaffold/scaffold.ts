@@ -139,10 +139,12 @@ function generatePackageJson(projectName: string): string {
       // 0.x caret ranges only allow the same minor: keep these pins on the
       // current minor of each package, otherwise scaffolded projects install
       // outdated versions (e.g. helpers ^0.3.0 never resolves to 0.6.x).
-      // cli ^0.8.0: the env-var CI template (XRMFORGE_* without auth flags, since
-      // 0.7.0) plus the ./.env auto-load and interactive prompt (0.8.0) need cli at
-      // that minor; a 0.x caret never crosses a minor boundary, so an older pin
-      // would hand fresh projects a cli without these features.
+      // cli ^0.9.0: pin to the current cli minor so a fresh `init` pulls the newest cli and,
+      // transitively, typegen 0.15.0 with the XxxExpands polymorphic $expand enum (F-MK9-08-Sub).
+      // The env-var CI template (XRMFORGE_* without auth flags, since 0.7.0) plus the ./.env
+      // auto-load and interactive prompt (0.8.0) also need cli at its current minor. A 0.x caret
+      // never crosses a minor boundary, so an older pin would hand fresh projects an outdated cli
+      // (F-MK11-01: ^0.8.0 resolved to 0.8.21 -> typegen 0.14.2, missing XxxExpands).
       // helpers ^0.14.0: clearAppNotification + parentXrm()/getWebResourceContext() (browser-safe HTML
       // WebResource context helpers) ship in 0.14.0 (Runde 10 FW-4/F-LMA10-03); expanded<T>()/expandedMany<T>()
       // typed $expand readers since 0.13.0 (F-MK9-08); addAppNotification autoHideMs (self-clearing transient
@@ -150,15 +152,16 @@ function generatePackageJson(projectName: string): string {
       // formLookupUnsafe, getEnvironmentVariable, isUnsavedRecord since 0.11.0 (Runde 8: F-LMA8-N1/N2,
       // F-MK8-N4a/b); MultiSelect/submit/app-notification (parseMultiSelect, clearAndSubmit, setUnsafeAndSubmit,
       // addAppNotification) since 0.10.0; void Custom API executors since 0.9.0; isFormType since 0.8.0.
-      // testing ^0.7.0: Xrm.App notification tracking (setupXrmMock getGlobalNotifications + unique ids) and
+      // testing ^0.8.0: FakeTransport (scriptable DataverseTransport for testing retrieveAll consumers,
+      // OE-15 stage 1) since 0.8.0; Xrm.App notification tracking (setupXrmMock getGlobalNotifications + unique ids) and
       // MockControl.setContentWindow ship in 0.7.0 (Runde 10 FW-5/F-LMA10-06); subgrid MockControl.refresh()
       // since 0.6.0 (Runde 9: F-MK9-01); online.execute override + OptionSet/view/setFilterXml mock methods
       // since 0.5.0 (Runde 8: F-MK8-04b); complex-form mocks (createFormMock formType, getText/getPrecision,
       // addOnSave/fireOnSave, roles ItemCollection, utilityOverrides) since 0.4.0; tabs since 0.3.0.
-      '@xrmforge/cli': '^0.8.0',
+      '@xrmforge/cli': '^0.9.0',
       '@xrmforge/eslint-plugin': '^0.3.0',
       '@xrmforge/helpers': '^0.14.0',
-      '@xrmforge/testing': '^0.7.0',
+      '@xrmforge/testing': '^0.8.0',
       eslint: '^9.0.0',
       // happy-dom ^16: DOM test environment for HTML WebResource tests (Runde 10 F-LMA10-07). Pinned to 16
       // (the newest major that still supports Node 18, `node >=18`; 17+ require Node 20). Used per-test via

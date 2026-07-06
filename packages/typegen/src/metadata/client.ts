@@ -84,7 +84,7 @@ function byUniqueName(a: { uniquename: string }, b: { uniquename: string }): num
 // ─── Select Constants ────────────────────────────────────────────────────────
 
 const ENTITY_SELECT = 'LogicalName,SchemaName,EntitySetName,DisplayName,PrimaryIdAttribute,PrimaryNameAttribute,OwnershipType,IsCustomEntity,LogicalCollectionName,MetadataId';
-const ATTRIBUTE_SELECT = 'LogicalName,SchemaName,AttributeType,AttributeTypeName,DisplayName,IsPrimaryId,IsPrimaryName,RequiredLevel,IsValidForRead,IsValidForCreate,IsValidForUpdate,MetadataId';
+const ATTRIBUTE_SELECT = 'LogicalName,SchemaName,AttributeType,AttributeTypeName,DisplayName,IsPrimaryId,IsPrimaryName,RequiredLevel,IsValidForRead,IsValidForCreate,IsValidForUpdate,MetadataId,AttributeOf';
 const FORM_SELECT = 'name,formid,formxml,description,isdefault,type,formactivationstate';
 
 /**

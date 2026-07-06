@@ -280,11 +280,16 @@ checkPattern(
 
 // ── FetchXML ─────────────────────────────────────────────────────────────────
 
-// 3n. Raw field names in FetchXML attribute= (should use Fields Enum interpolation)
+// 3n. Raw field names in FetchXML attribute= (should use Fields Enum interpolation).
+// Matches both single- AND double-quote: attribute="parentcustomerid" is the common form in
+// Views / addCustomView / setFilterXml, and the old single-quote-only pattern let it through.
+// The [a-z] right after the quote is the interpolation exemption - attribute="${Fields.X}" begins
+// with $ and is not flagged, while a raw lowercase name is. This is position-precise on purpose:
+// a line-wide ${ exclude would hide a raw attribute that shares a line with an interpolated value.
 checkPattern(
   'Raw field names in FetchXML (use Fields Enum interpolation)',
   allSrcFiles,
-  /attribute\s*=\s*'[a-z][a-z0-9_]+'/,
+  /attribute\s*=\s*["'][a-z]/,
   ['generated/'],
 );
 

@@ -306,9 +306,10 @@ export function isPartyListType(attributeType: string): boolean {
  * Filtered types:
  * - Virtual, CalendarRules: not readable via Web API
  * - ManagedProperty: solution metadata (iscustomizable etc.), not business data
- * - EntityName: internal companion fields for lookups; entity type info is only
- *   available via @Microsoft.Dynamics.CRM.lookuplogicalname OData annotation,
- *   not as a standalone property in Web API responses
+ * - EntityName WITH AttributeOf set: a polymorphic-lookup companion (e.g. owneridtype);
+ *   entity type info comes from the @Microsoft.Dynamics.CRM.lookuplogicalname annotation,
+ *   not a standalone Web API property. A standalone EntityName field (AttributeOf null,
+ *   e.g. activitytypecode) IS readable and is kept (F-LMA11-04).
  */
 export function shouldIncludeInEntityInterface(attr: AttributeMetadata): boolean {
   // Exclude virtual attributes (images, file, calculated), but keep MultiSelectPicklist
@@ -325,9 +326,15 @@ export function shouldIncludeInEntityInterface(attr: AttributeMetadata): boolean
     return false;
   }
 
-  // Exclude EntityName companion fields (e.g. owneridtype, regardingobjectidtype)
-  // Entity type info comes from OData annotations, not from these fields
-  if (attr.AttributeType === 'EntityName') {
+  // EntityName attributes come in two flavors, distinguished by AttributeOf:
+  // - A polymorphic-lookup TYPE DISCRIMINATOR (e.g. owneridtype, regardingobjectidtype) is a
+  //   companion of its lookup - Dataverse sets AttributeOf to the lookup's LogicalName. Its
+  //   entity-type info is only exposed via the @Microsoft.Dynamics.CRM.lookuplogicalname
+  //   annotation, not as a standalone Web API property: exclude it.
+  // - A STANDALONE EntityName field (AttributeOf null, e.g. activitytypecode on activitypointer)
+  //   IS a real, $select/FormattedValue-readable property: keep it (F-LMA11-04).
+  // AttributeOf is Dataverse's authoritative companion marker (MS Learn AttributeMetadata.AttributeOf).
+  if (attr.AttributeType === 'EntityName' && attr.AttributeOf != null) {
     return false;
   }
 

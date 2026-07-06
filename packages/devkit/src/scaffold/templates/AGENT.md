@@ -222,8 +222,8 @@ compiles green but breaks at runtime (no tsc/eslint gate catches it):
 | Enum | Value for a lookup (e.g. `transactioncurrencyid`) | Use for |
 |---|---|---|
 | `XxxFields` | `'_transactioncurrencyid_value'` (already `_value`-form) | `$select`, `$filter` |
-| `XxxNavigationProperties` | `'transactioncurrencyid'` (blank) | `parseLookup`, `@odata.bind`, `$unsafe` (lookup), single-target `$expand` |
-| `XxxExpands` (polymorphic only) | `'customerid_account'` (target-qualified, metadata-sourced) | `$expand` on a polymorphic lookup |
+| `XxxNavigationProperties` | `'transactioncurrencyid'` (blank) | `parseLookup`, `$unsafe` (lookup), single-target `@odata.bind` + `$expand` |
+| `XxxExpands` (polymorphic only) | `'customerid_account'` (target-qualified, metadata-sourced) | `$expand` AND `@odata.bind` (write) on a polymorphic lookup |
 
 **Member naming:** `XxxFields`, `XxxNavigationProperties` and the form-level `XxxFormFieldsEnum` name their
 members after the attribute **SchemaName** (the cased logical name, e.g. `statecode` -> `StateCode`,
@@ -329,8 +329,11 @@ metadata and emits them as `XxxExpands` (members `<LookupSchemaName>_<Target>`):
 | custom polymorphic | `XxxExpands.<Lookup>_<Target>` - real metadata name with SchemaName casing (e.g. `sample_MediaPolymorphicLookup_sample_book`) |
 | `ownerid` (Owner) | NO `XxxExpands` member. Expand the SEPARATE `owninguser` / `owningteam` / `owningbusinessunit` lookups via their blank `XxxNavigationProperties` value (there is no `ownerid_systemuser`) |
 
-The blank `XxxNavigationProperties` value stays correct for `parseLookup`, `@odata.bind` and `$unsafe`
-on the parent record, but is NOT a valid `$expand` path for a genuine polymorphic lookup. Use `XxxExpands`:
+The blank `XxxNavigationProperties` value stays correct for **reading** at the parent record
+(`parseLookup`, `$unsafe`), but for a genuine polymorphic lookup it is NOT a valid path for `$expand`
+NOR for `@odata.bind` (writing) - both need the target-qualified `XxxExpands` member (MS Learn "Use
+multi-table lookup columns": the multi-table `@odata.bind` key is case-sensitive and target-qualified,
+e.g. `regardingobjectid_account_task@odata.bind`). Use `XxxExpands`:
 
 ```typescript
 import { SalesOrderExpands } from '../../generated/fields/salesorder.js';
@@ -549,8 +552,8 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 - Never `.getValue()[0].id` for lookups (use `formLookup`/`formLookupId`)
 - Never raw strings in `parseLookup()` (use NavigationProperties enum)
 - Never pass a `XxxFields` value to `parseLookup()` (use `XxxNavigationProperties`; a `XxxFields` value is already `_value`-form, so parseLookup double-wraps the key and always returns `null`)
-- Never wrap a `XxxFields` lookup value again as `` `_${XxxFields.X}_value` `` (it is already `_value`-form; double-wrap -> `__..._value_value` -> OData 400). Use the Fields value directly in `$select`/`$filter`; use `XxxNavigationProperties` for `parseLookup`/`$expand`/`@odata.bind`
-- Never hand-build or construct a polymorphic-lookup `$expand` name (use the generated `XxxExpands` member). The name is case-sensitive and not constructible: `ownerid` -> `owninguser`/`owningteam` (NOT `ownerid_systemuser`), `regardingobjectid` -> `regardingobjectid_account_task` (three-segment), custom lookups carry SchemaName casing. A guessed name fails at runtime with OData 400
+- Never wrap a `XxxFields` lookup value again as `` `_${XxxFields.X}_value` `` (it is already `_value`-form; double-wrap -> `__..._value_value` -> OData 400). Use the Fields value directly in `$select`/`$filter`; use `XxxNavigationProperties` for `parseLookup` and single-target `$expand`/`@odata.bind` (a polymorphic lookup uses `XxxExpands` for both)
+- Never hand-build or construct a polymorphic-lookup `$expand` or `@odata.bind` name (use the generated `XxxExpands` member for BOTH the `$expand` path and the `@odata.bind` write key). The name is case-sensitive and not constructible: `ownerid` -> `owninguser`/`owningteam` (NOT `ownerid_systemuser`), `regardingobjectid` -> `regardingobjectid_account_task` (three-segment), custom lookups carry SchemaName casing. A guessed name fails at runtime with OData 400
 - Never raw strings in `$unsafe()` (use Entity-level Fields Enum: `form.$unsafe(AccountFields.X)`)
 - Never manual OData annotation access (`_value`, `@OData.Community.Display.V1.FormattedValue`, `@Microsoft.Dynamics.CRM.lookuplogicalname`), and never hand-assemble the annotation key as a concatenated string to sneak past the gate. For a LOOKUP use `parseLookup()` (extracts id + name + entityType). For a non-lookup display label (OptionSet/Virtual/DateTime/Money, e.g. `statecode`, `activitytypecode`) use `parseFormattedValue(response, fieldName)` from `@xrmforge/helpers` - the single allowed place that reads `@OData.Community.Display.V1.FormattedValue`. Useful in read-only HTML WebResources that show a label instead of the raw value.
 - Never hardcode an `@odata.bind` EntitySet plural - the set name is NOT the entity logical name. Resolve it via `(await Xrm.Utility.getEntityMetadata(logicalName)).EntitySetName`, then build `` `${navProperty}@odata.bind`: `/${entitySetName}(${id})` `` (there is no helper: the plural needs a metadata lookup, which is project-specific and worth caching)
