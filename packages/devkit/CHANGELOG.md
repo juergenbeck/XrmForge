@@ -1,5 +1,27 @@
 # @xrmforge/devkit
 
+## 0.7.37
+
+### Patch Changes
+
+- Template fixes from showcase round 11 (template / scaffold only, no devkit source change):
+  - `scaffold.ts`: bump the scaffold pins to `@xrmforge/cli@^0.9.0` and `@xrmforge/testing@^0.8.0` (were `^0.8.0`
+    / `^0.7.0`). Without this a fresh `init` pulls an older cli (and transitively typegen 0.14.2, no XxxExpands),
+    and the testing pin lagged the 0.8.0 publish (F-MK11-01).
+  - `AGENT.md`: a polymorphic `@odata.bind` (write) needs the target-qualified `XxxExpands` value, not the blank
+    LogicalName, same as `$expand` (4 spots: enum table, prose, two NEVER rules; F-MK11-02, MS-Learn-verified).
+  - `validate-form.mjs`: Check 3n FetchXML `attribute=` regex now matches double-quote too (`["']`), with a
+    `[a-z]` interpolation guard so `attribute="${Fields.X}"` is not flagged (validate-form 3n).
+
+## 0.7.36
+
+### Patch Changes
+
+- AGENT.md template: fix the polymorphic-lookup `$expand` documentation (R46-02 doc bug: `ownerid` /
+  `regardingobjectid` do NOT follow the `<lookup>_<target>` scheme) and switch it to the generated `XxxExpands`
+  enum (section 6, the 5b table, output list and NEVER list). Template / doc only, propagated with typegen 0.15.0
+  (F-MK9-08-Sub).
+
 ## 0.7.35
 
 ### Patch Changes

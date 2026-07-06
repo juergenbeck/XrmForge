@@ -327,7 +327,7 @@ export function shouldIncludeInEntityInterface(attr: AttributeMetadata): boolean
   }
 
   // EntityName attributes come in two flavors, distinguished by AttributeOf:
-  // - A polymorphic-lookup TYPE DISCRIMINATOR (e.g. owneridtype, regardingobjectidtype) is a
+  // - A polymorphic-lookup TYPE DISCRIMINATOR (e.g. owneridtype, regardingobjecttypecode) is a
   //   companion of its lookup - Dataverse sets AttributeOf to the lookup's LogicalName. Its
   //   entity-type info is only exposed via the @Microsoft.Dynamics.CRM.lookuplogicalname
   //   annotation, not as a standalone Web API property: exclude it.

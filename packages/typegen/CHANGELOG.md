@@ -1,5 +1,36 @@
 # @xrmforge/typegen
 
+## 0.16.0
+
+### Minor Changes
+
+- **Standalone EntityName fields are now kept in entity interfaces (F-LMA11-04).**
+  `shouldIncludeInEntityInterface` previously dropped every `AttributeType === 'EntityName'` attribute. That is
+  correct only for a polymorphic-lookup companion (the type discriminator, e.g. `owneridtype` /
+  `regardingobjecttypecode`), whose entity-type info comes from the `@Microsoft.Dynamics.CRM.lookuplogicalname`
+  annotation rather than a standalone property. A genuine standalone EntityName field (`AttributeOf` null, e.g.
+  `activitytypecode` on `activitypointer`) IS `$select` / FormattedValue-readable and was being lost. The filter
+  now keys on `AttributeOf`: companion (`AttributeOf` set) excluded, standalone (`AttributeOf` null) kept.
+  `AttributeOf` is added to `ATTRIBUTE_SELECT` and the `AttributeMetadata` type. Additive: affected entities gain
+  the previously-missing field; no existing field changes. Verified live against markant-dev (`activitytypecode`
+  AttributeOf null; `owneridtype` / `regardingobjecttypecode` AttributeOf set).
+- **Metadata cache version `3` -> `4`.** `AttributeMetadata` now carries `AttributeOf`; a pre-0.16.0 cache lacks
+  it, so every EntityName attribute would read as standalone and companions would leak into the interface. The
+  bump forces a one-time full reload. No API or output change for non-cache or fresh-cache runs.
+
+## 0.15.0
+
+### Minor Changes
+
+- **Generated `XxxExpands` enum per entity with a polymorphic lookup (F-MK9-08-Sub).** Provides the
+  target-qualified `$expand` navigation-property names from the real relationship metadata
+  (`OneToManyRelationshipMetadata.ReferencingEntityNavigationPropertyName`), never constructed. New
+  `MetadataClient.getManyToOneRelationships()`, `EntityTypeInfo.manyToOneRelationships`, and
+  `generateEntityExpands()` (only polymorphic lookups, `Targets.length > 1`, Owner excluded; unresolvable targets
+  are warned and skipped). Metadata cache version `2` -> `3` (an old cache would emit no Expands enum for
+  unchanged entities). Removes the last raw string in consumer code (Golden Rule 19). Verified live against
+  markant-dev (`customerid` -> `customerid_account` / `customerid_contact`).
+
 ## 0.14.2
 
 ### Patch Changes

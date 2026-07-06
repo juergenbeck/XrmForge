@@ -1,5 +1,20 @@
 # @xrmforge/cli
 
+## 0.9.1
+
+### Patch Changes
+
+- Propagate `@xrmforge/typegen@0.16.0` (standalone EntityName fields kept via AttributeOf, F-LMA11-04) and
+  `@xrmforge/devkit@0.7.37` (round-11 template fixes: scaffold pins, polymorphic `@odata.bind` AGENT.md,
+  validate-form double-quote FetchXML). No cli source change.
+
+## 0.9.0
+
+### Minor Changes
+
+- Propagate `@xrmforge/typegen@0.15.0` (new generated `XxxExpands` enum for polymorphic-lookup `$expand`,
+  F-MK9-08-Sub) and `@xrmforge/devkit@0.7.36` (AGENT.md `XxxExpands` template fix). No cli source change.
+
 ## 0.8.21
 
 ### Patch Changes
