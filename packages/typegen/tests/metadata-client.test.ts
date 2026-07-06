@@ -381,7 +381,9 @@ describe('MetadataClient.getEntityNamesForSolution', () => {
         json: () => Promise.resolve({
           value: [{ solutionid: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', uniquename: 'MySolution', friendlyname: 'My Solution' }],
         }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({
+          value: [{ solutionid: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', uniquename: 'MySolution', friendlyname: 'My Solution' }],
+        })),
       })
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
@@ -391,7 +393,12 @@ describe('MetadataClient.getEntityNamesForSolution', () => {
             { objectid: '22222222-2222-2222-2222-222222222222', componenttype: 1 },
           ],
         }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({
+          value: [
+            { objectid: '11111111-1111-1111-1111-111111111111', componenttype: 1 },
+            { objectid: '22222222-2222-2222-2222-222222222222', componenttype: 1 },
+          ],
+        })),
       })
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
@@ -401,7 +408,12 @@ describe('MetadataClient.getEntityNamesForSolution', () => {
             { LogicalName: 'contact' },
           ],
         }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({
+          value: [
+            { LogicalName: 'account' },
+            { LogicalName: 'contact' },
+          ],
+        })),
       });
     vi.stubGlobal('fetch', mockFetch);
 
@@ -577,61 +589,69 @@ describe('MetadataClient.getEntityTypeInfo', () => {
               IsValidForRead: true, IsValidForCreate: true, IsValidForUpdate: true },
           ],
         }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({
+          LogicalName: 'account', SchemaName: 'Account', EntitySetName: 'accounts',
+          DisplayName: { UserLocalizedLabel: { Label: 'Account', LanguageCode: 1033 }, LocalizedLabels: [] },
+          PrimaryIdAttribute: 'accountid', PrimaryNameAttribute: 'name', MetadataId: 'e-1',
+          Attributes: [
+            { LogicalName: 'name', SchemaName: 'Name', AttributeType: 'String', MetadataId: 'a-1',
+              IsValidForRead: true, IsValidForCreate: true, IsValidForUpdate: true },
+          ],
+        })),
       })
       // Call 2: getPicklistAttributes
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [{ LogicalName: 'accountcategorycode', MetadataId: 'p-1' }] }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({ value: [{ LogicalName: 'accountcategorycode', MetadataId: 'p-1' }] })),
       })
       // Call 3: getMultiSelectPicklistAttributes
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [{ LogicalName: 'markant_multicode', SchemaName: 'markant_MultiCode', MetadataId: 'ms-1', OptionSet: { Name: 'markant_multicode', Options: [] } }] }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({ value: [{ LogicalName: 'markant_multicode', SchemaName: 'markant_MultiCode', MetadataId: 'ms-1', OptionSet: { Name: 'markant_multicode', Options: [] } }] })),
       })
       // Call 4: getLookupAttributes
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [{ LogicalName: 'primarycontactid', Targets: ['contact'], MetadataId: 'l-1' }] }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({ value: [{ LogicalName: 'primarycontactid', Targets: ['contact'], MetadataId: 'l-1' }] })),
       })
       // Call 5: getStatusAttributes
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [{ LogicalName: 'statuscode', MetadataId: 's-1' }] }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({ value: [{ LogicalName: 'statuscode', MetadataId: 's-1' }] })),
       })
       // Call 6: getStateAttributes
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [{ LogicalName: 'statecode', MetadataId: 'st-1' }] }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({ value: [{ LogicalName: 'statecode', MetadataId: 'st-1' }] })),
       })
       // Call 7: getForms (Main + active Quick Create)
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [] }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({ value: [] })),
       })
       // Call 8: getOneToManyRelationships
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [{ SchemaName: 'account_contacts', MetadataId: 'r-1' }] }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({ value: [{ SchemaName: 'account_contacts', MetadataId: 'r-1' }] })),
       })
       // Call 9: getManyToOneRelationships
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [{ SchemaName: 'contact_primarycontact_account', ReferencingAttribute: 'primarycontactid', ReferencedEntity: 'contact', ReferencingEntityNavigationPropertyName: 'primarycontactid', MetadataId: 'r-2' }] }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({ value: [{ SchemaName: 'contact_primarycontact_account', ReferencingAttribute: 'primarycontactid', ReferencedEntity: 'contact', ReferencingEntityNavigationPropertyName: 'primarycontactid', MetadataId: 'r-2' }] })),
       })
       // Call 10: getManyToManyRelationships
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [] }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({ value: [] })),
       });
     vi.stubGlobal('fetch', mockFetch);
 
@@ -668,7 +688,11 @@ describe('MetadataClient.getCustomApis', () => {
             { customapiid: 'api-1', uniquename: 'markant_test', bindingtype: 0, isfunction: false, boundentitylogicalname: null, displayname: 'Test', description: '' },
           ],
         }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({
+          value: [
+            { customapiid: 'api-1', uniquename: 'markant_test', bindingtype: 0, isfunction: false, boundentitylogicalname: null, displayname: 'Test', description: '' },
+          ],
+        })),
       })
       // Call 2: customapirequestparameters
       .mockResolvedValueOnce({
@@ -678,7 +702,11 @@ describe('MetadataClient.getCustomApis', () => {
             { _customapiid_value: 'api-1', uniquename: 'Input', type: 10, isoptional: false, logicalentityname: null, description: 'Input param' },
           ],
         }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({
+          value: [
+            { _customapiid_value: 'api-1', uniquename: 'Input', type: 10, isoptional: false, logicalentityname: null, description: 'Input param' },
+          ],
+        })),
       })
       // Call 3: customapiresponseproperties
       .mockResolvedValueOnce({
@@ -688,7 +716,11 @@ describe('MetadataClient.getCustomApis', () => {
             { _customapiid_value: 'api-1', uniquename: 'Output', type: 10, logicalentityname: null, description: 'Output prop' },
           ],
         }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({
+          value: [
+            { _customapiid_value: 'api-1', uniquename: 'Output', type: 10, logicalentityname: null, description: 'Output prop' },
+          ],
+        })),
       });
     vi.stubGlobal('fetch', mockFetch);
 
@@ -714,7 +746,12 @@ describe('MetadataClient.getCustomApis', () => {
             { customapiid: 'api-a', uniquename: 'lm_Alpha', bindingtype: 0, isfunction: false, boundentitylogicalname: null, displayname: 'Alpha', description: '' },
           ],
         }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({
+          value: [
+            { customapiid: 'api-z', uniquename: 'lm_Zeta', bindingtype: 0, isfunction: false, boundentitylogicalname: null, displayname: 'Zeta', description: '' },
+            { customapiid: 'api-a', uniquename: 'lm_Alpha', bindingtype: 0, isfunction: false, boundentitylogicalname: null, displayname: 'Alpha', description: '' },
+          ],
+        })),
       })
       // Call 2: customapirequestparameters (server order follows createdon, not name)
       .mockResolvedValueOnce({
@@ -726,7 +763,13 @@ describe('MetadataClient.getCustomApis', () => {
             { _customapiid_value: 'api-a', uniquename: 'StateCode', type: 7, isoptional: false, logicalentityname: null, description: '' },
           ],
         }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({
+          value: [
+            { _customapiid_value: 'api-a', uniquename: 'StatusCode', type: 7, isoptional: false, logicalentityname: null, description: '' },
+            { _customapiid_value: 'api-a', uniquename: 'EntityName', type: 10, isoptional: false, logicalentityname: null, description: '' },
+            { _customapiid_value: 'api-a', uniquename: 'StateCode', type: 7, isoptional: false, logicalentityname: null, description: '' },
+          ],
+        })),
       })
       // Call 3: customapiresponseproperties (unsorted server order)
       .mockResolvedValueOnce({
@@ -737,7 +780,12 @@ describe('MetadataClient.getCustomApis', () => {
             { _customapiid_value: 'api-z', uniquename: 'IsValid', type: 0, logicalentityname: null, description: '' },
           ],
         }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({
+          value: [
+            { _customapiid_value: 'api-z', uniquename: 'Result', type: 10, logicalentityname: null, description: '' },
+            { _customapiid_value: 'api-z', uniquename: 'IsValid', type: 0, logicalentityname: null, description: '' },
+          ],
+        })),
       });
     vi.stubGlobal('fetch', mockFetch);
 
@@ -757,7 +805,7 @@ describe('MetadataClient.getCustomApis', () => {
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: new Headers(),
         json: () => Promise.resolve({ value: [] }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({ value: [] })),
       });
     vi.stubGlobal('fetch', mockFetch);
 
@@ -777,16 +825,16 @@ describe('MetadataClient.getMultipleEntityTypeInfos', () => {
     // Need 2x10 calls (one per entity, each with 10 sub-calls: entity+attrs, picklists,
     // multi-select picklists, lookups, status, state, forms, 1:N, N:1, N:N)
     const makeEntityResponses = (name: string) => [
-      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ LogicalName: name, SchemaName: name, EntitySetName: name + 's', DisplayName: { LocalizedLabels: [] }, PrimaryIdAttribute: name + 'id', PrimaryNameAttribute: 'name', MetadataId: 'e', Attributes: [] }), text: () => Promise.resolve('{}') },
-      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
-      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
-      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
-      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
-      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
-      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
-      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
-      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
-      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve('{}') },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ LogicalName: name, SchemaName: name, EntitySetName: name + 's', DisplayName: { LocalizedLabels: [] }, PrimaryIdAttribute: name + 'id', PrimaryNameAttribute: 'name', MetadataId: 'e', Attributes: [] }), text: () => Promise.resolve(JSON.stringify({ LogicalName: name, SchemaName: name, EntitySetName: name + 's', DisplayName: { LocalizedLabels: [] }, PrimaryIdAttribute: name + 'id', PrimaryNameAttribute: 'name', MetadataId: 'e', Attributes: [] })) },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve(JSON.stringify({ value: [] })) },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve(JSON.stringify({ value: [] })) },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve(JSON.stringify({ value: [] })) },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve(JSON.stringify({ value: [] })) },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve(JSON.stringify({ value: [] })) },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve(JSON.stringify({ value: [] })) },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve(JSON.stringify({ value: [] })) },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve(JSON.stringify({ value: [] })) },
+      { ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ value: [] }), text: () => Promise.resolve(JSON.stringify({ value: [] })) },
     ];
 
     const mockFetch = vi.fn();

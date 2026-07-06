@@ -1,40 +1,119 @@
 /**
  * @xrmforge/typegen - Dataverse HTTP Client
  *
- * Resilient HTTP client for the Dataverse Web API.
+ * Resilient HTTP client for the Dataverse Web API metadata reads.
  *
- * Features:
- * - Token caching with 5-minute buffer before expiry
- * - Automatic retry with exponential backoff and jitter
- * - Rate limit awareness (HTTP 429 with Retry-After)
- * - Request timeout via AbortController
- * - Concurrency control (semaphore pattern, NOT recursive)
- * - Automatic OData paging via @odata.nextLink with safety limit
- * - Input sanitization helpers against OData injection
+ * Architecture (since the dataverse-core migration):
+ * - Transport + resilience come from @xrmforge/dataverse-core: a Node bearer-token
+ *   {@link NodeTransport} performs each fetch, the {@link ResilientRunner} drives
+ *   retry/backoff, rate-limit awareness (HTTP 429) and per-attempt timeout.
+ * - This class keeps the Node-only concerns the browser-lean runner deliberately
+ *   omits: a concurrency semaphore, HTTP 401 token-refresh-and-retry, and
+ *   @odata.nextLink paging (getAll). It also maps core's DataverseError family
+ *   onto the framework's ApiRequestError so the public error contract is stable.
+ * - Input sanitization is delegated to the shared dataverse-core sanitizers
+ *   (single source of truth), re-wrapped as ApiRequestError.
  */
 
-import type { TokenCredential, AccessToken } from '@azure/identity';
-import { ApiRequestError, AuthenticationError, ErrorCode } from '../errors.js';
+import type { TokenCredential } from '@azure/identity';
+import {
+  ResilientRunner,
+  DataverseError,
+  DataverseHttpError,
+  sanitizeIdentifier as coreSanitizeIdentifier,
+  sanitizeGuid as coreSanitizeGuid,
+  escapeODataString as coreEscapeODataString,
+  type DataverseErrorCode,
+} from '@xrmforge/dataverse-core';
+import { ApiRequestError, ErrorCode } from '../errors.js';
 import { createLogger } from '../logger.js';
+import { NodeTransport } from './node-transport.js';
 
 const log = createLogger('http');
 
 // ─── Internal Constants ──────────────────────────────────────────────────────
 
-/** Buffer before token expiry to trigger re-acquisition (5 minutes) */
-const TOKEN_BUFFER_MS = 5 * 60 * 1000;
+/** Default retry attempts for transient errors (network, timeout, 5xx). */
+const DEFAULT_MAX_RETRIES = 3;
 
-/** Maximum backoff delay cap for exponential retry (60 seconds) */
+/** Default base delay in ms for exponential backoff. */
+const DEFAULT_RETRY_BASE_DELAY_MS = 1000;
+
+/** Maximum backoff delay cap for exponential retry (60 seconds). */
 const MAX_BACKOFF_MS = 60_000;
 
-/** Maximum characters of response body stored in error context */
-const MAX_RESPONSE_BODY_LENGTH = 2000;
+/** Default request timeout in ms. */
+const DEFAULT_TIMEOUT_MS = 30_000;
 
-/** Maximum length of user-provided values in error messages (prevents log injection) */
-const MAX_ERROR_VALUE_LENGTH = 100;
+/** Default maximum concurrent requests to Dataverse. */
+const DEFAULT_MAX_CONCURRENCY = 5;
 
-/** Maximum consecutive HTTP 429 retries before giving up (prevents infinite loops) */
+/** Default maximum pages to follow via @odata.nextLink (safety limit). */
+const DEFAULT_MAX_PAGES = 100;
+
+/** Default maximum consecutive HTTP 429 retries before giving up. */
 const DEFAULT_MAX_RATE_LIMIT_RETRIES = 10;
+
+// ─── Error Mapping (dataverse-core -> typegen public contract) ───────────────
+
+/** Map a dataverse-core error code onto the typegen ErrorCode enum. */
+function mapErrorCode(code: DataverseErrorCode): ErrorCode {
+  switch (code) {
+    case 'NOT_FOUND':
+      return ErrorCode.API_NOT_FOUND;
+    case 'RATE_LIMITED':
+      return ErrorCode.API_RATE_LIMITED;
+    case 'UNAUTHORIZED':
+      return ErrorCode.API_UNAUTHORIZED;
+    case 'TIMEOUT':
+      return ErrorCode.API_TIMEOUT;
+    case 'INVALID_IDENTIFIER':
+    case 'INVALID_GUID':
+    case 'REQUEST_FAILED':
+    case 'ABORTED':
+    default:
+      return ErrorCode.API_REQUEST_FAILED;
+  }
+}
+
+/**
+ * Rephrase the few core runner messages that read oddly in the Node/token
+ * context. The core layer is runtime-neutral and leans browser-side (its 401
+ * text talks about a "session"); typegen authenticates with a bearer token, so
+ * that message is rephrased. All other messages are already neutral and kept
+ * verbatim.
+ */
+function nodeMessage(code: DataverseErrorCode, original: string): string {
+  if (code === 'UNAUTHORIZED') {
+    return 'Unauthorized (HTTP 401): the access token was rejected or has expired.';
+  }
+  return original;
+}
+
+/**
+ * Convert a thrown error into the framework's ApiRequestError. A DataverseError
+ * (or DataverseHttpError) from the shared core layer is mapped by code, carrying
+ * over statusCode/responseBody; any other error (e.g. AuthenticationError) is
+ * returned unchanged so it propagates with its own type.
+ */
+function toApiRequestError(error: unknown): Error {
+  if (error instanceof DataverseHttpError) {
+    return new ApiRequestError(mapErrorCode(error.code), nodeMessage(error.code, error.message), {
+      ...error.context,
+      statusCode: error.statusCode,
+      responseBody: error.responseBody,
+    });
+  }
+  if (error instanceof DataverseError) {
+    return new ApiRequestError(mapErrorCode(error.code), nodeMessage(error.code, error.message), {
+      ...error.context,
+    });
+  }
+  if (error instanceof Error) {
+    return error;
+  }
+  return new ApiRequestError(ErrorCode.API_REQUEST_FAILED, String(error));
+}
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -78,53 +157,46 @@ export interface HttpClientOptions {
   readOnly?: boolean;
 }
 
-// ─── Token Cache ─────────────────────────────────────────────────────────────
-
-interface CachedToken {
-  token: string;
-  expiresAt: number; // Unix timestamp in ms
-}
-
 // ─── Client ──────────────────────────────────────────────────────────────────
 
 export class DataverseHttpClient {
-  private readonly baseUrl: string;
-  private readonly apiVersion: string;
-  private readonly credential: TokenCredential;
-  private readonly maxRetries: number;
-  private readonly retryBaseDelayMs: number;
-  private readonly timeoutMs: number;
+  private readonly transport: NodeTransport;
+  private readonly runner: ResilientRunner;
   private readonly maxConcurrency: number;
   private readonly maxPages: number;
-  private readonly maxRateLimitRetries: number;
   private readonly readOnly: boolean;
 
-  private cachedToken: CachedToken | null = null;
-  /** Pending token refresh promise (prevents concurrent token requests) */
-  private pendingTokenRefresh: Promise<string> | null = null;
-
-  // Semaphore for concurrency control (non-recursive)
+  // Semaphore for concurrency control (non-recursive). The browser-lean core
+  // runner has no semaphore, so gating the Node bulk load stays here.
   private activeConcurrentRequests = 0;
   private readonly waitQueue: Array<() => void> = [];
 
   constructor(options: HttpClientOptions) {
-    this.baseUrl = options.environmentUrl.replace(/\/$/, '');
-    this.apiVersion = options.apiVersion ?? 'v9.2';
-    this.credential = options.credential;
-    this.maxRetries = options.maxRetries ?? 3;
-    this.retryBaseDelayMs = options.retryBaseDelayMs ?? 1000;
-    this.timeoutMs = options.timeoutMs ?? 30_000;
-    this.maxConcurrency = options.maxConcurrency ?? 5;
-    this.maxPages = options.maxPages ?? 100;
-    this.maxRateLimitRetries = options.maxRateLimitRetries ?? DEFAULT_MAX_RATE_LIMIT_RETRIES;
+    this.maxConcurrency = options.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY;
+    this.maxPages = options.maxPages ?? DEFAULT_MAX_PAGES;
     this.readOnly = options.readOnly ?? true; // SAFETY: default to read-only
+
+    this.transport = new NodeTransport({
+      environmentUrl: options.environmentUrl,
+      credential: options.credential,
+      apiVersion: options.apiVersion,
+    });
+
+    // Node bulk tuning (the runner's own defaults are browser-lean: 2/8s/3).
+    this.runner = new ResilientRunner(this.transport, {
+      maxRetries: options.maxRetries ?? DEFAULT_MAX_RETRIES,
+      retryBaseDelayMs: options.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS,
+      maxBackoffMs: MAX_BACKOFF_MS,
+      timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      maxRateLimitRetries: options.maxRateLimitRetries ?? DEFAULT_MAX_RATE_LIMIT_RETRIES,
+    });
   }
 
   /**
    * Full API base URL, e.g. "https://myorg.crm4.dynamics.com/api/data/v9.2"
    */
   get apiUrl(): string {
-    return `${this.baseUrl}/api/data/${this.apiVersion}`;
+    return this.transport.apiUrl;
   }
 
   // ─── Public API ──────────────────────────────────────────────────────────
@@ -137,7 +209,7 @@ export class DataverseHttpClient {
    * @param signal - Optional AbortSignal to cancel the request
    */
   async get<T>(path: string, signal?: AbortSignal): Promise<T> {
-    const url = this.resolveUrl(path);
+    const url = this.transport.resolveUrl(path);
     return this.executeWithConcurrency<T>(url, signal);
   }
 
@@ -157,7 +229,7 @@ export class DataverseHttpClient {
     }
 
     const allResults: T[] = [];
-    let currentUrl: string | null = this.resolveUrl(path);
+    let currentUrl: string | null = this.transport.resolveUrl(path);
     let page = 0;
 
     while (currentUrl) {
@@ -222,7 +294,7 @@ export class DataverseHttpClient {
     }
   }
 
-  // ─── Input Sanitization ──────────────────────────────────────────────────
+  // ─── Input Sanitization (delegated to @xrmforge/dataverse-core) ────────────
 
   /**
    * Validate that a value is a safe OData identifier (entity name, attribute name).
@@ -232,15 +304,11 @@ export class DataverseHttpClient {
    * @throws {ApiRequestError} if the value contains invalid characters
    */
   static sanitizeIdentifier(value: string): string {
-    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(value)) {
-      throw new ApiRequestError(
-        ErrorCode.API_REQUEST_FAILED,
-        `Invalid OData identifier: "${value.substring(0, MAX_ERROR_VALUE_LENGTH).replace(/[\r\n]/g, '')}". ` +
-          `Only letters, digits, and underscores allowed; must start with a letter or underscore.`,
-        { value: value.substring(0, MAX_ERROR_VALUE_LENGTH) },
-      );
+    try {
+      return coreSanitizeIdentifier(value);
+    } catch (error: unknown) {
+      throw toApiRequestError(error);
     }
-    return value;
   }
 
   /**
@@ -249,16 +317,11 @@ export class DataverseHttpClient {
    * @throws {ApiRequestError} if the format is invalid
    */
   static sanitizeGuid(value: string): string {
-    const guidPattern =
-      /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-    if (!guidPattern.test(value)) {
-      throw new ApiRequestError(
-        ErrorCode.API_REQUEST_FAILED,
-        `Invalid GUID format: "${value}".`,
-        { value },
-      );
+    try {
+      return coreSanitizeGuid(value);
+    } catch (error: unknown) {
+      throw toApiRequestError(error);
     }
-    return value;
   }
 
   /**
@@ -266,89 +329,61 @@ export class DataverseHttpClient {
    * Doubles single quotes to prevent injection.
    */
   static escapeODataString(value: string): string {
-    return value.replace(/'/g, "''");
+    return coreEscapeODataString(value);
   }
 
-  // ─── Token Management ────────────────────────────────────────────────────
-
-  private async getToken(): Promise<string> {
-    // Return cached token if it has more than 5 minutes of validity remaining
-    if (this.cachedToken && this.cachedToken.expiresAt - Date.now() > TOKEN_BUFFER_MS) {
-      return this.cachedToken.token;
-    }
-
-    // If a refresh is already in progress, wait for it instead of starting a second one
-    if (this.pendingTokenRefresh) {
-      return this.pendingTokenRefresh;
-    }
-
-    this.pendingTokenRefresh = this.refreshToken();
-    try {
-      return await this.pendingTokenRefresh;
-    } finally {
-      this.pendingTokenRefresh = null;
-    }
-  }
-
-  /** Internal: actually acquire a new token from the credential provider. */
-  private async refreshToken(): Promise<string> {
-    log.debug('Requesting new access token');
-
-    const scope = `${this.baseUrl}/.default`;
-    let tokenResponse: AccessToken | null;
-
-    try {
-      tokenResponse = await this.credential.getToken(scope);
-    } catch (error: unknown) {
-      const cause = error instanceof Error ? error.message : String(error);
-      throw new AuthenticationError(
-        ErrorCode.AUTH_TOKEN_FAILED,
-        `Failed to acquire access token for ${this.baseUrl}. ` +
-          `Verify your authentication configuration.\n` +
-          `Cause: ${cause}`,
-        {
-          environmentUrl: this.baseUrl,
-          originalError: cause,
-        },
-      );
-    }
-
-    if (!tokenResponse) {
-      throw new AuthenticationError(
-        ErrorCode.AUTH_TOKEN_FAILED,
-        `No access token returned for ${this.baseUrl}. ` +
-          `This may indicate invalid credentials or insufficient permissions.`,
-        { environmentUrl: this.baseUrl },
-      );
-    }
-
-    this.cachedToken = {
-      token: tokenResponse.token,
-      expiresAt: tokenResponse.expiresOnTimestamp,
-    };
-
-    log.debug('Access token acquired', {
-      expiresIn: `${Math.round((tokenResponse.expiresOnTimestamp - Date.now()) / 1000)}s`,
-    });
-
-    return tokenResponse.token;
-  }
-
-  // ─── Concurrency Control ─────────────────────────────────────────────────
+  // ─── Request Execution ─────────────────────────────────────────────────────
 
   /**
-   * Execute a request within the concurrency semaphore.
-   * The semaphore is acquired ONCE per logical request. Retries happen
-   * INSIDE the semaphore to avoid the recursive slot exhaustion bug.
+   * Execute a request within the concurrency semaphore. The semaphore is
+   * acquired ONCE per logical request; the resilience (retry/backoff) happens
+   * inside, driven by the core runner.
    */
-  private async executeWithConcurrency<T>(url: string, signal?: AbortSignal, method: 'GET' | 'POST' = 'GET', requestBody?: unknown): Promise<T> {
+  private async executeWithConcurrency<T>(url: string, signal?: AbortSignal): Promise<T> {
     await this.acquireSlot();
     try {
-      return await this.executeWithRetry<T>(url, 1, 0, signal, method, requestBody);
+      return await this.executeWithAuth<T>(url, signal);
     } finally {
       this.releaseSlot();
     }
   }
+
+  /**
+   * Run the request and handle the HTTP 401 token-refresh case (401-C): the
+   * cached token may be stale, so clear it and retry exactly once. A second 401
+   * is a real authorization failure and propagates. The token is primed up front
+   * so a bad credential throws an AuthenticationError before the runner runs
+   * (outside its retry loop), never mislabelled as a transient network failure.
+   */
+  private async executeWithAuth<T>(url: string, signal?: AbortSignal): Promise<T> {
+    await this.transport.ensureToken();
+    try {
+      return await this.runnerSend<T>(url, signal);
+    } catch (error: unknown) {
+      if (error instanceof ApiRequestError && error.code === ErrorCode.API_UNAUTHORIZED) {
+        log.warn('HTTP 401 received, clearing token cache and retrying');
+        this.transport.clearTokenCache();
+        await this.transport.ensureToken();
+        // Retry once; a second 401 throws here and is not caught again.
+        return await this.runnerSend<T>(url, signal);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Send one request through the core runner and translate any dataverse-core
+   * error into the framework's ApiRequestError (stable public contract).
+   */
+  private async runnerSend<T>(url: string, signal?: AbortSignal): Promise<T> {
+    try {
+      return await this.runner.send<T>({ method: 'GET', url, signal });
+    } catch (error: unknown) {
+      throw toApiRequestError(error);
+    }
+  }
+
+  // ─── Concurrency Control ─────────────────────────────────────────────────
 
   private acquireSlot(): Promise<void> {
     if (this.activeConcurrentRequests < this.maxConcurrency) {
@@ -368,202 +403,5 @@ export class DataverseHttpClient {
     this.activeConcurrentRequests--;
     const next = this.waitQueue.shift();
     if (next) next();
-  }
-
-  // ─── Retry Logic (runs INSIDE a single concurrency slot) ─────────────────
-
-  private async executeWithRetry<T>(url: string, attempt: number, rateLimitRetries: number = 0, signal?: AbortSignal, method: 'GET' | 'POST' = 'GET', requestBody?: unknown): Promise<T> {
-    // Check if already aborted before starting
-    if (signal?.aborted) {
-      throw new ApiRequestError(
-        ErrorCode.API_REQUEST_FAILED,
-        'Request aborted before execution',
-        { url },
-      );
-    }
-
-    const token = await this.getToken();
-
-    // Combine user's AbortSignal with per-request timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
-
-    // If the user's signal fires, abort our controller too
-    const onUserAbort = () => controller.abort();
-    signal?.addEventListener('abort', onUserAbort, { once: true });
-
-    let response: Response;
-    try {
-      log.debug(`${method} ${url}`, { attempt });
-
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-        'OData-MaxVersion': '4.0',
-        'OData-Version': '4.0',
-        Accept: 'application/json',
-        Prefer: 'odata.include-annotations="*"',
-      };
-      if (method === 'POST') {
-        headers['Content-Type'] = 'application/json';
-      }
-
-      response = await fetch(url, {
-        method,
-        headers,
-        body: requestBody !== undefined ? JSON.stringify(requestBody) : undefined,
-        signal: controller.signal,
-      });
-    } catch (fetchError: unknown) {
-      clearTimeout(timeoutId);
-      signal?.removeEventListener('abort', onUserAbort);
-
-      // Distinguish user abort from timeout
-      if ((fetchError instanceof Error) && fetchError.name === 'AbortError') {
-        // If the USER aborted (not our timeout), don't retry
-        if (signal?.aborted) {
-          throw new ApiRequestError(
-            ErrorCode.API_REQUEST_FAILED,
-            'Request aborted by caller',
-            { url, attempt },
-          );
-        }
-
-        // Timeout: retry if attempts remain
-        if (attempt <= this.maxRetries) {
-          const delay = this.calculateBackoff(attempt);
-          log.warn(`Request timed out, retrying in ${delay}ms (${attempt}/${this.maxRetries})`, {
-            url,
-          });
-          await this.sleep(delay);
-          return this.executeWithRetry<T>(url, attempt + 1, rateLimitRetries, signal, method, requestBody);
-        }
-
-        throw new ApiRequestError(
-          ErrorCode.API_TIMEOUT,
-          `Request timed out after ${this.timeoutMs}ms (${this.maxRetries} retries exhausted)`,
-          { url, timeoutMs: this.timeoutMs },
-        );
-      }
-
-      // Network error
-      if (attempt <= this.maxRetries) {
-        const delay = this.calculateBackoff(attempt);
-        log.warn(`Network error, retrying in ${delay}ms (${attempt}/${this.maxRetries})`, {
-          url,
-          error: fetchError instanceof Error ? fetchError.message : String(fetchError),
-        });
-        await this.sleep(delay);
-        return this.executeWithRetry<T>(url, attempt + 1, rateLimitRetries, signal, method, requestBody);
-      }
-
-      throw new ApiRequestError(
-        ErrorCode.API_REQUEST_FAILED,
-        `Network error after ${this.maxRetries} retries`,
-        {
-          url,
-          originalError: fetchError instanceof Error ? fetchError.message : String(fetchError),
-        },
-      );
-    } finally {
-      clearTimeout(timeoutId);
-      signal?.removeEventListener('abort', onUserAbort);
-    }
-
-    // ── Handle HTTP Errors ──
-
-    if (!response.ok) {
-      return this.handleHttpError<T>(response, url, attempt, rateLimitRetries, signal, method, requestBody);
-    }
-
-    log.debug(`${method} ${url} -> ${response.status}`, { attempt });
-    return response.json() as Promise<T>;
-  }
-
-  private async handleHttpError<T>(
-    response: Response,
-    url: string,
-    attempt: number,
-    rateLimitRetries: number,
-    signal?: AbortSignal,
-    method: 'GET' | 'POST' = 'GET',
-    requestBody?: unknown,
-  ): Promise<T> {
-    const body = await response.text();
-
-    // 429 Rate Limited: retry with separate counter to prevent infinite loops
-    if (response.status === 429) {
-      if (rateLimitRetries >= this.maxRateLimitRetries) {
-        throw new ApiRequestError(
-          ErrorCode.API_RATE_LIMITED,
-          `Rate limit retries exhausted (${this.maxRateLimitRetries} consecutive 429 responses)`,
-          { url, rateLimitRetries },
-        );
-      }
-
-      const retryAfterHeader = response.headers.get('Retry-After');
-      const retryAfterMs = retryAfterHeader
-        ? parseInt(retryAfterHeader, 10) * 1000
-        : this.calculateBackoff(rateLimitRetries + 1);
-
-      log.warn(`Rate limited (HTTP 429). Waiting ${retryAfterMs}ms (${rateLimitRetries + 1}/${this.maxRateLimitRetries}).`, {
-        url,
-        retryAfterHeader,
-      });
-
-      await this.sleep(retryAfterMs);
-      // Do NOT increment attempt for 429: these are not "failures", they are throttling
-      return this.executeWithRetry<T>(url, attempt, rateLimitRetries + 1, signal, method, requestBody);
-    }
-
-    // 401 Unauthorized: clear token cache and retry once
-    if (response.status === 401 && attempt === 1) {
-      log.warn('HTTP 401 received, clearing token cache and retrying');
-      this.cachedToken = null;
-      return this.executeWithRetry<T>(url, attempt + 1, 0, signal, method, requestBody);
-    }
-
-    // 5xx Server Errors: retryable
-    if (response.status >= 500 && attempt <= this.maxRetries) {
-      const delay = this.calculateBackoff(attempt);
-      log.warn(
-        `Server error ${response.status}, retrying in ${delay}ms (${attempt}/${this.maxRetries})`,
-      );
-      await this.sleep(delay);
-      return this.executeWithRetry<T>(url, attempt + 1, rateLimitRetries, signal, method, requestBody);
-    }
-
-    // Non-retryable error: throw
-    const errorCode =
-      response.status === 401
-        ? ErrorCode.API_UNAUTHORIZED
-        : response.status === 404
-          ? ErrorCode.API_NOT_FOUND
-          : ErrorCode.API_REQUEST_FAILED;
-
-    throw new ApiRequestError(
-      errorCode,
-      `Dataverse API error: HTTP ${response.status} ${response.statusText}`,
-      {
-        url,
-        statusCode: response.status,
-        responseBody: body.substring(0, MAX_RESPONSE_BODY_LENGTH),
-      },
-    );
-  }
-
-  // ─── Helpers ─────────────────────────────────────────────────────────────
-
-  private resolveUrl(path: string): string {
-    return path.startsWith('http') ? path : `${this.apiUrl}${path}`;
-  }
-
-  private calculateBackoff(attempt: number): number {
-    const exponential = this.retryBaseDelayMs * Math.pow(2, attempt - 1);
-    const jitter = Math.random() * this.retryBaseDelayMs;
-    return Math.min(exponential + jitter, MAX_BACKOFF_MS);
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

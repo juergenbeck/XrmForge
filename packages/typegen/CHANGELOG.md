@@ -1,5 +1,20 @@
 # @xrmforge/typegen
 
+## 0.18.0
+
+### Minor Changes
+
+- **HTTP client migrated onto `@xrmforge/dataverse-core`.** `DataverseHttpClient` now runs its retry /
+  backoff / rate-limit / timeout resilience through the shared `ResilientRunner` from `@xrmforge/dataverse-core`
+  (a new dependency), over a Node bearer-token `NodeTransport` that implements the core `DataverseTransport`
+  interface. The Node-only concerns the browser-lean runner omits stay in typegen: a concurrency semaphore, HTTP
+  401 token-refresh-and-retry, and `@odata.nextLink` paging. The three OData sanitizers (`sanitizeIdentifier` /
+  `sanitizeGuid` / `escapeODataString`) now delegate to the single shared implementation in dataverse-core.
+  Public API and behaviour are unchanged: the static sanitizer signatures, `get` / `getAll` / `isReadOnly` /
+  `assertWriteAllowed`, and the `ApiRequestError` error contract are preserved (core `DataverseError`s are
+  mapped back onto `ApiRequestError` by code, carrying statusCode / responseBody). The only observable change is
+  a clearer, token-oriented HTTP 401 message. All 491 tests green.
+
 ## 0.17.0
 
 ### Minor Changes

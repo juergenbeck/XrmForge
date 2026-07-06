@@ -256,6 +256,8 @@ describe('401 token refresh', () => {
     await expect(client.get('/contacts')).rejects.toThrow(ApiRequestError);
     const error = await client.get('/contacts').catch((e: ApiRequestError) => e);
     expect(error.code).toBe(ErrorCode.API_UNAUTHORIZED);
+    // typegen rephrases the browser-leaning core 401 text for the Node/token context
+    expect(error.message).toContain('access token');
 
     vi.unstubAllGlobals();
   });

@@ -1,5 +1,12 @@
 # @xrmforge/cli
 
+## 0.9.3
+
+### Patch Changes
+
+- Propagate `@xrmforge/typegen@0.18.0` (HTTP client + OData sanitizers migrated onto the shared
+  `@xrmforge/dataverse-core` runner/transport; public API and behaviour unchanged). No cli source change.
+
 ## 0.9.2
 
 ### Patch Changes

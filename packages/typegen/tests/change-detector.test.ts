@@ -136,7 +136,7 @@ describe('ChangeDetector.detectChanges', () => {
       status: 200,
       headers: new Headers(),
       json: () => Promise.resolve({ EntityMetadata: [], ServerVersionStamp: 's' }),
-      text: () => Promise.resolve('{}'),
+      text: () => Promise.resolve(JSON.stringify({ EntityMetadata: [], ServerVersionStamp: 's' })),
     });
     vi.stubGlobal('fetch', mockFn);
 
@@ -174,7 +174,7 @@ describe('ChangeDetector.getInitialVersionStamp', () => {
       status: 200,
       headers: new Headers(),
       json: () => Promise.resolve({ ServerVersionStamp: 's' }),
-      text: () => Promise.resolve('{}'),
+      text: () => Promise.resolve(JSON.stringify({ ServerVersionStamp: 's' })),
     });
     vi.stubGlobal('fetch', mockFn);
 
