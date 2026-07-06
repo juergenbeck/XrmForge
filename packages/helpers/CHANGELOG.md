@@ -1,5 +1,27 @@
 # @xrmforge/helpers
 
+## 0.15.0
+
+### Minor Changes
+
+- Add `typedFields(formContext, kindMap)` for genuinely cross-entity / cross-form scripts where no single
+  generated `FormTypeInfo` fits (OE-16, Option B). It is the typed, NULLABLE counterpart to `typedForm`: the
+  kindMap (a `Record<fieldLogicalName, AttrKind>`) drives per-field types, every accessor is nullable (a field
+  may be absent on the current record - honest, unlike a per-entity union's false non-null), and the same
+  auto-submit wrapping plus `controls`/`$context`/`$unsafe` as `typedForm` apply. Pass the generated
+  `XxxFieldKinds` constant (one entity across several forms) or a hand-written map of named constants (a bespoke
+  cross-entity group). Replaces the hand-built `form-access.ts` getValue/setValue wrapper layer that showcases
+  otherwise reinvent (Rule 19). New exports: `typedFields`, `TypedFields`, `AttrKind`, `KindMap`,
+  `KindToAttribute`. The `typedForm` runtime proxy is factored into a shared internal helper; no `typedForm`
+  behaviour change (its set-trap message is now generic).
+
+### Patch Changes
+
+- The type-level tests (`tests/*.test-d.ts`) are now gated: `typecheck` runs a second `tsc` pass over them (new
+  `tsconfig.test-d.json`). Repaired `typed-form-inference.test-d.ts`, which had silently stopped compiling (it
+  used the bare form-interface shape whose `ExtractFields` resolves to `never` across the package boundary; it
+  now uses the `FormTypeInfo` shape typegen actually emits).
+
 ## 0.14.0
 
 ### Minor Changes

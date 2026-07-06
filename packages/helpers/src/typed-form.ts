@@ -193,7 +193,20 @@ function wrapAttributeWithAutoSubmit(attr: Xrm.Attributes.Attribute): Xrm.Attrib
 export function typedForm<TForm>(
   formContext: Xrm.FormContext,
 ): TypedForm<TForm> {
-  return new Proxy(formContext as unknown as TypedForm<TForm>, {
+  return createFormProxy(formContext) as TypedForm<TForm>;
+}
+
+/**
+ * Internal: the field-access proxy shared by typedForm and typedFields.
+ *
+ * The runtime behaviour is IDENTICAL for both entry points; only the static type
+ * differs (typedForm is non-nullable from a generated FormTypeInfo, typedFields
+ * is nullable from a kindMap). Every string property resolves to the matching Xrm
+ * attribute (wrapped so setValue() auto-submits); `$context`, `controls` and
+ * `$unsafe` are the reserved escape hatches.
+ */
+function createFormProxy(formContext: Xrm.FormContext, nullOnMissingField = false): unknown {
+  return new Proxy(formContext, {
     get(_target, prop) {
       if (typeof prop !== 'string') {
         return (formContext as unknown as Record<symbol, unknown>)[prop];
@@ -212,12 +225,15 @@ export function typedForm<TForm>(
       }
       const attr = formContext.getAttribute(prop);
       if (attr) return wrapAttributeWithAutoSubmit(attr);
-      return (formContext as unknown as Record<string, unknown>)[prop];
+      // typedForm falls through to FormContext members (data, ui, ...); typedFields
+      // treats a declared-but-absent field as honestly null (matches its `| null` type,
+      // and its FormContext access goes through $context, not this fallthrough).
+      return nullOnMissingField ? null : (formContext as unknown as Record<string, unknown>)[prop];
     },
 
     set(_target, prop, _value) {
       throw new TypeError(
-        `Cannot assign to '${String(prop)}'. Use form.${String(prop)}.setValue() instead.`,
+        `Cannot assign to '${String(prop)}'. Call .setValue() on the field instead.`,
       );
     },
 
@@ -227,6 +243,120 @@ export function typedForm<TForm>(
       return formContext.getAttribute(prop) !== null;
     },
   });
+}
+
+// ─── TypedFields (cross-entity / multi-form via a kindMap) ───────────────────
+
+/**
+ * Attribute kind: a compact tag that maps a field to its Xrm.Attributes.* type.
+ *
+ * Used by {@link typedFields}, and emitted per entity as the generated
+ * `XxxFieldKinds` constant by @xrmforge/typegen (>= the OE-16 release). The seven
+ * kinds cover every standard Dataverse attribute type; the string literals here
+ * are the contract typegen must emit.
+ */
+export type AttrKind =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'date'
+  | 'optionset'
+  | 'multiselect'
+  | 'lookup';
+
+/** Maps an {@link AttrKind} to its concrete Xrm.Attributes.* type. */
+export interface KindToAttribute {
+  string: Xrm.Attributes.StringAttribute;
+  number: Xrm.Attributes.NumberAttribute;
+  boolean: Xrm.Attributes.BooleanAttribute;
+  date: Xrm.Attributes.DateAttribute;
+  optionset: Xrm.Attributes.OptionSetAttribute;
+  multiselect: Xrm.Attributes.MultiSelectOptionSetAttribute;
+  lookup: Xrm.Attributes.LookupAttribute;
+}
+
+/** A kindMap: field logical name -> its {@link AttrKind}. */
+export type KindMap = Record<string, AttrKind>;
+
+/**
+ * TypedFields: nullable, typed field access driven by a kindMap.
+ *
+ * Unlike {@link TypedForm} (non-nullable, one generated form), TypedFields is for
+ * genuinely cross-entity or multi-form scripts: the same logic runs over records
+ * that may or may not carry a given field, so every accessor is NULLABLE. This is
+ * honest - a field absent on the current record is null, not a false non-null
+ * (the OE-13 trap). It is the typed counterpart to the raw FormContext pattern.
+ *
+ * @typeParam M - the kindMap type (usually inferred from the argument)
+ */
+export type TypedFields<M extends KindMap> = {
+  /** Direct field access: the nullable typed attribute (null if not on the record). */
+  readonly [K in keyof M]: KindToAttribute[M[K]] | null;
+} & {
+  /** Access the underlying FormContext for ui, data, tabs, etc. */
+  readonly $context: Xrm.FormContext;
+
+  /**
+   * Typed control access (nullable) via fields.controls.fieldname.
+   *
+   * Returns the primary control for the field, or null if absent. For a field
+   * with multiple controls, reach every control via `fields.fieldname?.controls`
+   * (the native Xrm.Attributes.Attribute.controls collection).
+   */
+  readonly controls: {
+    readonly [K in keyof M]: Xrm.Controls.StandardControl | null;
+  };
+
+  /** Access a field not declared in the kindMap. Returns null if absent. */
+  $unsafe(name: string): Xrm.Attributes.Attribute | null;
+};
+
+/**
+ * Create a typed, NULLABLE field proxy from a kindMap (OE-16, Option B).
+ *
+ * For genuinely cross-entity or multi-form scripts where no single generated
+ * `FormTypeInfo` fits (per AGENT.md these otherwise fall back to the raw
+ * `Xrm.FormContext` pattern). The kindMap declares which fields to expose and
+ * their kind; the proxy returns the matching Xrm attribute - NULLABLE, because a
+ * field may be absent on the current record - with the same auto-submit wrapping
+ * as {@link typedForm}. Pass the generated `XxxFieldKinds` constant (single entity
+ * across several forms), or a hand-written map of named constants (a bespoke
+ * cross-entity group).
+ *
+ * The kindMap argument drives TYPE inference and documents intent; the runtime
+ * proxy resolves every access dynamically via getAttribute (identical to
+ * typedForm), so the map's values are never read at runtime.
+ *
+ * @example
+ * ```typescript
+ * import { typedFields } from '@xrmforge/helpers';
+ * import { QuotedetailFieldKinds } from '../generated/fields/quotedetail.js';
+ *
+ * // Single entity across several forms (nullable everywhere):
+ * const f = typedFields(ctx.getFormContext(), QuotedetailFieldKinds);
+ * f.quantity?.getValue();                 // number | null
+ * f.quantity?.setValue(5);                 // auto-submits (setSubmitMode 'always')
+ * f.controls.lm_einheittext?.setDisabled(true);
+ *
+ * // Bespoke cross-entity group (hand-written map of named constants):
+ * const a = typedFields(fc, {
+ *   [AddressFields.Line1]: 'string',
+ *   [AddressFields.CountryId]: 'lookup',
+ * } as const);
+ * a[AddressFields.Line1]?.getValue();      // string | null
+ * ```
+ *
+ * @param formContext - The Xrm.FormContext from executionContext.getFormContext()
+ * @param kindMap - Maps each field's logical name to its AttrKind (type-only at runtime)
+ * @returns A proxy with nullable, typed property access to the mapped fields
+ */
+export function typedFields<M extends KindMap>(
+  formContext: Xrm.FormContext,
+  kindMap: M,
+): TypedFields<M> {
+  // kindMap drives the static type only; the runtime proxy is dynamic (see typedForm).
+  void kindMap;
+  return createFormProxy(formContext, true) as TypedFields<M>;
 }
 
 // ─── normalizeGuid ───────────────────────────────────────────────────────────

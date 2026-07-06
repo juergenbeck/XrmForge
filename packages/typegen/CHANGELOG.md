@@ -1,5 +1,19 @@
 # @xrmforge/typegen
 
+## 0.17.0
+
+### Minor Changes
+
+- **Generate a per-entity `XxxFieldKinds` constant** (OE-16) into each `fields/<entity>.ts`, next to
+  `XxxFields` / `XxxNavigationProperties` / `XxxExpands`. It is an `as const` object mapping each field's blank
+  logical name to its attribute kind (`'string' | 'number' | 'boolean' | 'date' | 'optionset' | 'multiselect'
+  | 'lookup'`), consumed by `@xrmforge/helpers` `typedFields` for cross-entity / cross-form field access. New
+  `getAttributeKind(attributeType)` in `type-mapping.ts` condenses `FORM_ATTRIBUTE_TYPE_MAP` to the kind; a
+  field whose type has no clean kind (e.g. the `Uniqueidentifier` primary id) is omitted, never guessed. Keys
+  are the BLANK logical name (what `getAttribute` expects on a form), including lookups (`primarycontactid`,
+  not `_primarycontactid_value`). No cache-version bump: the generator reads only existing metadata
+  (`AttributeType`), so a `4` cache produces the new constant unchanged.
+
 ## 0.16.0
 
 ### Minor Changes

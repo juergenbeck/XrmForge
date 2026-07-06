@@ -1,6 +1,6 @@
 {
   "name": "@xrmforge/typegen",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "description": "TypeScript declaration generator for Dynamics 365 / Dataverse",
   "keywords": [
     "dynamics-365",

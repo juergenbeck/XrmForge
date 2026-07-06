@@ -21,7 +21,7 @@ functions with domain-specific names, not in anonymous chains of API calls.
 ## Packages
 
 - `@xrmforge/typegen` - Generates typed declarations from Dataverse metadata (Node.js CLI only, NEVER import in browser code)
-- `@xrmforge/helpers` - Browser-safe runtime: typedForm(), select(), parseLookup(), parseFormattedValue(), parseMultiSelect(), formLookup()/formLookupId()/formLookupIdUnsafe(), setAndSubmit()/clearAndSubmit()/setUnsafeAndSubmit(), addAppNotification()/clearAppNotification(), parentXrm()/getWebResourceContext(), isUnsavedRecord(), getEnvironmentVariable(), Xrm constants, Action executors, callCloudFlow()
+- `@xrmforge/helpers` - Browser-safe runtime: typedForm(), typedFields() (cross-entity/multi-form kindMap), select(), parseLookup(), parseFormattedValue(), parseMultiSelect(), formLookup()/formLookupId()/formLookupIdUnsafe(), setAndSubmit()/clearAndSubmit()/setUnsafeAndSubmit(), addAppNotification()/clearAppNotification(), parentXrm()/getWebResourceContext(), isUnsavedRecord(), getEnvironmentVariable(), Xrm constants, Action executors, callCloudFlow()
 - `@xrmforge/testing` - Type-safe form mocks: createFormMock(), fireOnChange(), setupXrmMock()
 - `@xrmforge/devkit` - esbuild IIFE bundles via xrmforge build
 - `@xrmforge/eslint-plugin` - D365-specific ESLint rules
@@ -123,30 +123,47 @@ form.$unsafe('estimatedclosedate')?.setValue(closeDate);
 Always use optional chaining (`?.`). The Entity-level Fields Enum ensures the field
 name is valid even though it's not on the form.
 
-**Exception - genuinely cross-entity / cross-form scripts (no single FormTypeInfo fits):**
+**Cross-entity / cross-form scripts (no single FormTypeInfo fits): use `typedFields`.**
 
-A script bound to several entities (e.g. a GDPR helper on account/contact/lead) or to several
-forms of one entity where no single form interface carries all the fields cannot use one
-`typedForm<...>`. Then use the RAW `Xrm.FormContext` plus **named constants** (blank logical
-names) for field/control access - this is an accepted pattern, not a workaround:
+A script bound to several entities (e.g. a GDPR helper on account/contact/lead) or to several forms
+of one entity where no single form interface carries all the fields cannot use one `typedForm<...>`.
+Use `typedFields(formContext, kindMap)` from `@xrmforge/helpers`: a typed, **nullable** proxy driven
+by a kindMap (every accessor nullable, because a field may be absent on the current record), with the
+same auto-submit wrapping and `controls`/`$context`/`$unsafe` as `typedForm`. The kindMap is either
+the generated `XxxFieldKinds` constant (one entity across several forms) or a hand-written map of
+**named constants** (a bespoke cross-entity group - never raw inline strings):
 
 ```typescript
-// constants.ts: named constants with blank logical names (NOT raw inline strings)
-export const ROLE_FIELDS = { Role: 'markant_roleid', Product: 'markant_productid' } as const;
+import { typedFields } from '@xrmforge/helpers';
+import { AccountFieldKinds } from '../../generated/fields/account.js';
 
-function onChange(ctx: Xrm.Events.EventContext): void {
-  const fc = ctx.getFormContext();                      // raw FormContext, no cast
-  fc.getControl(ROLE_FIELDS.Role)?.setDisabled(true);   // blank name; a runtime variable is fine here
-}
+// One entity across several forms - the generated kindMap fits directly:
+const f = typedFields(ctx.getFormContext(), AccountFieldKinds);
+f.revenue?.setValue(150000);                 // nullable, typed, auto-submits
+f.controls.name?.setDisabled(true);
+
+// Genuinely cross-entity - a hand-written map of named constants (blank logical names):
+const ADDR = { Line1: 'address1_line1', CountryId: 'markant_countryid' } as const;
+const a = typedFields(fc, { [ADDR.Line1]: 'string', [ADDR.CountryId]: 'lookup' } as const);
+a[ADDR.Line1]?.getValue();                    // string | null
 ```
 
-The validate-form gate counts a named constant as compliant (the violation is the raw inline
-string, not the FormContext itself). Use `typedForm` whenever one form interface fits; fall back to
-raw FormContext + named constants for any multi-form script - across entities, or across several
-forms of one entity. For both cases this is the deliberate, supported pattern, not a stopgap. (A
-generated per-entity union FormTypeInfo was considered and deliberately rejected: it would type
-fields the active form may not carry as non-nullable - the false compile-time safety this framework
-exists to prevent. Use named constants + `$unsafe` for nullable access instead.)
+**Do NOT hand-build a `form-access.ts` layer of `getNumber`/`setString`/`setDisabled` wrappers** -
+that is the exact Rule-19 string-wrapper anti-pattern `typedFields` replaces. If you want no kindMap
+at all, the raw `Xrm.FormContext` plus named constants is still supported (the validate-form gate
+counts a named constant as compliant; the violation is the raw inline string, not the FormContext):
+
+```typescript
+// ROLE_FIELDS: named constants with blank logical names (in constants.ts)
+const fc = ctx.getFormContext();                      // raw FormContext, no cast
+fc.getControl(ROLE_FIELDS.Role)?.setDisabled(true);   // blank name from a named constant
+```
+
+Use `typedForm` when one form interface fits; `typedFields` for cross-entity/multi-form; raw
+FormContext + named constants only if you want neither. (A generated per-entity union FormTypeInfo was
+considered and rejected in OE-13: it would type fields the active form may not carry as non-nullable -
+the false compile-time safety this framework exists to prevent. `typedFields` is nullable precisely to
+avoid that.)
 
 ### 2. Fields Enum for ALL getAttribute/getControl AND select() calls
 
@@ -569,7 +586,7 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 - Never `console.log/warn/error` in form scripts (use shared logger)
 - Never export handlers without `wrapHandler()`
 - Never unlokalized UI strings (use `pickLang()` from constants.ts)
-- Never build your own getValue/setFieldValue/setDisabled/addOnChange helpers (use `typedForm` + native Xrm API)
+- Never build your own getValue/setFieldValue/setDisabled/addOnChange helpers (use `typedForm`, or `typedFields` for cross-entity/multi-form, + native Xrm API)
 - Never `import ... from '@xrmforge/typegen'` in browser code (use `@xrmforge/helpers`)
 - Never `as Xrm.Controls.LookupControl` or similar control casts (`form.controls.fieldname` returns the typed control from ControlMap)
 - Never `as any` without eslint-disable comment explaining why

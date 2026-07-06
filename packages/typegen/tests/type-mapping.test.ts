@@ -3,6 +3,7 @@ import {
   getEntityPropertyType,
   getFormAttributeType,
   getFormControlType,
+  getAttributeKind,
   toSafeIdentifier,
   toPascalCase,
   toLookupValueProperty,
@@ -187,6 +188,57 @@ describe('getFormControlType', () => {
 
   it('should return StandardControl for unknown types', () => {
     expect(getFormControlType('SomeFutureType')).toBe('Xrm.Controls.StandardControl');
+  });
+});
+
+// ─── Attribute Kind (for the typedFields kindMap) ───────────────────────────
+
+describe('getAttributeKind', () => {
+  it('maps string-like types to string', () => {
+    expect(getAttributeKind('String')).toBe('string');
+    expect(getAttributeKind('Memo')).toBe('string');
+    expect(getAttributeKind('EntityName')).toBe('string');
+  });
+
+  it('maps numeric types to number', () => {
+    expect(getAttributeKind('Integer')).toBe('number');
+    expect(getAttributeKind('BigInt')).toBe('number');
+    expect(getAttributeKind('Decimal')).toBe('number');
+    expect(getAttributeKind('Double')).toBe('number');
+    expect(getAttributeKind('Money')).toBe('number');
+  });
+
+  it('maps Boolean to boolean', () => {
+    expect(getAttributeKind('Boolean')).toBe('boolean');
+  });
+
+  it('maps OptionSet types to optionset', () => {
+    expect(getAttributeKind('Picklist')).toBe('optionset');
+    expect(getAttributeKind('State')).toBe('optionset');
+    expect(getAttributeKind('Status')).toBe('optionset');
+  });
+
+  it('maps MultiSelectPicklist to multiselect', () => {
+    expect(getAttributeKind('MultiSelectPicklist')).toBe('multiselect');
+  });
+
+  it('maps DateTime to date', () => {
+    expect(getAttributeKind('DateTime')).toBe('date');
+  });
+
+  it('maps lookup types (incl. PartyList) to lookup', () => {
+    expect(getAttributeKind('Lookup')).toBe('lookup');
+    expect(getAttributeKind('Customer')).toBe('lookup');
+    expect(getAttributeKind('Owner')).toBe('lookup');
+    expect(getAttributeKind('PartyList')).toBe('lookup');
+  });
+
+  it('returns null for types without a clean kind (they are omitted from XxxFieldKinds)', () => {
+    expect(getAttributeKind('Uniqueidentifier')).toBeNull();
+    expect(getAttributeKind('Virtual')).toBeNull();
+    expect(getAttributeKind('CalendarRules')).toBeNull();
+    expect(getAttributeKind('ManagedProperty')).toBeNull();
+    expect(getAttributeKind('SomeFutureType')).toBeNull();
   });
 });
 

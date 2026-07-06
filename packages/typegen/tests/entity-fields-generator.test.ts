@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateEntityFieldsEnum, generateEntityNavigationProperties, generateEntityExpands } from '../src/generators/entity-fields-generator.js';
+import { generateEntityFieldsEnum, generateEntityNavigationProperties, generateEntityExpands, generateEntityFieldKinds } from '../src/generators/entity-fields-generator.js';
 import type { EntityTypeInfo, AttributeMetadata, LookupAttributeMetadata, OneToManyRelationshipMetadata } from '../src/metadata/types.js';
 
 // ─── Test Helpers ────────────────────────────────────────────────────────────
@@ -362,5 +362,101 @@ describe('generateEntityFieldsEnum', () => {
     const result = generateEntityFieldsEnum(info);
 
     expect(result).toContain("MarkantFoo = 'markant_foo',");
+  });
+});
+
+// ─── generateEntityFieldKinds ───────────────────────────────────────────────
+
+describe('generateEntityFieldKinds', () => {
+  it('emits an as-const object keyed by logical name with the kind as value', () => {
+    const info = createEntityInfo([
+      createAttr({ LogicalName: 'name', SchemaName: 'Name', AttributeType: 'String' }),
+      createAttr({ LogicalName: 'revenue', SchemaName: 'Revenue', AttributeType: 'Money' }),
+    ]);
+
+    const result = generateEntityFieldKinds(info);
+
+    expect(result).toContain('export const AccountFieldKinds = {');
+    expect(result).toContain("name: 'string',");
+    expect(result).toContain("revenue: 'number',");
+    expect(result).toContain('} as const;');
+  });
+
+  it('uses the BLANK logical name for lookups (not the _value form)', () => {
+    const info = createEntityInfo([
+      createAttr({ LogicalName: 'primarycontactid', SchemaName: 'PrimaryContactId', AttributeType: 'Lookup' }),
+    ]);
+
+    const result = generateEntityFieldKinds(info);
+
+    expect(result).toContain("primarycontactid: 'lookup',");
+    expect(result).not.toContain('_primarycontactid_value');
+  });
+
+  it('maps every kind (string/number/boolean/date/optionset/multiselect/lookup)', () => {
+    const info = createEntityInfo([
+      createAttr({ LogicalName: 'f_str', SchemaName: 'FStr', AttributeType: 'String' }),
+      createAttr({ LogicalName: 'f_num', SchemaName: 'FNum', AttributeType: 'Integer' }),
+      createAttr({ LogicalName: 'f_bool', SchemaName: 'FBool', AttributeType: 'Boolean' }),
+      createAttr({ LogicalName: 'f_date', SchemaName: 'FDate', AttributeType: 'DateTime' }),
+      createAttr({ LogicalName: 'f_os', SchemaName: 'FOs', AttributeType: 'Picklist' }),
+      createAttr({ LogicalName: 'f_multi', SchemaName: 'FMulti', AttributeType: 'MultiSelectPicklist' }),
+      createAttr({ LogicalName: 'f_look', SchemaName: 'FLook', AttributeType: 'Lookup' }),
+    ]);
+
+    const result = generateEntityFieldKinds(info);
+
+    expect(result).toContain("f_str: 'string',");
+    expect(result).toContain("f_num: 'number',");
+    expect(result).toContain("f_bool: 'boolean',");
+    expect(result).toContain("f_date: 'date',");
+    expect(result).toContain("f_os: 'optionset',");
+    expect(result).toContain("f_multi: 'multiselect',");
+    expect(result).toContain("f_look: 'lookup',");
+  });
+
+  it('omits fields whose AttributeType has no clean kind (e.g. the Uniqueidentifier primary id)', () => {
+    const info = createEntityInfo([
+      createAttr({ LogicalName: 'accountid', SchemaName: 'AccountId', AttributeType: 'Uniqueidentifier', IsPrimaryId: true }),
+      createAttr({ LogicalName: 'name', SchemaName: 'Name', AttributeType: 'String' }),
+    ]);
+
+    const result = generateEntityFieldKinds(info);
+
+    expect(result).toContain("name: 'string',");
+    expect(result).not.toContain('accountid:');
+  });
+
+  it('omits fields filtered by shouldIncludeInEntityInterface (Virtual, ManagedProperty)', () => {
+    const info = createEntityInfo([
+      createAttr({ LogicalName: 'name', SchemaName: 'Name', AttributeType: 'String' }),
+      createAttr({ LogicalName: 'virt', SchemaName: 'Virt', AttributeType: 'Virtual' }),
+      createAttr({ LogicalName: 'managed', SchemaName: 'Managed', AttributeType: 'ManagedProperty' }),
+    ]);
+
+    const result = generateEntityFieldKinds(info);
+
+    expect(result).toContain("name: 'string',");
+    expect(result).not.toContain('virt:');
+    expect(result).not.toContain('managed:');
+  });
+
+  it('returns empty string when no field has a mappable kind', () => {
+    const info = createEntityInfo([
+      createAttr({ LogicalName: 'accountid', SchemaName: 'AccountId', AttributeType: 'Uniqueidentifier', IsPrimaryId: true }),
+    ]);
+
+    expect(generateEntityFieldKinds(info)).toBe('');
+  });
+
+  it('sorts fields by logical name (deterministic output)', () => {
+    const info = createEntityInfo([
+      createAttr({ LogicalName: 'zeta', SchemaName: 'Zeta', AttributeType: 'String' }),
+      createAttr({ LogicalName: 'alpha', SchemaName: 'Alpha', AttributeType: 'String' }),
+    ]);
+
+    const result = generateEntityFieldKinds(info);
+
+    expect(result.indexOf('alpha:')).toBeLessThan(result.indexOf('zeta:'));
   });
 });

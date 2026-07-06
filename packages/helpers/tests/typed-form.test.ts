@@ -201,7 +201,7 @@ describe('typedForm - set trap', () => {
     const form = typedForm<TestForm>(fc) as any;
 
     expect(() => { form.name = 'direct'; }).toThrow(TypeError);
-    expect(() => { form.name = 'direct'; }).toThrow('Use form.name.setValue() instead');
+    expect(() => { form.name = 'direct'; }).toThrow('Call .setValue() on the field instead');
   });
 
   it('should throw TypeError on $context assignment', () => {

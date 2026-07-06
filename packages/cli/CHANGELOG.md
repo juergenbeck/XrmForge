@@ -1,5 +1,13 @@
 # @xrmforge/cli
 
+## 0.9.2
+
+### Patch Changes
+
+- Propagate `@xrmforge/typegen@0.17.0` (per-entity `XxxFieldKinds` constant for `typedFields`, OE-16) and
+  `@xrmforge/devkit@0.7.38` (AGENT.md `typedFields` docs + scaffold helpers pin `^0.15.0`). No cli source
+  change.
+
 ## 0.9.1
 
 ### Patch Changes

@@ -31,6 +31,8 @@ import {
   shouldIncludeInEntityInterface,
   isLookupType,
   toLookupValueProperty,
+  getAttributeKind,
+  type AttributeKind,
 } from './type-mapping.js';
 import {
   formatDualLabel,
@@ -285,6 +287,58 @@ export function generateEntityExpands(
   lines.push(`export const enum ${enumName} {`);
   lines.push(...body);
   lines.push('}');
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+/**
+ * Generate a runtime constant mapping each field's logical name to its attribute
+ * kind, for @xrmforge/helpers `typedFields` (OE-16, Option B).
+ *
+ * Unlike the const enums above, this is a real `as const` object: typedFields
+ * infers the field types from it (the values are read at the type level only,
+ * never at runtime). Keys are the BLANK logical names (what getAttribute expects
+ * on a form), including lookups (e.g. `primarycontactid`, NOT the Web-API
+ * `_primarycontactid_value`). A field whose AttributeType has no clean kind is
+ * omitted (never guessed), same honesty as generateEntityExpands.
+ *
+ * @param info - Complete entity metadata
+ * @returns TypeScript declaration string (empty when no field has a mappable kind)
+ *
+ * @example
+ * ```typescript
+ * // Generated:
+ * export const AccountFieldKinds = {
+ *   name: 'string',
+ *   revenue: 'number',
+ *   primarycontactid: 'lookup',
+ * } as const;
+ *
+ * // Usage (one entity across forms, or as a base for a cross-entity group):
+ * const f = typedFields(formContext, AccountFieldKinds);
+ * f.revenue?.setValue(150000);
+ * ```
+ */
+export function generateEntityFieldKinds(info: EntityTypeInfo): string {
+  const entityName = toPascalCase(info.entity.LogicalName);
+  const constName = `${entityName}FieldKinds`;
+
+  const kinded = info.attributes
+    .filter(shouldIncludeInEntityInterface)
+    .map((attr) => ({ logicalName: attr.LogicalName, kind: getAttributeKind(attr.AttributeType) }))
+    .filter((x): x is { logicalName: string; kind: AttributeKind } => x.kind !== null)
+    .sort((a, b) => a.logicalName.localeCompare(b.logicalName));
+
+  if (kinded.length === 0) return '';
+
+  const lines: string[] = [];
+  lines.push(`/** Attribute kinds of ${entityName} (field logical name -> kind; pass to typedFields) */`);
+  lines.push(`export const ${constName} = {`);
+  for (const { logicalName, kind } of kinded) {
+    lines.push(`  ${logicalName}: '${kind}',`);
+  }
+  lines.push('} as const;');
   lines.push('');
 
   return lines.join('\n');

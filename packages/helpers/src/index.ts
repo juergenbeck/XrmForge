@@ -64,9 +64,17 @@ export type {
   BoundFunctionExecutor,
 } from './action-runtime.js';
 
-// TypedForm proxy + GUID utility
-export { typedForm, normalizeGuid, isUnsavedRecord } from './typed-form.js';
-export type { TypedForm, FormFields, FormTypeInfoProtocol } from './typed-form.js';
+// TypedForm proxy + TypedFields (cross-entity kindMap) + GUID utility
+export { typedForm, typedFields, normalizeGuid, isUnsavedRecord } from './typed-form.js';
+export type {
+  TypedForm,
+  TypedFields,
+  AttrKind,
+  KindMap,
+  KindToAttribute,
+  FormFields,
+  FormTypeInfoProtocol,
+} from './typed-form.js';
 
 // Power Automate cloud flow caller
 export { callCloudFlow } from './cloud-flow.js';

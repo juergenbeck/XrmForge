@@ -21,7 +21,7 @@ import { generateEntityInterface } from '../generators/entity-generator.js';
 import { generateEntityOptionSets } from '../generators/optionset-generator.js';
 import { generateEntityForms, type FormGenerationMeta } from '../generators/form-generator.js';
 import { generateActionModule, groupCustomApis } from '../generators/action-generator.js';
-import { generateEntityFieldsEnum, generateEntityNavigationProperties, generateEntityExpands } from '../generators/entity-fields-generator.js';
+import { generateEntityFieldsEnum, generateEntityNavigationProperties, generateEntityExpands, generateEntityFieldKinds } from '../generators/entity-fields-generator.js';
 import { generateEntityNamesEnum } from '../generators/entity-names-generator.js';
 import { generateActivityPartyInterface } from '../generators/activity-party.js';
 import { isPartyListType } from '../generators/type-mapping.js';
@@ -565,10 +565,12 @@ export class TypeGenerationOrchestrator {
       const expandsContent = generateEntityExpands(entityInfo, {
         labelConfig: this.config.labelConfig,
       });
+      const fieldKindsContent = generateEntityFieldKinds(entityInfo);
 
       // Combine outputs into a single file. navProps is empty when there are no
-      // lookups; expands is empty when there are no (resolvable) polymorphic lookups.
-      const combinedFieldsContent = [fieldsEnumContent, navPropsContent, expandsContent]
+      // lookups; expands is empty when there are no (resolvable) polymorphic lookups;
+      // fieldKinds is empty only when no field has a mappable kind (never in practice).
+      const combinedFieldsContent = [fieldsEnumContent, navPropsContent, expandsContent, fieldKindsContent]
         .filter((part) => part)
         .join('\n');
 

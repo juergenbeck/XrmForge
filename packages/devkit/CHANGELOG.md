@@ -1,5 +1,16 @@
 # @xrmforge/devkit
 
+## 0.7.38
+
+### Patch Changes
+
+- `AGENT.md` (template / doc only, no devkit source change): document `typedFields` (OE-16) as the typed,
+  nullable way to do cross-entity / cross-form field access - via the generated `XxxFieldKinds` constant or a
+  hand-written map of named constants - and call out that hand-building a `form-access.ts` getValue/setValue
+  wrapper layer is the Rule-19 anti-pattern `typedFields` replaces. The raw `Xrm.FormContext` + named constants
+  pattern stays supported as the no-kindMap fallback. Also bump the scaffold `@xrmforge/helpers` pin to
+  `^0.15.0` so a fresh `init` can use `typedFields`.
+
 ## 0.7.37
 
 ### Patch Changes

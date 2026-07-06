@@ -129,6 +129,73 @@ const FORM_ATTRIBUTE_TYPE_MAP: Record<string, string> = {
   EntityName: 'Xrm.Attributes.StringAttribute',
 };
 
+// ─── Attribute Kind (for the typedFields kindMap) ────────────────────────────
+
+/**
+ * Compact attribute kind emitted per entity as the `XxxFieldKinds` constant and
+ * consumed by @xrmforge/helpers `typedFields`. MUST stay in sync with the
+ * `AttrKind` union in helpers/src/typed-form.ts (the same seven string literals).
+ * The E2E showcase tsc guards the coupling: the generated constant is passed to
+ * typedFields, which only accepts a Record<string, AttrKind>.
+ */
+export type AttributeKind =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'date'
+  | 'optionset'
+  | 'multiselect'
+  | 'lookup';
+
+/**
+ * Map a Dataverse AttributeType to its typedFields kind, or null when there is no
+ * clean kind. A null-kind field is OMITTED from XxxFieldKinds (never guessed), the
+ * same honesty as generateEntityExpands - the caller reaches such a field via
+ * typedFields' $unsafe() or the raw FormContext.
+ *
+ * The mapping condenses FORM_ATTRIBUTE_TYPE_MAP: every type that resolves to a
+ * concrete Xrm.Attributes.* subtype gets its kind; unknown types return null.
+ *
+ * @param attributeType - The AttributeType from Dataverse metadata
+ * @returns The kind, or null if unmapped
+ */
+export function getAttributeKind(attributeType: string): AttributeKind | null {
+  return ATTRIBUTE_KIND_MAP[attributeType] ?? null;
+}
+
+/** Dataverse AttributeType to typedFields kind (only types with a clean mapping) */
+const ATTRIBUTE_KIND_MAP: Record<string, AttributeKind> = {
+  // String
+  String: 'string',
+  Memo: 'string',
+  EntityName: 'string',
+
+  // Numeric
+  Integer: 'number',
+  BigInt: 'number',
+  Decimal: 'number',
+  Double: 'number',
+  Money: 'number',
+
+  // Boolean
+  Boolean: 'boolean',
+
+  // OptionSet
+  Picklist: 'optionset',
+  State: 'optionset',
+  Status: 'optionset',
+  MultiSelectPicklist: 'multiselect',
+
+  // Date/Time
+  DateTime: 'date',
+
+  // Lookup (single-value lookups + PartyList both surface as LookupAttribute on a form)
+  Lookup: 'lookup',
+  Customer: 'lookup',
+  Owner: 'lookup',
+  PartyList: 'lookup',
+};
+
 // ─── Form Control Types (@types/xrm) ────────────────────────────────────────
 
 /**
