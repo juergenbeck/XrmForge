@@ -70,6 +70,7 @@ export class TypeGenerationOrchestrator {
       generateOptionSets: config.generateOptionSets ?? true,
       generateActions: config.generateActions ?? false,
       actionsFilter: config.actionsFilter ?? '',
+      generateFieldKinds: config.generateFieldKinds ?? false,
       useCache: config.useCache ?? false,
       cacheDir: config.cacheDir ?? '.xrmforge/cache',
       namespacePrefix: config.namespacePrefix ?? 'XrmForge',
@@ -565,11 +566,14 @@ export class TypeGenerationOrchestrator {
       const expandsContent = generateEntityExpands(entityInfo, {
         labelConfig: this.config.labelConfig,
       });
-      const fieldKindsContent = generateEntityFieldKinds(entityInfo);
+      // XxxFieldKinds is opt-in (OE-18): it lists every field of the entity and is only
+      // needed for single-entity-multi-form typedFields scripts, which are rare. Default off
+      // keeps the output lean; cross-entity typedFields use hand-written kindMaps.
+      const fieldKindsContent = this.config.generateFieldKinds ? generateEntityFieldKinds(entityInfo) : '';
 
       // Combine outputs into a single file. navProps is empty when there are no
       // lookups; expands is empty when there are no (resolvable) polymorphic lookups;
-      // fieldKinds is empty only when no field has a mappable kind (never in practice).
+      // fieldKinds is empty unless generateFieldKinds is enabled (opt-in).
       const combinedFieldsContent = [fieldsEnumContent, navPropsContent, expandsContent, fieldKindsContent]
         .filter((part) => part)
         .join('\n');

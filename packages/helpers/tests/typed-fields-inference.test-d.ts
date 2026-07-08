@@ -3,7 +3,7 @@
  * This file is checked by tsc --noEmit but not executed by vitest.
  * If this compiles without errors, the type inference is correct.
  */
-import { typedFields } from '../src/typed-form.js';
+import { typedFields, typedField } from '../src/typed-form.js';
 import type { AttrKind, KindMap, KindToAttribute, TypedFields } from '../src/typed-form.js';
 
 declare const fc: Xrm.FormContext;
@@ -76,3 +76,32 @@ void _kindMulti;
 void _map;
 void _multiAttr;
 void _explicit;
+
+// ─── typedField: single field by a variable (non-literal) name (F-LMA12-01) ──
+// A heterogeneous kindMap over non-literal PARAMETER keys collapses to an attribute
+// union (the trap). typedField takes one generic K per call, so each access stays
+// EXACT even when the field name is a runtime string. If any assignment below needed
+// a wider type, this file would fail tsc - that is the proof the trap is solved.
+
+declare const flagField: string;
+declare const dateField: string;
+
+const _tfString: Xrm.Attributes.StringAttribute | null = typedField(fc, 'name', 'string');
+const _tfNumber: Xrm.Attributes.NumberAttribute | null = typedField(fc, 'revenue', 'number');
+const _tfBool: Xrm.Attributes.BooleanAttribute | null = typedField(fc, flagField, 'boolean');
+const _tfDate: Xrm.Attributes.DateAttribute | null = typedField(fc, dateField, 'date');
+const _tfOption: Xrm.Attributes.OptionSetAttribute | null = typedField(fc, 'statecode', 'optionset');
+const _tfMulti: Xrm.Attributes.MultiSelectOptionSetAttribute | null = typedField(fc, 'somemulti', 'multiselect');
+const _tfLookup: Xrm.Attributes.LookupAttribute | null = typedField(fc, 'ownerid', 'lookup');
+
+// getValue via optional chaining (the attribute may be absent):
+const _tfBoolV: boolean | null | undefined = typedField(fc, flagField, 'boolean')?.getValue();
+
+void _tfString;
+void _tfNumber;
+void _tfBool;
+void _tfDate;
+void _tfOption;
+void _tfMulti;
+void _tfLookup;
+void _tfBoolV;

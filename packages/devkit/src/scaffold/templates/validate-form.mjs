@@ -161,6 +161,19 @@ checkPattern(
   ['generated/'],
 );
 
+// 3c2. Raw field names as keys in a typedFields kindMap (must use named constants).
+// A kindMap key is either a computed key `[FieldsEnum.X]: 'kind'` (compliant) or a raw inline
+// key `fieldname: 'kind'` / `'fieldname': 'kind'` (violation). Computed keys start with `[`
+// right after the `{` and are not matched; a named-constant argument (typedFields(fc, XKINDS))
+// has no `{` and is not matched. The `[^,]+` tolerates any first argument (fc, ctx.getFormContext()).
+// Catches M12-A, which eslint/tsc pass (valid TS, wrong convention).
+checkPattern(
+  'Raw field names in typedFields kindMap (use named constants: [FieldsEnum.X]: kind)',
+  allSrcFiles,
+  /typedFields\s*\(\s*[^,]+,\s*\{\s*['"]?[a-zA-Z_]\w*['"]?\s*:/,
+  ['generated/'],
+);
+
 // ── Entity Names ─────────────────────────────────────────────────────────────
 
 // 3d. Raw entity name strings in WebApi calls (must use EntityNames Enum)

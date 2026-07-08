@@ -129,24 +129,50 @@ A script bound to several entities (e.g. a GDPR helper on account/contact/lead) 
 of one entity where no single form interface carries all the fields cannot use one `typedForm<...>`.
 Use `typedFields(formContext, kindMap)` from `@xrmforge/helpers`: a typed, **nullable** proxy driven
 by a kindMap (every accessor nullable, because a field may be absent on the current record), with the
-same auto-submit wrapping and `controls`/`$context`/`$unsafe` as `typedForm`. The kindMap is either
-the generated `XxxFieldKinds` constant (one entity across several forms) or a hand-written map of
-**named constants** (a bespoke cross-entity group - never raw inline strings):
+same auto-submit wrapping and `controls`/`$context`/`$unsafe` as `typedForm`. A kindMap maps each
+field's blank logical name to its **kind** - one of the seven `AttrKind` strings: `'string'`,
+`'number'`, `'boolean'`, `'date'`, `'optionset'`, `'multiselect'`, `'lookup'`. Write it as a
+hand-written map of **named constants used as computed keys** (never raw inline field names):
 
 ```typescript
 import { typedFields } from '@xrmforge/helpers';
-import { AccountFieldKinds } from '../../generated/fields/account.js';
 
-// One entity across several forms - the generated kindMap fits directly:
-const f = typedFields(ctx.getFormContext(), AccountFieldKinds);
-f.revenue?.setValue(150000);                 // nullable, typed, auto-submits
-f.controls.name?.setDisabled(true);
-
-// Genuinely cross-entity - a hand-written map of named constants (blank logical names):
+// Cross-entity: a hand-written map of named constants (blank logical names, computed keys):
 const ADDR = { Line1: 'address1_line1', CountryId: 'markant_countryid' } as const;
 const a = typedFields(fc, { [ADDR.Line1]: 'string', [ADDR.CountryId]: 'lookup' } as const);
-a[ADDR.Line1]?.getValue();                    // string | null
+a[ADDR.Line1]?.getValue();                    // string | null (nullable, typed, auto-submits)
+a.controls[ADDR.CountryId]?.setDisabled(true);
 ```
+
+The keys MUST be named constants as **computed keys** (`[FieldsEnum.X]: 'kind'`), never raw inline
+field names (`markant_x: 'string'` or `'markant_x': 'string'`) - the validate-form gate flags the raw
+form (Check 3c2), which eslint/tsc do not catch.
+
+**Single field with a variable (runtime) name: use `typedField`, not a mini-kindMap.**
+When the field NAME is a runtime string (a parameter or config value) and you would build a two-kind
+kindMap over it, TypeScript collapses the map to an attribute union (`f[param]` becomes
+`AttrA | AttrB | null`) - the F-LMA12-01 trap. Reach for the single-field helper instead:
+
+```typescript
+import { typedField } from '@xrmforge/helpers';
+
+// Each call carries ONE kind literal -> exact type, no union, still auto-submits:
+typedField(fc, dateField, 'date')?.setValue(new Date());
+typedField(fc, flagField, 'boolean')?.getValue();
+```
+
+Pass `kind` as a string LITERAL (an `AttrKind`-typed variable re-widens the return to the 7-type
+union). For several variable fields of different kinds, call `typedField` once per field - do NOT build
+one mixed kindMap over runtime keys. A kindMap with LITERAL named-constant keys
+(`{ [POS.Qty]: 'number', [POS.Product]: 'lookup' } as const`) is fine even when heterogeneous; only
+NON-literal (parameter) keys plus two-or-more kinds trigger the trap.
+
+**Opt-in `XxxFieldKinds` (rare):** for the narrow case of one script across several forms of the SAME
+entity, typegen can emit a per-entity `XxxFieldKinds` constant (the full field->kind map). It is **off
+by default** (OE-18: it lists every field of the entity and is rarely needed; cross-entity code uses
+hand-maps as above). Enable it with `xrmforge generate --field-kinds` (or `"fieldKinds": true` in
+`xrmforge.config.json`), then `import { AccountFieldKinds } from '../../generated/fields/account.js'`
+and pass it directly: `typedFields(ctx.getFormContext(), AccountFieldKinds)`.
 
 **Do NOT hand-build a `form-access.ts` layer of `getNumber`/`setString`/`setDisabled` wrappers** -
 that is the exact Rule-19 string-wrapper anti-pattern `typedFields` replaces. If you want no kindMap
@@ -400,6 +426,9 @@ local DOM element on the WebResource's OWN page (default `#error`, then `#messag
 `document.body`) - NOT an app-level banner (no banner spam per embedded frame). The exported
 entry becomes `export const init = wrapWebResource('MyApp.ShowImages.init', logger, async () => { ... });`.
 The quality gate (Check 3l) accepts `wrapHandler` / `wrapCommand` / `wrapGridCommand` / `wrapWebResource`.
+These four `wrap*` functions are LOCAL to your project's `src/shared/error-handler.ts` (scaffolded in),
+NOT exported from `@xrmforge/helpers`. Import them from `../shared/error-handler.js`, never from the
+helpers package - a `wrapCommand` import from `@xrmforge/helpers` fails with TS2305 (F-MK12-01).
 
 ### 8. Custom API Executors from generated/actions/
 

@@ -83,6 +83,8 @@ interface GenerateOptions {
   actions: boolean;
   /** Prefix filter for Custom API generation */
   actionsFilter?: string;
+  /** Whether to generate per-entity XxxFieldKinds constants for typedFields (opt-in, default off) */
+  fieldKinds?: boolean;
   /** Whether to enable metadata caching */
   cache: boolean;
   /** Directory for metadata cache files */
@@ -135,6 +137,9 @@ export function registerGenerateCommand(program: Command): void {
     // The orchestrator defaults generateActions to false, so CLI-only behavior is unchanged.
     .option('--actions', 'Generate Custom API Action/Function executors')
     .option('--actions-filter <prefix>', 'Only generate Custom APIs whose uniquename starts with this prefix (e.g. "markant_")')
+    // No Commander default for --field-kinds: stays undefined so xrmforge.config.json can take effect.
+    // The orchestrator defaults generateFieldKinds to false (opt-in, OE-18).
+    .option('--field-kinds', 'Generate per-entity XxxFieldKinds constants for typedFields (opt-in; only needed for single-entity-multi-form scripts)')
 
     // Cache
     .option('--cache', 'Enable metadata cache for incremental generation', false)
@@ -305,6 +310,7 @@ async function runGenerate(cliOpts: GenerateOptions): Promise<void> {
     generateOptionSets: opts.optionsets,
     generateActions: opts.actions,
     actionsFilter: opts.actionsFilter,
+    generateFieldKinds: opts.fieldKinds,
     useCache: opts.cache,
     cacheDir: opts.cacheDir,
     checkOnly: opts.check,

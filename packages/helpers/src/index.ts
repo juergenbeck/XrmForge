@@ -64,8 +64,8 @@ export type {
   BoundFunctionExecutor,
 } from './action-runtime.js';
 
-// TypedForm proxy + TypedFields (cross-entity kindMap) + GUID utility
-export { typedForm, typedFields, normalizeGuid, isUnsavedRecord } from './typed-form.js';
+// TypedForm proxy + TypedFields (cross-entity kindMap) + typedField (single field) + GUID utility
+export { typedForm, typedFields, typedField, normalizeGuid, isUnsavedRecord } from './typed-form.js';
 export type {
   TypedForm,
   TypedFields,

@@ -59,6 +59,8 @@ export interface XrmForgeConfig {
   actions?: boolean;
   /** Only generate Custom APIs whose uniquename starts with this prefix (e.g. "markant_") */
   actionsFilter?: string;
+  /** Generate per-entity XxxFieldKinds constants for helpers typedFields (opt-in, default false; OE-18) */
+  fieldKinds?: boolean;
   /** Enable metadata cache for incremental generation */
   cache?: boolean;
   /** Directory for metadata cache files */
@@ -160,6 +162,9 @@ export function mergeWithCliOptions(
   }
   if (merged['actions'] === undefined && config.actions !== undefined) {
     merged['actions'] = config.actions;
+  }
+  if (merged['fieldKinds'] === undefined && config.fieldKinds !== undefined) {
+    merged['fieldKinds'] = config.fieldKinds;
   }
 
   // Custom API filter (string): CLI takes precedence over config

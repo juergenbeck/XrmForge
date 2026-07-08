@@ -278,6 +278,59 @@ describe('TypeGenerationOrchestrator', () => {
     }
   });
 
+  // ─── XxxFieldKinds opt-in (OE-18) ──────────────────────────────────────────
+
+  it('omits XxxFieldKinds from the fields file by default (opt-in)', async () => {
+    const credential = createMockCredential();
+    const mockGetEntityTypeInfo = vi.fn().mockResolvedValue(createMockEntityInfo('account'));
+    vi.mocked(MetadataClient).mockImplementation(() => ({
+      getEntityTypeInfo: mockGetEntityTypeInfo,
+      getEntityWithAttributes: vi.fn(),
+      getEntityAttributes: vi.fn(),
+      getEntityForms: vi.fn(),
+      getGlobalOptionSets: vi.fn(),
+      getSolutionEntities: vi.fn(),
+    }) as unknown as InstanceType<typeof MetadataClient>);
+
+    const orchestrator = new TypeGenerationOrchestrator(credential, {
+      environmentUrl: 'https://test.crm4.dynamics.com',
+      entities: ['account'],
+      outputDir: './typings',
+      labelConfig: { primaryLanguage: 1033 },
+    });
+
+    const result = await orchestrator.generate();
+    const fieldsFile = result.entities[0].files.find((f) => f.type === 'fields');
+    expect(fieldsFile).toBeDefined();
+    expect(fieldsFile?.content).not.toContain('FieldKinds');
+  });
+
+  it('emits XxxFieldKinds when generateFieldKinds is true', async () => {
+    const credential = createMockCredential();
+    const mockGetEntityTypeInfo = vi.fn().mockResolvedValue(createMockEntityInfo('account'));
+    vi.mocked(MetadataClient).mockImplementation(() => ({
+      getEntityTypeInfo: mockGetEntityTypeInfo,
+      getEntityWithAttributes: vi.fn(),
+      getEntityAttributes: vi.fn(),
+      getEntityForms: vi.fn(),
+      getGlobalOptionSets: vi.fn(),
+      getSolutionEntities: vi.fn(),
+    }) as unknown as InstanceType<typeof MetadataClient>);
+
+    const orchestrator = new TypeGenerationOrchestrator(credential, {
+      environmentUrl: 'https://test.crm4.dynamics.com',
+      entities: ['account'],
+      outputDir: './typings',
+      labelConfig: { primaryLanguage: 1033 },
+      generateFieldKinds: true,
+    });
+
+    const result = await orchestrator.generate();
+    const fieldsFile = result.entities[0].files.find((f) => f.type === 'fields');
+    expect(fieldsFile).toBeDefined();
+    expect(fieldsFile?.content).toContain('AccountFieldKinds');
+  });
+
   it('should accept useCache=true without throwing', () => {
     const credential = createMockCredential();
 

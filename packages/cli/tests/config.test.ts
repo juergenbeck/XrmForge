@@ -19,6 +19,23 @@ describe('mergeWithCliOptions', () => {
     expect(merged['actions']).toBeUndefined();
   });
 
+  // ─── fieldKinds (boolean, opt-in OE-18) ────────────────────────────────────
+
+  it('reads fieldKinds from config when the CLI does not set it', () => {
+    const merged = mergeWithCliOptions({ fieldKinds: true }, {});
+    expect(merged['fieldKinds']).toBe(true);
+  });
+
+  it('lets a CLI --field-kinds value take precedence over config', () => {
+    const merged = mergeWithCliOptions({ fieldKinds: false }, { fieldKinds: true });
+    expect(merged['fieldKinds']).toBe(true);
+  });
+
+  it('leaves fieldKinds undefined when neither CLI nor config set it', () => {
+    const merged = mergeWithCliOptions({}, {});
+    expect(merged['fieldKinds']).toBeUndefined();
+  });
+
   // ─── actionsFilter (string) ────────────────────────────────────────────────
 
   it('reads actionsFilter from config when the CLI does not set it', () => {

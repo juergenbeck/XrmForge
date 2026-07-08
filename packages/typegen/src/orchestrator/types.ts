@@ -40,6 +40,15 @@ export interface GenerateConfig {
   actionsFilter?: string;
 
   /**
+   * Whether to generate per-entity XxxFieldKinds constants (field logical name -> AttrKind,
+   * for helpers typedFields). Opt-in (OE-18): the constant lists EVERY field of the entity
+   * and is only needed for single-entity-multi-form scripts, which are rare in practice;
+   * cross-entity typedFields use hand-written kindMaps of named constants, not this constant.
+   * Default false keeps the generated output lean (XxxExpands is unaffected: always emitted).
+   */
+  generateFieldKinds?: boolean;
+
+  /**
    * Whether to use metadata cache for faster re-generation.
    * When enabled, only changed entities are re-fetched from Dataverse
    * using RetrieveMetadataChanges delta detection.

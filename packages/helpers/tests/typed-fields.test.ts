@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { typedFields } from '../src/typed-form.js';
+import { typedFields, typedField } from '../src/typed-form.js';
 
 // ─── Mock FormContext (declares some fields, omits one to test nullability) ──
 
@@ -172,5 +172,30 @@ describe('typedFields - has trap', () => {
     expect('absent_field' in f).toBe(false);
     expect('$context' in f).toBe(true);
     expect('controls' in f).toBe(true);
+  });
+});
+
+// ─── typedField (single field, variable name) ────────────────────────────────
+
+describe('typedField - single field access', () => {
+  it('reads a present field value', () => {
+    const fc = createMockFormContext();
+    expect(typedField(fc, 'name', 'string')?.getValue()).toBe('Contoso');
+    expect(typedField(fc, 'revenue', 'number')?.getValue()).toBe(150000);
+  });
+
+  it('returns null for an absent field (honest nullability)', () => {
+    const fc = createMockFormContext();
+    expect(typedField(fc, 'absent_field', 'number')).toBeNull();
+  });
+
+  it('auto-submits on setValue (setSubmitMode "always")', () => {
+    const fc = createMockFormContext();
+    const revenue = typedField(fc, 'revenue', 'number');
+
+    revenue?.setValue(200000);
+    expect(revenue?.getValue()).toBe(200000);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock attribute exposes the spy
+    expect((fc.getAttribute('revenue') as any).setSubmitMode).toHaveBeenCalledWith('always');
   });
 });

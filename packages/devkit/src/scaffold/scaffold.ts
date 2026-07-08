@@ -147,6 +147,7 @@ function generatePackageJson(projectName: string): string {
       // (F-MK11-01: ^0.8.0 resolved to 0.8.21 -> typegen 0.14.2, missing XxxExpands).
       // helpers ^0.14.0: clearAppNotification + parentXrm()/getWebResourceContext() (browser-safe HTML
       // WebResource context helpers) ship in 0.14.0 (Runde 10 FW-4/F-LMA10-03); expanded<T>()/expandedMany<T>()
+      // typedField (single field by a variable/runtime name, avoids the F-LMA12-01 kindMap union trap; OE-17) since 0.16.0;
       // typedFields (cross-entity/multi-form kindMap) since 0.15.0 (OE-16); typed $expand readers since 0.13.0 (F-MK9-08); addAppNotification autoHideMs (self-clearing transient
       // banners) since 0.12.0 (Runde 9 F-MK9-10); on-form setAndSubmit, off-form formLookupIdUnsafe/
       // formLookupUnsafe, getEnvironmentVariable, isUnsavedRecord since 0.11.0 (Runde 8: F-LMA8-N1/N2,
@@ -158,9 +159,9 @@ function generatePackageJson(projectName: string): string {
       // since 0.6.0 (Runde 9: F-MK9-01); online.execute override + OptionSet/view/setFilterXml mock methods
       // since 0.5.0 (Runde 8: F-MK8-04b); complex-form mocks (createFormMock formType, getText/getPrecision,
       // addOnSave/fireOnSave, roles ItemCollection, utilityOverrides) since 0.4.0; tabs since 0.3.0.
-      '@xrmforge/cli': '^0.9.0',
+      '@xrmforge/cli': '^0.10.0',
       '@xrmforge/eslint-plugin': '^0.3.0',
-      '@xrmforge/helpers': '^0.15.0',
+      '@xrmforge/helpers': '^0.16.0',
       '@xrmforge/testing': '^0.8.0',
       eslint: '^9.0.0',
       // happy-dom ^16: DOM test environment for HTML WebResource tests (Runde 10 F-LMA10-07). Pinned to 16

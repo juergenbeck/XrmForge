@@ -359,6 +359,52 @@ export function typedFields<M extends KindMap>(
   return createFormProxy(formContext, true) as TypedFields<M>;
 }
 
+/**
+ * Typed, NULLABLE access to a SINGLE field addressed by a variable (non-literal)
+ * field name. The single-field companion to {@link typedFields}.
+ *
+ * Use it when the field name is a runtime string (a parameter or config value) and a
+ * two-kind kindMap would collapse to an attribute union: a kindMap built from
+ * non-literal keys with two or more different kinds infers an index signature, so
+ * every `f[param]` widens to the union of all kinds (F-LMA12-01). A single generic
+ * `K` per call cannot collapse, so the returned attribute type stays exact.
+ *
+ * Returns the matching Xrm attribute (auto-submit-wrapped like typedForm/typedFields,
+ * so setValue() marks the field dirty), or null if the field is absent on the current
+ * record. This is a typed convenience over `getAttribute(name) as SomeAttribute` - the
+ * `field` name is not statically checked against the entity (it is a runtime string),
+ * so `kind` is an asserted tag, not a proof; its value is `typedField`, `null`-honesty
+ * and auto-submit, not compile-time field validation.
+ *
+ * IMPORTANT: pass `kind` as a string LITERAL. If `kind` is an AttrKind-typed variable,
+ * `K` widens to `AttrKind` and the return type becomes the union of all seven attribute
+ * types. For several variable fields of different kinds, call typedField once per field
+ * (not one mixed kindMap - that is exactly the F-LMA12-01 trap).
+ *
+ * @example
+ * ```typescript
+ * // Variable field names (named constants passed in), each exact and auto-submitting:
+ * typedField(fc, flagField, 'boolean')?.getValue();          // boolean | null | undefined
+ * typedField(fc, dateField, 'date')?.setValue(new Date());   // auto-submits
+ * typedField(fc, userField, 'lookup')?.setValue([{ id, entityType, name }]);
+ * ```
+ *
+ * @param formContext - The Xrm.FormContext from executionContext.getFormContext()
+ * @param field - The field's logical name (a runtime string; not part of the return type)
+ * @param kind - The attribute kind as a string LITERAL; drives the return type
+ * @returns The typed attribute, or null if absent on the current record
+ */
+export function typedField<K extends AttrKind>(
+  formContext: Xrm.FormContext,
+  field: string,
+  kind: K,
+): KindToAttribute[K] | null {
+  // kind drives the static type only; the attribute is resolved dynamically (like typedFields).
+  void kind;
+  const attr = formContext.getAttribute(field);
+  return attr ? (wrapAttributeWithAutoSubmit(attr) as unknown as KindToAttribute[K]) : null;
+}
+
 // ─── normalizeGuid ───────────────────────────────────────────────────────────
 
 /**
