@@ -1,5 +1,11 @@
 # @xrmforge/devkit
 
+## 0.7.40
+
+### Patch Changes
+
+- 45f4df4: Scaffold a `wrapEnableRule` helper in `src/shared/error-handler.ts` for ribbon Enable Rules. Unlike a command, an Enable Rule is evaluated synchronously by the ribbon on every refresh and its return value decides button visibility/enablement, so the wrapper is synchronous and returns a real `boolean`. An `async` rule returns a Promise, which the ribbon always treats as truthy (the button is then permanently shown - a subtle, common legacy bug). `wrapEnableRule` fails closed (returns `false` on error) and only logs, never surfacing a form/app banner (a rule that runs on every refresh must not spam one). The quality-gate template (`validate-form.mjs` `HANDLER_WRAPPERS`) and the AGENT.md instructions accept it as the fifth error-handling wrapper.
+
 ## 0.7.38
 
 ### Patch Changes
@@ -49,8 +55,8 @@
     DOM tests (F-LMA10-07). Bump scaffold pins to `@xrmforge/helpers@^0.14.0` and `@xrmforge/testing@^0.7.0`.
   - `AGENT.md`: document `parseFormattedValue` (the one allowed place for non-lookup display labels, F-LMA10-01),
     `parentXrm()`/`getWebResourceContext()`, `wrapWebResource`, the per-test happy-dom pragma, `clearAppNotification`
-    + the `Xrm.App` optional-at-runtime pitfall (FW-4), the SchemaName-casing "read, do not guess" rule (FW-6),
-    and that Workflow/System actions have no generated executor (FW-7, with a hand-built `createBoundAction` example).
+    - the `Xrm.App` optional-at-runtime pitfall (FW-4), the SchemaName-casing "read, do not guess" rule (FW-6),
+      and that Workflow/System actions have no generated executor (FW-7, with a hand-built `createBoundAction` example).
 
 ## 0.7.34
 
@@ -250,7 +256,7 @@
 
 - Scaffold CI templates (github-actions-ci.yml, azure-pipelines.yml): drop the
   `--url` / `--tenant-id` / `--client-id` / `--client-secret` flags. `xrmforge generate
-  --auth client-credentials` now reads the `XRMFORGE_*` env block directly, so the secret never
+--auth client-credentials` now reads the `XRMFORGE_*` env block directly, so the secret never
   appears as a command-line argument (kept out of the runner's process list). Requires cli >= 0.7.0.
 - scaffold.ts: `@xrmforge/cli` dependency pin `^0.6.0` -> `^0.7.0` (the env-var CI template needs
   the cli env-reading feature; a 0.x caret never crosses the 0.6/0.7 minor boundary, so fresh

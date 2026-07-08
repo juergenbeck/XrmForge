@@ -1,5 +1,13 @@
 # @xrmforge/cli
 
+## 0.10.1
+
+### Patch Changes
+
+- 45f4df4: Scaffold a `wrapEnableRule` helper in `src/shared/error-handler.ts` for ribbon Enable Rules. Unlike a command, an Enable Rule is evaluated synchronously by the ribbon on every refresh and its return value decides button visibility/enablement, so the wrapper is synchronous and returns a real `boolean`. An `async` rule returns a Promise, which the ribbon always treats as truthy (the button is then permanently shown - a subtle, common legacy bug). `wrapEnableRule` fails closed (returns `false` on error) and only logs, never surfacing a form/app banner (a rule that runs on every refresh must not spam one). The quality-gate template (`validate-form.mjs` `HANDLER_WRAPPERS`) and the AGENT.md instructions accept it as the fifth error-handling wrapper.
+- Updated dependencies [45f4df4]
+  - @xrmforge/devkit@0.7.40
+
 ## 0.9.3
 
 ### Patch Changes
@@ -114,14 +122,14 @@
 ### Patch Changes
 
 - Add package README (rendered on npmjs.com). Docs only; propagation pulls typegen 0.13.1 + devkit
-  0.7.25 via workspace:*.
+  0.7.25 via workspace:\*.
 
 ## 0.8.9
 
 ### Patch Changes
 
 - Propagation bump: pulls typegen 0.13.0 (form-mapping `fields`/`isMain`, F-MAR7-04; typed section
-  ItemCollection base, F-LMA7-10) and devkit 0.7.24 (AGENT.md pitfall #9, F-LMA7-11) via workspace:*
+  ItemCollection base, F-LMA7-10) and devkit 0.7.24 (AGENT.md pitfall #9, F-LMA7-11) via workspace:\*
   so `npx xrmforge generate`/`init` use them. No cli source change.
 
 ## 0.8.8
@@ -129,7 +137,7 @@
 ### Patch Changes
 
 - Propagation bump: pulls devkit 0.7.23 (AGENT.md helper guidance + helpers ^0.10.0 scaffold pin,
-  F-MAR7-03/F-LMA7-07/09) via workspace:* so `npx xrmforge init` scaffolds the updated guidance and
+  F-MAR7-03/F-LMA7-07/09) via workspace:\* so `npx xrmforge init` scaffolds the updated guidance and
   pin. No cli source change.
 
 ## 0.8.7
@@ -137,7 +145,7 @@
 ### Patch Changes
 
 - Propagation bump: pulls typegen 0.12.2 (barrel no longer export-stars action modules, F-LMA7-01)
-  and devkit 0.7.22 via workspace:* so `npx xrmforge generate`/`init` use the fixed barrel and
+  and devkit 0.7.22 via workspace:\* so `npx xrmforge generate`/`init` use the fixed barrel and
   updated guidance. No cli source change.
 
 ## 0.8.6
@@ -145,7 +153,7 @@
 ### Patch Changes
 
 - Propagation bump: pulls devkit 0.7.21 (AGENT.md testing-mock guidance + testing ^0.4.0 scaffold
-  pin, F-MAR7-02) via workspace:* so `npx xrmforge init` scaffolds the updated guidance and pin.
+  pin, F-MAR7-02) via workspace:\* so `npx xrmforge init` scaffolds the updated guidance and pin.
   No cli source change.
 
 ## 0.8.5
@@ -153,7 +161,7 @@
 ### Patch Changes
 
 - Propagation bump: pulls devkit 0.7.20 (AGENT.md Custom API executor guidance + helpers ^0.9.0
-  scaffold pin, F-MAR7-01) via workspace:* so `npx xrmforge init` scaffolds the updated guidance and
+  scaffold pin, F-MAR7-01) via workspace:\* so `npx xrmforge init` scaffolds the updated guidance and
   pin. No cli source change.
 
 ## 0.8.4
@@ -161,7 +169,7 @@
 ### Patch Changes
 
 - Propagation bump: pulls devkit 0.7.19 (AGENT.md section 5b + validate-form.mjs lookup convention,
-  F-LMA7-05) via workspace:* so `npx xrmforge init` scaffolds the updated guidance and gate. No cli
+  F-LMA7-05) via workspace:\* so `npx xrmforge init` scaffolds the updated guidance and gate. No cli
   source change.
 
 ## 0.8.3
@@ -178,13 +186,13 @@
 ### Patch Changes
 
 - Propagation bump: pulls devkit 0.7.17 (AGENT.md scaffold template now teaches `callCloudFlow`) via
-  workspace:* so `npx xrmforge init` scaffolds the updated agent guidance. No cli source change.
+  workspace:\* so `npx xrmforge init` scaffolds the updated agent guidance. No cli source change.
 
 ## 0.8.1
 
 ### Patch Changes
 
-- Propagation bump: pulls devkit 0.7.16 (scaffold helpers pin `^0.7.0`) via workspace:* so
+- Propagation bump: pulls devkit 0.7.16 (scaffold helpers pin `^0.7.0`) via workspace:\* so
   `npx xrmforge init` scaffolds projects on the current helpers minor. No cli source change.
 
 ## 0.8.0
@@ -199,32 +207,32 @@
   (chmod 600 on POSIX) and prints `export XRMFORGE_*` lines; the auth method is not persisted (keep it
   in `xrmforge.config.json` or pass `--auth`). In a non-interactive context (CI) nothing is prompted -
   the usual missing-value error fires instead of hanging. New dependency: `dotenv` (zero-dependency).
-  Pulls devkit 0.7.15 (scaffold `.gitignore` ignores `.env`, cli pin `^0.8.0`) via workspace:*.
+  Pulls devkit 0.7.15 (scaffold `.gitignore` ignores `.env`, cli pin `^0.8.0`) via workspace:\*.
 
 ## 0.7.0
 
 ### Minor Changes
 
-- generate: connection and credentials now resolve from XRMFORGE_* environment variables
+- generate: connection and credentials now resolve from XRMFORGE\__ environment variables
   (`XRMFORGE_URL`, `XRMFORGE_TENANT_ID`, `XRMFORGE_CLIENT_ID`, `XRMFORGE_CLIENT_SECRET`;
   `XRMFORGE_TOKEN` was already supported). Precedence per value: explicit CLI flag > env var >
   `xrmforge.config.json` (env is resolved before the config merge). Fixes K30-05: the CLI advised
   `XRMFORGE_CLIENT_SECRET` in two places but never read it. `buildAuthConfig` is now pure (no env
   reads, no warnings); the insecure-flag warnings for `--client-secret` / `--token` fire only for
   actual CLI flags, never for env-sourced values. Pulls devkit 0.7.14 (env-based CI scaffold
-  templates) via workspace:*.
+  templates) via workspace:_.
 
 ## 0.6.2
 
 ### Patch Changes
 
-- Propagation bump: pulls devkit 0.7.13 + typegen 0.12.0 via workspace:* (no cli source change).
+- Propagation bump: pulls devkit 0.7.13 + typegen 0.12.0 via workspace:\* (no cli source change).
 
 ## 0.6.1
 
 ### Patch Changes
 
-- Propagation bump: pulls devkit 0.7.12 + typegen 0.12.0 via workspace:* (no cli source change).
+- Propagation bump: pulls devkit 0.7.12 + typegen 0.12.0 via workspace:\* (no cli source change).
 
 ## 0.6.0
 
@@ -240,13 +248,13 @@
 ### Patch Changes
 
 - Not published to npm (git-only interim; folded into 0.6.0). Pulled devkit 0.7.11 (Backlog A
-  eslint-plugin 0.3.0 + CI/self-check template fixes) via workspace:*.
+  eslint-plugin 0.3.0 + CI/self-check template fixes) via workspace:\*.
 
 ## 0.5.1
 
 ### Patch Changes
 
-- Propagation bump: pulls typegen 0.11.1 + devkit 0.7.10 via workspace:* (CRLF-robust `--check`,
+- Propagation bump: pulls typegen 0.11.1 + devkit 0.7.10 via workspace:\* (CRLF-robust `--check`,
   F23-LMA-01).
 
 ## 0.5.0
