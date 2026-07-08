@@ -149,6 +149,45 @@ export function wrapWebResource(
   };
 }
 
+/**
+ * Wrap a ribbon Enable Rule (a custom JavaScript rule that decides whether a
+ * command button is shown/enabled) with error handling.
+ *
+ * An Enable Rule is fundamentally different from a command: the ribbon evaluates
+ * it SYNCHRONOUSLY on every refresh and uses its return value to decide button
+ * visibility/enablement. It must therefore:
+ * - be synchronous and return a real `boolean`. An `async` rule returns a Promise,
+ *   which the ribbon always treats as truthy, so the button is permanently shown
+ *   (a subtle, common legacy bug). Do the role/attribute reads synchronously.
+ * - fail CLOSED: on error return `false` (hide/disable the button) instead of
+ *   throwing. Because it runs constantly it must NOT surface a form/app
+ *   notification (that would spam a banner on every refresh) - the error is only
+ *   logged.
+ *
+ * Pass extra ribbon rule parameters via the TArgs type parameter (TArgs defaults
+ * to `[]`).
+ *
+ * @typeParam TArgs - Tuple of extra parameters passed after the form context
+ * @param name - Rule name for logging (e.g. 'MyApp.Account.canVerify')
+ * @param logger - Logger instance for error reporting
+ * @param rule - The actual enable-rule predicate (must be synchronous)
+ * @returns A synchronous function returning `boolean` (false on error)
+ */
+export function wrapEnableRule<TArgs extends unknown[] = []>(
+  name: string,
+  logger: Logger,
+  rule: (formContext: Xrm.FormContext, ...args: TArgs) => boolean,
+): (formContext: Xrm.FormContext, ...args: TArgs) => boolean {
+  return (formContext, ...args) => {
+    try {
+      return rule(formContext, ...args);
+    } catch (err: unknown) {
+      logger.error(`${name} failed`, { err });
+      return false;
+    }
+  };
+}
+
 function logAndNotify(
   ctx: Xrm.Events.EventContext,
   name: string,

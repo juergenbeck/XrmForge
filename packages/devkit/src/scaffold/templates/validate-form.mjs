@@ -24,10 +24,11 @@ const NC = '\x1b[0m';
 
 // Error-handling wrappers an exported entry point may use (Check 3l). Single
 // source of truth - keep in sync with src/shared/error-handler.ts. wrapGridCommand
-// (subgrid ribbon commands, F-MK9-02) and wrapWebResource (HTML WebResource init,
-// Runde 10 F-LMA10-02) are NOT substrings of wrapCommand, so they must be listed
-// explicitly or the gate false-flags correct code (FW-3 / F-LMA10-02).
-const HANDLER_WRAPPERS = ['wrapHandler', 'wrapCommand', 'wrapGridCommand', 'wrapWebResource'];
+// (subgrid ribbon commands, F-MK9-02), wrapWebResource (HTML WebResource init,
+// Runde 10 F-LMA10-02) and wrapEnableRule (ribbon Enable Rules, sync boolean) are
+// NOT substrings of wrapCommand, so they must be listed explicitly or the gate
+// false-flags correct code (FW-3 / F-LMA10-02).
+const HANDLER_WRAPPERS = ['wrapHandler', 'wrapCommand', 'wrapGridCommand', 'wrapWebResource', 'wrapEnableRule'];
 
 let totalErrors = 0;
 

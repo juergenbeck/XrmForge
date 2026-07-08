@@ -425,8 +425,20 @@ An **HTML WebResource entry point** (`init`, not a form handler) wraps with
 local DOM element on the WebResource's OWN page (default `#error`, then `#message`, then
 `document.body`) - NOT an app-level banner (no banner spam per embedded frame). The exported
 entry becomes `export const init = wrapWebResource('MyApp.ShowImages.init', logger, async () => { ... });`.
-The quality gate (Check 3l) accepts `wrapHandler` / `wrapCommand` / `wrapGridCommand` / `wrapWebResource`.
-These four `wrap*` functions are LOCAL to your project's `src/shared/error-handler.ts` (scaffolded in),
+
+A **ribbon Enable Rule** (a custom JavaScript rule that decides whether a command button is
+shown/enabled, not a handler that acts) wraps with `wrapEnableRule(name, logger, rule)`. It is
+fundamentally different from a command and MUST be synchronous: the ribbon evaluates it on every
+refresh and reads its return value. An `async` rule returns a Promise, which the ribbon always
+treats as truthy - so the button is permanently shown (a subtle, common legacy bug; do the
+role/attribute reads synchronously instead). `wrapEnableRule` returns a synchronous `boolean` and
+fails CLOSED (returns `false` on error, hiding the button) and only LOGS the error - it never
+surfaces a form/app banner, because a rule that runs constantly would spam it. The exported entry
+becomes `export const canVerify = wrapEnableRule('MyApp.Account.canVerify', logger, (fc) => { ... });`.
+
+The quality gate (Check 3l) accepts `wrapHandler` / `wrapCommand` / `wrapGridCommand` /
+`wrapWebResource` / `wrapEnableRule`.
+These five `wrap*` functions are LOCAL to your project's `src/shared/error-handler.ts` (scaffolded in),
 NOT exported from `@xrmforge/helpers`. Import them from `../shared/error-handler.js`, never from the
 helpers package - a `wrapCommand` import from `@xrmforge/helpers` fails with TS2305 (F-MK12-01).
 

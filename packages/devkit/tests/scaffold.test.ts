@@ -275,6 +275,9 @@ describe('scaffoldProject', () => {
     expect(errorHandler).toContain('export function wrapGridCommand');
     expect(errorHandler).toContain('Xrm.Controls.GridControl');
     expect(errorHandler).toContain('addAppNotification');
+    // Ribbon Enable Rules need a synchronous, fail-closed boolean wrapper (an async rule
+    // returns a truthy Promise -> button always shown). No banner (runs on every refresh).
+    expect(errorHandler).toContain('export function wrapEnableRule');
   });
 });
 
