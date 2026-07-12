@@ -19,17 +19,18 @@ Bezeichner, Slug-/Domain-/Dateinamen-Tokens).
 import re
 
 # >>> AUTO-GENERATED:UMLAUT-DATA. Quelle: ~/.claude/umlaute-triggers.json. Nicht von Hand editieren.
-UMLAUT_BLOCK1 = r'\b\w*(abhaengig|aehn|aelter|aendert|aenderung|aerger|aergerli|aerztl|aeusser|ausfueh|ausgefuehrt|begruend|behoerde|durchfueh|einfueh|enthaelt|faerb|fluess|frueher|fuehl|fuer|gefaehr|gehoer|geloescht|gemaess|groesse|gruen|haengt|haetten|haeufig|hoechste|hoehe|hoehere|jaehrli|klaer|koennen|kuendig|laenge|laeuft|loesch|loeschen|loest|loesung|moegli|muessen|naechst|naehe|naemli|noetig|praezis|pruef|qualitaet|regulaer|ruestung|saemtli|schaed|schluessel|schoen|spaet|spaeter|spaet|stoer|tatsaechli|ueberall|uebernom|uebersetz|uebersich|uebertra|ueblich|uebrig|uebung|umstaend|ungefaehr|verfueg|verknuepf|wuensch|wuerd|zaehl|zoeger|gueltig|hoeh|ueberarb|primaer|ueberwach|hoeh|ueberarb|primaer|ueberwach|bestaet|bestaet|tragfaeh|tragfaeh|bruecke|bruecke|aender|fuehr|fuehr|hoer|loes|loes|gewaehr|gewaehr|erwaeg|erwaeg|genueg|fueg|schuetz|stuetz|nuetz|ueben|uebung|uebt|schaeft|gruend|gruend|haeng|haelt|faehig|faehig|staend|faehr|haendl|haendl|glaeub|glaeub|itaet|taetig|taetig|moegli|gueltig|gaeng|gaeng|faell|faell|traeg|schlaeg|saetz|saetz|laeuf|laeuf|kraeft|kraeft|maerkt|maerkt|gebuehr|gebuehr|waehr|waehr|waerts|fuellen|fuellt|fuellung|fuellung|buerg|buerg|praesent|praesent|praemi|praezis|taegli|woechentl|frueh|frueh|staerk|staerk|schwaech|schwaech|kuerz|kuerz|ruehr|rueck|rueck|schoepf|schraenk|knuepf|schluess|schluess|erloes|erloes|zueg|zueg|wuensch|beduerf|beduerf|luecke|luecke|verstaend|verstaend|erlaeuter|erlaeuter|vorraet|vorraet|gefaess|gefaess|gebaeud|gebaeud|gelaend|gelaend|zaehler|zaehl|schaed|naehe|aeusser|ueber|ueber)\w*\b|\b\w*(schliess|fliess|geniess)\w*\b'
+UMLAUT_BLOCK1 = r'\b\w*(abhaengig|aehn|aelter|aender|aendert|aenderung|aerger|aergerli|aerztl|aeusser|ausfueh|ausgefuehrt|beduerf|begruend|behoerde|bestaet|bruecke|buerg|durchfueh|einfueh|enthaelt|erlaeuter|erloes|erwaeg|faehig|faehr|faell|faerb|fluess|frueh|frueher|fueg|fuehl|fuehr|fuellen|fuellt|fuellung|fuer|gaeng|gebaeud|gebuehr|gefaehr|gefaess|gehoer|gelaend|geloescht|gemaess|genueg|gewaehr|glaeub|groesse|gruen|gruend|gueltig|haelt|haendl|haeng|haengt|haetten|haeufig|hoechste|hoeh|hoehe|hoehere|hoer|itaet|jaehrli|klaer|knuepf|koennen|kraeft|kuendig|kuenft|kuerz|laenge|laeuf|laeuft|loes|loesch|loeschen|loest|loesung|luecke|maerkt|moegli|muessen|naechst|naehe|naemli|noetig|nuetz|praemi|praesent|praezis|primaer|pruef|qualitaet|regulaer|rueck|ruehr|ruestung|saemtli|saetz|schaed|schaeft|schlaeg|schluess|schluessel|schoen|schoepf|schraenk|schuetz|schwaech|spaet|spaeter|staend|staerk|stoer|stuetz|taegli|taetig|tatsaechli|traeg|tragfaeh|ueben|ueber|ueberall|ueberarb|uebernom|uebersetz|uebersich|uebertra|ueberwach|ueblich|uebrig|uebt|uebung|umstaend|ungefaehr|verfueg|verknuepf|verstaend|vorraet|waehr|waerts|woechentl|wuensch|wuerd|zaehl|zaehler|zoeger|zueg)\w*\b|\b\w*(fliess|geniess|schliess)\w*\b'
 
 # Block 2: alleinstehende Woerter
 UMLAUT_BLOCK2 = r'\b(gaebe|haette|moecht|moege|ueber|wuerde|wuerden)\b'
 
 UMLAUT_WHITELIST = [
-    '22_qualitaets', 'abhaengig_von', 'Address', 'ausfuehrungs_modi', 'Azure', 'bfuer', 'Class', 'Daemon',
-    'Failed', 'Issue', 'kongruent', 'Layer', 'loesch', 'over', 'overall', 'ParseFailureCount_ZweiMsMitKaputtemJson_Zaehlt_Beide_B_B2',
-    'Payload', 'Pipeline', 'Plugin', 'Process', 'pruef', 'Queue', 'Rescue', 'Sandbox',
-    'Schedule', 'Session', 'Source', 'Stage', 'Status', 'Trace', 'Ueber', 'User',
-    'Value', 'vorausschauend',
+    '22_qualitaets', 'abhaengig_von', 'Address', 'ausfuehrungs_modi', 'Azure', 'bfuer',
+    'Class', 'Daemon', 'Failed', 'Issue', 'kongruent', 'Layer',
+    'loesch', 'over', 'overall', 'ParseFailureCount_ZweiMsMitKaputtemJson_Zaehlt_Beide_B_B2', 'Payload', 'Pipeline',
+    'Plugin', 'Process', 'pruef', 'Queue', 'rescue', 'Sandbox',
+    'Schedule', 'Session', 'Source', 'Stage', 'Status', 'Trace',
+    'User', 'Value', 'vorausschauend',
 ]
 # <<< AUTO-GENERATED:UMLAUT-DATA
 
@@ -48,15 +49,24 @@ _RE_LOWER = re.compile(r'[a-zäöüß]')
 _RE_INNER_UPPER = re.compile(r'.[A-ZÄÖÜ]')
 _RE_UND_DIGIT = re.compile(r'[_0-9]')
 
-# Test-IsTechnicalToken: TLD-/Datei-Endungen (kein Buchstabe/Ziffer danach)
+# Test-IsTechnicalToken: TLD-/Datei-Endungen (kein Buchstabe/Ziffer danach).
+# Die letzte Gruppe sind Diagramm-Quellformate (drawio, mmd, mermaid, puml, plantuml,
+# vsdx), damit ein Dateiname wie deployment-pipeline-uebersicht.drawio nicht als
+# Prosa-Umlaut-Verstoß gewertet wird - Dateinamen dürfen laut Konvention ASCII-
+# Surrogate tragen. (.mxfile ist bewusst nicht dabei: das ist das XML-Wurzelelement
+# von draw.io-Dateien, keine reale Datei-Endung.)
 _RE_TLD = re.compile(
     r'\.(de|com|org|net|eu|io|info|gov|co|uk|at|ch|html?|php|aspx?|pdf|md|txt|json|ya?ml|csv|xml|'
-    r'ps[md]?1|sh|bat|cmd|jsx?|tsx?|py|css|scss|sql|png|jpe?g|gif|webp|svg|ico|mp[34]|mov|zip|docx?|xlsx?|pptx?)'
+    r'ps[md]?1|sh|bat|cmd|jsx?|tsx?|py|css|scss|sql|png|jpe?g|gif|webp|svg|ico|mp[34]|mov|zip|docx?|xlsx?|pptx?|'
+    r'drawio|mmd|mermaid|puml|plantuml|vsdx)'
     r'(?![0-9A-Za-zäöüßÄÖÜ])',
     re.IGNORECASE,
 )
 _RE_WWW = re.compile(r'www\.[a-z0-9-]', re.IGNORECASE)
 _RE_HANDLE = re.compile(r'^\W*@\w')
+
+# Test-IsJsonKey: umgebender Token ist ein JSON-Objekt-Schlüssel ("feldname":).
+_RE_JSON_KEY = re.compile(r'^"[^"]+"\s*:')
 
 
 def _strip_edges(token):
@@ -114,6 +124,17 @@ def is_technical_token(token):
     return False
 
 
+def is_json_key(token):
+    """Umgebender Token ist ein JSON-Objekt-Schlüssel (`"feldname":`) und damit ein
+    technischer Bezeichner, laut CLAUDE.md von der Umlaut-Pflicht ausgenommen
+    (JSON-Felder). Kontext-sensitiv: greift nur beim Schlüssel selbst. Ein
+    String-WERT (`"...wort..."`, endet mit `"` bzw. `",`) oder ein Prosa-Vorkommen
+    bleibt geprüft. Der Token stammt aus _surrounding_token (an Whitespace getrennt)
+    und trägt den schließenden Quote plus Doppelpunkt: `"anhaenge":` bzw.
+    `"anhaenge":[`."""
+    return bool(_RE_JSON_KEY.match(token))
+
+
 def _surrounding_token(text, start, end):
     s = start
     while s > 0 and not text[s - 1].isspace():
@@ -147,7 +168,8 @@ def get_umlaut_violations(lines):
             if (val.lower() not in _WHITELIST_LOWER
                     and not is_code_identifier(val)
                     and not is_slug_token(tok)
-                    and not is_technical_token(tok)):
+                    and not is_technical_token(tok)
+                    and not is_json_key(tok)):
                 result.append({'line': i + 1, 'match': val, 'text': line.strip(), 'block': 1})
 
         for m in _RE_BLOCK2.finditer(clean):
@@ -155,7 +177,8 @@ def get_umlaut_violations(lines):
             tok = _surrounding_token(clean, m.start(), m.end())
             if (not is_code_identifier(val)
                     and not is_slug_token(tok)
-                    and not is_technical_token(tok)):
+                    and not is_technical_token(tok)
+                    and not is_json_key(tok)):
                 result.append({'line': i + 1, 'match': val, 'text': line.strip(), 'block': 2})
 
     return result
