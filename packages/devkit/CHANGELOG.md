@@ -1,5 +1,11 @@
 # @xrmforge/devkit
 
+## 0.7.41
+
+### Patch Changes
+
+- Scaffold `eslint.config.js` now also ignores `legacy-reference/**`, so `pnpm lint` (`eslint .`) stays green on migration-reference code that is intentionally left unconverted. This keeps the lint gate aligned with validate-form (`eslint src/`). Fixes the A71-03/F-MK13-01 regression where the ignore lived only in the generated showcase config and was lost on reset.
+
 ## 0.7.40
 
 ### Patch Changes

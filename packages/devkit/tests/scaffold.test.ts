@@ -45,6 +45,7 @@ describe('scaffoldProject', () => {
     expect(result.filesCreated).toContain('.github/workflows/ci.yml');
     expect(result.filesCreated).toContain('azure-pipelines.yml');
     expect(result.filesCreated).toContain('scripts/validate-form.mjs');
+    expect(result.filesCreated).toContain('eslint.config.js');
     expect(result.filesCreated).toHaveLength(17);
   });
 
@@ -116,6 +117,22 @@ describe('scaffoldProject', () => {
 
     const test = await fs.readFile(path.join(dir, 'tests/forms/example-form.test.ts'), 'utf-8');
     expect(test).toContain('Contoso.Example');
+  });
+
+  it('should ignore legacy-reference/ in eslint.config.js (F-MK13-01)', async () => {
+    const dir = await createTmpDir();
+
+    await scaffoldProject({
+      targetDir: dir,
+      projectName: 'test',
+      prefix: 'contoso',
+      namespace: 'Contoso',
+    });
+
+    // Migration projects keep the old code under legacy-reference/ as a reference;
+    // `pnpm lint` (eslint .) must not flag it, or the lint gate is red on unconverted code.
+    const eslintConfig = await fs.readFile(path.join(dir, 'eslint.config.js'), 'utf-8');
+    expect(eslintConfig).toContain("'legacy-reference/**'");
   });
 
   it('should generate valid tsconfig.json with @types/xrm', async () => {
