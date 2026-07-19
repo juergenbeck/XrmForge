@@ -322,8 +322,10 @@ parseLookup(apiResponse, AccountFields.TransactionCurrencyId);
   API response to the generated Entity interface and pass it straight to `parseLookup`, `parseLookups`,
   `parseFormattedValue`, `expanded`, `expandedMany`. NO separate `as Record<string, unknown>` cast (the
   gate flags it, Check 3p), NO `as unknown as { [key: string]: unknown }` workaround, and NEVER leave the
-  response as `any` (that silently throws away type safety on every field access; no gate catches it). A
-  whole result collection passed by mistake (a forgotten `[0]`) is rejected at compile time.
+  response as `any` (that silently throws away type safety on every field access). Since devkit 0.9.0 the
+  gate's Check 3p2 flags an uncast `const x = await Xrm.WebApi.retrieveRecord(...)` (F-CONS-02); before that
+  the any-way was gate-invisible because `retrieveRecord<T = any>` returns `any` by default. A whole result
+  collection passed by mistake (a forgotten `[0]`) is rejected at compile time.
 
   ```typescript
   const acc = (await Xrm.WebApi.retrieveRecord(EntityNames.Account, id,

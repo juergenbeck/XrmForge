@@ -1,5 +1,15 @@
 # @xrmforge/devkit
 
+## 0.9.1
+
+### Patch Changes
+
+- Fix a stale AGENT.md note that claimed no gate catches an untyped (any) retrieveRecord response.
+
+  Since devkit 0.9.0 the validate-form Check 3p2 (F-CONS-02) flags exactly that case, so the AGENT.md
+  guidance now points to the gate instead of stating the any-way is invisible. Docs-only change to the
+  scaffolded AGENT.md; cli re-pins devkit so `init` ships the corrected doc.
+
 ## 0.9.0
 
 ### Minor Changes
