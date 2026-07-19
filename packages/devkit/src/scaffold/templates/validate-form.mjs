@@ -30,6 +30,26 @@ const NC = '\x1b[0m';
 // false-flags correct code (FW-3 / F-LMA10-02).
 const HANDLER_WRAPPERS = ['wrapHandler', 'wrapCommand', 'wrapGridCommand', 'wrapWebResource', 'wrapEnableRule'];
 
+// ── Optional file/dir scope (OE-23) ──────────────────────────────────────────
+// Without arguments the gate scans the whole project (the real, final gate).
+// With file/dir/`*`-glob arguments it narrows ESLint + pattern checks to those
+// files - handy for parallel conversion (check only your own files, not a
+// co-worker's still-open ones): `npm run validate:form -- src/forms/foo.ts`.
+// tsc ALWAYS runs project-wide (a single-file tsc loses the tsconfig/type
+// context); in scope mode its errors OUTSIDE the scope are shown as info but do
+// NOT fail the gate. IMPORTANT: scoped-green is dev convenience only - the final
+// argument-less run is the gate you commit/publish on.
+const scopeArgs = process.argv.slice(2).filter((a) => a && !a.startsWith('-'));
+const scopeFiles = resolveScope(scopeArgs); // [] = whole project (default)
+const scoped = scopeFiles.length > 0;
+const toRel = (p) => relative(process.cwd(), p).replace(/\\/g, '/');
+const inScope = (relPath) => !scoped || scopeFiles.includes(relPath.replace(/\\/g, '/'));
+if (scoped) {
+  console.log(`(scope: ${scopeFiles.length} file(s); tsc still project-wide, final gate is the argument-less run)\n`);
+} else if (scopeArgs.length > 0) {
+  console.log(`${YELLOW}WARN${NC} scope arguments matched no src/*.ts files; scanning the whole project.\n`);
+}
+
 let totalErrors = 0;
 
 // ============================================================
@@ -44,10 +64,28 @@ try {
   console.log(`${GREEN}OK${NC}   tsc --noEmit`);
 } catch (err) {
   const output = (err.stdout || '') + (err.stderr || '');
-  const errorCount = (output.match(/error TS/g) || []).length;
-  console.log(`${RED}FAIL${NC} tsc --noEmit (${errorCount} errors)`);
-  console.log(output.split('\n').slice(0, 20).join('\n'));
-  totalErrors += errorCount || 1;
+  const errorLines = output.split('\n').filter((l) => /error TS/.test(l));
+  if (!scoped) {
+    console.log(`${RED}FAIL${NC} tsc --noEmit (${errorLines.length} errors)`);
+    console.log(output.split('\n').slice(0, 20).join('\n'));
+    totalErrors += errorLines.length || 1;
+  } else {
+    // Scope mode: tsc is project-wide; only errors in scope files fail the gate,
+    // errors elsewhere are shown as info (never swallowed - a broken neighbour
+    // still surfaces, it just does not gate your scoped run).
+    const scopeErrs = errorLines.filter((l) => inScope(l.split('(')[0]));
+    const otherErrs = errorLines.length - scopeErrs.length;
+    if (scopeErrs.length > 0) {
+      console.log(`${RED}FAIL${NC} tsc --noEmit (${scopeErrs.length} errors in scope)`);
+      console.log(scopeErrs.slice(0, 20).join('\n'));
+      totalErrors += scopeErrs.length;
+    } else {
+      console.log(`${GREEN}OK${NC}   tsc --noEmit (scope clean)`);
+    }
+    if (otherErrs > 0) {
+      console.log(`${YELLOW}INFO${NC} ${otherErrs} tsc error(s) OUTSIDE the scope (not counted; run without arguments for the full gate).`);
+    }
+  }
 }
 
 // ============================================================
@@ -56,9 +94,10 @@ try {
 
 console.log('\n--- ESLint ---');
 
+const eslintTarget = scoped ? scopeFiles.join(' ') : 'src/';
 try {
-  execSync('npx eslint src/ --max-warnings=0', { stdio: 'pipe', encoding: 'utf-8' });
-  console.log(`${GREEN}OK${NC}   eslint src/ --max-warnings=0`);
+  execSync(`npx eslint ${eslintTarget} --max-warnings=0`, { stdio: 'pipe', encoding: 'utf-8' });
+  console.log(`${GREEN}OK${NC}   eslint ${scoped ? `${scopeFiles.length} scope file(s)` : 'src/'} --max-warnings=0`);
 } catch (err) {
   const output = (err.stdout || '') + (err.stderr || '');
   const problemMatch = output.match(/(\d+) problems?/);
@@ -92,6 +131,32 @@ function collectTsFiles(dir) {
     // Directory does not exist
   }
   return results;
+}
+
+/**
+ * Resolve optional scope arguments (files, directories, or `*` globs under src/)
+ * to a sorted list of forward-slash relative .ts paths. Empty = whole project.
+ * Globs are matched in-process (no shell expansion, Windows-safe).
+ */
+function resolveScope(args) {
+  if (args.length === 0) return [];
+  const rel = (p) => relative(process.cwd(), p).replace(/\\/g, '/');
+  const all = collectTsFiles('src').map(rel);
+  const out = new Set();
+  for (const raw of args) {
+    const arg = raw.replace(/\\/g, '/').replace(/^\.\//, '');
+    if (arg.includes('*')) {
+      const re = new RegExp(
+        '^' + arg.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$',
+      );
+      all.filter((f) => re.test(f)).forEach((f) => out.add(f));
+    } else if (arg.endsWith('.ts')) {
+      if (all.includes(arg)) out.add(arg);
+    } else {
+      collectTsFiles(arg).map(rel).forEach((f) => out.add(f));
+    }
+  }
+  return [...out].sort();
 }
 
 /**
@@ -134,8 +199,8 @@ function checkPattern(label, files, regex, excludeFiles = [], excludePatterns = 
   return violations.length;
 }
 
-const formFiles = collectTsFiles('src/forms');
-const allSrcFiles = collectTsFiles('src');
+const formFiles = collectTsFiles('src/forms').filter((f) => inScope(toRel(f)));
+const allSrcFiles = collectTsFiles('src').filter((f) => inScope(toRel(f)));
 
 // ── Field Access ─────────────────────────────────────────────────────────────
 
@@ -317,11 +382,15 @@ checkPattern(
 
 // ── WebApi Response Typing ────────────────────────────────────────────────────
 
-// 3p. Untyped WebApi responses (must use generated Entity interfaces)
+// 3p. Untyped WebApi responses (must use generated Entity interfaces).
+// Catches `as Record<string, unknown>` AND the equivalent inline index signature
+// `as { [key: string]: unknown }` (F-CONS-03). The latter slipped a typed response
+// past this gate before OE-21 let the readers (parseLookup etc.) take an
+// entity-cast response directly - since then neither cast is needed.
 checkPattern(
-  'Untyped WebApi response cast (use generated Entity interface instead of Record<string, unknown>)',
+  'Untyped WebApi response cast (use generated Entity interface; readers accept it directly)',
   allSrcFiles,
-  /as\s+Record\s*<\s*string\s*,\s*unknown\s*>/,
+  /as\s+(?:Record\s*<\s*string\s*,\s*unknown\s*>|\{\s*\[\s*\w+\s*:\s*string\s*\]\s*:\s*unknown\s*\})/,
   ['generated/'],
 );
 

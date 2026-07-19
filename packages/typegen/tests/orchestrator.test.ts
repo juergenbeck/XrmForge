@@ -29,6 +29,7 @@ vi.mock('../src/orchestrator/file-writer.js', async (importOriginal) => {
 });
 
 import { MetadataClient } from '../src/metadata/client.js';
+import { writeAllFiles } from '../src/orchestrator/file-writer.js';
 
 function createMockCredential(): TokenCredential {
   return {
@@ -329,6 +330,50 @@ describe('TypeGenerationOrchestrator', () => {
     const fieldsFile = result.entities[0].files.find((f) => f.type === 'fields');
     expect(fieldsFile).toBeDefined();
     expect(fieldsFile?.content).toContain('AccountFieldKinds');
+  });
+
+  it('generates a slim form-index.json alongside form-mapping.json (OE-22)', async () => {
+    vi.mocked(writeAllFiles).mockClear();
+    const credential = createMockCredential();
+    const mockGetEntityTypeInfo = vi.fn().mockResolvedValue(createMockEntityInfo('account'));
+    vi.mocked(MetadataClient).mockImplementation(() => ({
+      getEntityTypeInfo: mockGetEntityTypeInfo,
+      getEntityWithAttributes: vi.fn(),
+      getEntityAttributes: vi.fn(),
+      getEntityForms: vi.fn(),
+      getGlobalOptionSets: vi.fn(),
+      getSolutionEntities: vi.fn(),
+    }) as unknown as InstanceType<typeof MetadataClient>);
+
+    const orchestrator = new TypeGenerationOrchestrator(credential, {
+      environmentUrl: 'https://test.crm4.dynamics.com',
+      entities: ['account'],
+      outputDir: './typings',
+      labelConfig: { primaryLanguage: 1033 },
+    });
+    await orchestrator.generate();
+
+    const written = vi.mocked(writeAllFiles).mock.calls.at(-1)?.[1] ?? [];
+    const mapping = written.find((f) => f.relativePath === 'form-mapping.json');
+    const index = written.find((f) => f.relativePath === 'form-index.json');
+    expect(mapping).toBeDefined();
+    expect(index).toBeDefined();
+
+    // Slim: the index drops the per-form `fields` arrays; the mapping keeps them.
+    expect(index!.content).not.toContain('"fields"');
+    expect(mapping!.content).toContain('"fields"');
+
+    // Completeness: the index lists exactly the same entities and form interfaces
+    // as the mapping (no form silently missing).
+    const idx = JSON.parse(index!.content) as Record<string, Array<{ interface: string; isMain: boolean }>>;
+    const map = JSON.parse(mapping!.content) as Record<string, Array<{ interface: string }>>;
+    expect(Object.keys(idx)).toEqual(Object.keys(map));
+    for (const entity of Object.keys(map)) {
+      expect(idx[entity].map((f) => f.interface)).toEqual(map[entity].map((f) => f.interface));
+    }
+    // The index still carries the main-form marker for every form (its purpose).
+    expect(idx.account.length).toBeGreaterThan(0);
+    expect(idx.account.every((f) => typeof f.isMain === 'boolean')).toBe(true);
   });
 
   it('should accept useCache=true without throwing', () => {

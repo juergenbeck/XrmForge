@@ -25,6 +25,7 @@ export {
   formLookupIdUnsafe,
   formLookupUnsafe,
 } from './webapi-helpers.js';
+export type { WebApiRecord } from './webapi-helpers.js';
 
 // Xrm constants (const enums, zero runtime overhead)
 export {

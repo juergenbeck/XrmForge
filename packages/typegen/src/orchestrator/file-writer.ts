@@ -140,7 +140,7 @@ export async function deleteOrphanedFiles(outputDir: string, deletedEntityNames:
 const GENERATED_SUBDIRS = ['entities', 'optionsets', 'forms', 'fields', 'actions', 'functions'];
 
 /** Root-level files the generator may produce (orphan detection scope) */
-const GENERATED_ROOT_FILES = ['entity-names.ts', 'form-mapping.json', 'index.ts'];
+const GENERATED_ROOT_FILES = ['entity-names.ts', 'form-mapping.json', 'form-index.json', 'index.ts'];
 
 /** Map a relative path to its GeneratedFile category (for orphaned files) */
 function typeFromRelativePath(relativePath: string): GeneratedFile['type'] {
@@ -148,7 +148,7 @@ function typeFromRelativePath(relativePath: string): GeneratedFile['type'] {
   if (relativePath.startsWith('forms/')) return 'form';
   if (relativePath.startsWith('fields/')) return 'fields';
   if (relativePath.startsWith('actions/') || relativePath.startsWith('functions/')) return 'action';
-  return 'entity'; // entities/ and root files (entity-names.ts, form-mapping.json, index.ts)
+  return 'entity'; // entities/ and root files (entity-names.ts, form-mapping.json, form-index.json, index.ts)
 }
 
 /**

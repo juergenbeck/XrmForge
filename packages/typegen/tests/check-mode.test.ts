@@ -282,4 +282,14 @@ describe('findOrphanedFiles', () => {
 
     expect(orphans).toEqual(['form-mapping.json']);
   });
+
+  it('should treat form-index.json as a known root file (OE-22)', async () => {
+    // If form-index.json were not in GENERATED_ROOT_FILES, findOrphanedFiles
+    // would not scan it and this would be []. Guards the orphan-detection wiring.
+    await fs.writeFile(path.join(tmpDir, 'form-index.json'), '{}', 'utf-8');
+
+    const orphans = await findOrphanedFiles(tmpDir, new Set());
+
+    expect(orphans).toEqual(['form-index.json']);
+  });
 });

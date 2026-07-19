@@ -21,7 +21,7 @@ functions with domain-specific names, not in anonymous chains of API calls.
 ## Packages
 
 - `@xrmforge/typegen` - Generates typed declarations from Dataverse metadata (Node.js CLI only, NEVER import in browser code)
-- `@xrmforge/helpers` - Browser-safe runtime: typedForm(), typedFields() (cross-entity/multi-form kindMap), select(), parseLookup(), parseFormattedValue(), parseMultiSelect(), formLookup()/formLookupId()/formLookupIdUnsafe(), setAndSubmit()/clearAndSubmit()/setUnsafeAndSubmit(), addAppNotification()/clearAppNotification(), parentXrm()/getWebResourceContext(), isUnsavedRecord(), getEnvironmentVariable(), Xrm constants, Action executors, callCloudFlow()
+- `@xrmforge/helpers` - Browser-safe runtime: typedForm(), typedFields() (cross-entity/multi-form kindMap), typedField() (single runtime-named field), select()/selectExpand(), parseLookup()/parseLookups()/parseFormattedValue()/parseMultiSelect(), expanded()/expandedMany() ($expand results), formLookup()/formLookupId()/formLookupIdUnsafe()/formLookupUnsafe(), normalizeGuid(), setAndSubmit()/clearAndSubmit()/setUnsafeAndSubmit(), addAppNotification()/clearAppNotification(), parentXrm()/getWebResourceContext(), isUnsavedRecord(), getEnvironmentVariable(), Xrm constants, Action executors, callCloudFlow()
 - `@xrmforge/testing` - Type-safe form mocks: createFormMock(), fireOnChange(), setupXrmMock()
 - `@xrmforge/devkit` - esbuild IIFE bundles via xrmforge build
 - `@xrmforge/eslint-plugin` - D365-specific ESLint rules
@@ -36,13 +36,16 @@ Run `xrmforge generate` to create:
 - `generated/entity-names.ts` - EntityNames const enum
 - `generated/actions/global.ts` - Custom API Action executors (typed params + results)
 - `generated/functions/global.ts` - Custom API Function executors
-- `generated/form-mapping.json` - Entity to form interface mapping (read after generate!)
+- `generated/form-index.json` - **Slim form index** (per entity: formName/interface/fieldsEnum/tabsEnum/isMain, NO field arrays). Read this first for interface/main-form lookups (a few KB).
+- `generated/form-mapping.json` - Full mapping: the same forms PLUS the `fields` each one binds (for "which form has field X?"). Larger (hundreds of KB); read only when you need the field sets.
 - `generated/index.ts` - Barrel (entities + forms via `export *`); OptionSets, Fields/NavigationProperties and Actions are imported directly from their own files (name-collision-safe)
 
-**After generate:** Read `generated/form-mapping.json` for the mapping of entity logical
-names to form interface names. Do NOT guess interface names from entity names.
-Fields enum member names are based on the **primary language label** (often German),
-not the logical field name. Always read the generated files to get correct names.
+**After generate:** Read `generated/form-index.json` for the mapping of entity logical
+names to form interface names (slim, no field arrays). Only when you need to know which
+form binds a given field, read the larger `generated/form-mapping.json`. Do NOT guess
+interface names from entity names. Fields enum member names are based on the **primary
+language label** (often German), not the logical field name. Always read the generated
+files to get correct names.
 
 **System entities:** If a form script needs an entity NOT in the generated EntityNames
 (e.g. transactioncurrency, pricelevel, uom, systemuser), re-run generate with
@@ -315,8 +318,23 @@ parseLookup(apiResponse, AccountFields.TransactionCurrencyId);
   lookups) for all `getAttribute`/`getControl`; reserve the entity `XxxFields` for `$select`/`$filter`.
 - **Never write a local `lookupValue(field)` helper** that puts `_${field}_value` around a `XxxFields`
   value (F-LMA7-05). It is plain string concatenation - green at compile time, broken at runtime.
-- **parseLookup needs the raw response** (`Record<string, unknown>`), not a value cast to a generated
-  Entity interface (no index signature). Keep the raw response for parseLookup, cast separately.
+- **The reader family takes the entity-cast response DIRECTLY** (helpers >= 0.17.0, OE-21): cast the Web
+  API response to the generated Entity interface and pass it straight to `parseLookup`, `parseLookups`,
+  `parseFormattedValue`, `expanded`, `expandedMany`. NO separate `as Record<string, unknown>` cast (the
+  gate flags it, Check 3p), NO `as unknown as { [key: string]: unknown }` workaround, and NEVER leave the
+  response as `any` (that silently throws away type safety on every field access; no gate catches it). A
+  whole result collection passed by mistake (a forgotten `[0]`) is rejected at compile time.
+
+  ```typescript
+  const acc = (await Xrm.WebApi.retrieveRecord(EntityNames.Account, id,
+    select(AccountFields.Name, AccountFields.PrimaryContactId))) as Account;
+  acc.name;                                              // typed (Account)
+  const contact = parseLookup(acc, AccountNav.PrimaryContactId);   // reader takes the entity directly, no cast
+  ```
+- **GUID compare/normalize with `normalizeGuid` from `@xrmforge/helpers`** (strips `{...}` braces,
+  lowercases). NEVER write your own `normalizeGuid`/`compareGuid` - the gate flags it (Check 3t). GUIDs
+  from `Xrm.WebApi` and `getId()` arrive sometimes with, sometimes without braces, so normalize before
+  comparing: `normalizeGuid(a) === normalizeGuid(b)`.
 
 ### 6. select(), $filter, $expand, $orderby with Fields Enums
 

@@ -37,6 +37,23 @@ export function select(...args: string[] | [string[]]): string {
 }
 
 /**
+ * A single Web API record accepted by the response readers ({@link parseLookup},
+ * {@link parseLookups}, {@link parseFormattedValue}, {@link expanded}, {@link expandedMany}).
+ *
+ * Widened from `Record<string, unknown>` so a response cast to a generated Entity
+ * interface (which has no index signature) can be passed DIRECTLY - no separate
+ * `as Record<string, unknown>` cast, no leaving the response as `any` (OE-21).
+ *
+ * The `{ length?: never }` part excludes arrays and functions (both carry a
+ * `length: number`): passing a whole result collection (`results.entities`, a
+ * forgotten `[0]`) instead of a single record stays a compile error, which a bare
+ * `object` parameter would silently accept. Trade-off: a record with a genuine
+ * `length` field would be wrongly rejected - deliberate and documented, because a
+ * forgotten `[0]` is the far more common mistake in Dataverse read code.
+ */
+export type WebApiRecord = object & { length?: never };
+
+/**
  * Parse a lookup field from a Dataverse Web API response into a LookupValue.
  *
  * Dataverse returns lookups as `_fieldname_value` with OData annotations:
@@ -60,17 +77,18 @@ export function select(...args: string[] | [string[]]): string {
  * ```
  */
 export function parseLookup(
-  response: Record<string, unknown>,
+  response: WebApiRecord,
   navigationProperty: string,
 ): { id: string; name: string; entityType: string } | null {
+  const rec = response as Record<string, unknown>;
   const key = `_${navigationProperty}_value`;
-  const id = response[key] as string | undefined;
+  const id = rec[key] as string | undefined;
   if (!id) return null;
 
   return {
     id,
-    name: (response[`${key}@OData.Community.Display.V1.FormattedValue`] as string) ?? '',
-    entityType: (response[`${key}@Microsoft.Dynamics.CRM.lookuplogicalname`] as string) ?? '',
+    name: (rec[`${key}@OData.Community.Display.V1.FormattedValue`] as string) ?? '',
+    entityType: (rec[`${key}@Microsoft.Dynamics.CRM.lookuplogicalname`] as string) ?? '',
   };
 }
 
@@ -90,7 +108,7 @@ export function parseLookup(
  * ```
  */
 export function parseLookups(
-  response: Record<string, unknown>,
+  response: WebApiRecord,
   navigationProperties: string[],
 ): Record<string, { id: string; name: string; entityType: string } | null> {
   const result: Record<string, { id: string; name: string; entityType: string } | null> = {};
@@ -116,10 +134,11 @@ export function parseLookups(
  * ```
  */
 export function parseFormattedValue(
-  response: Record<string, unknown>,
+  response: WebApiRecord,
   fieldName: string,
 ): string | null {
-  return (response[`${fieldName}@OData.Community.Display.V1.FormattedValue`] as string) ?? null;
+  const rec = response as Record<string, unknown>;
+  return (rec[`${fieldName}@OData.Community.Display.V1.FormattedValue`] as string) ?? null;
 }
 
 /**
@@ -217,8 +236,8 @@ export function selectExpand(fields: string[], expand: string): string {
  * role?.markant_name; // string | undefined (Partial)
  * ```
  */
-export function expanded<T>(entity: Record<string, unknown>, nav: string): Partial<T> | null {
-  const value = entity[nav];
+export function expanded<T>(entity: WebApiRecord, nav: string): Partial<T> | null {
+  const value = (entity as Record<string, unknown>)[nav];
   if (value == null || typeof value !== 'object' || Array.isArray(value)) return null;
   return value as Partial<T>;
 }
@@ -246,8 +265,8 @@ export function expanded<T>(entity: Record<string, unknown>, nav: string): Parti
  * }
  * ```
  */
-export function expandedMany<T>(entity: Record<string, unknown>, nav: string): Partial<T>[] {
-  const value = entity[nav];
+export function expandedMany<T>(entity: WebApiRecord, nav: string): Partial<T>[] {
+  const value = (entity as Record<string, unknown>)[nav];
   return Array.isArray(value) ? (value as Partial<T>[]) : [];
 }
 

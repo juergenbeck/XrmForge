@@ -263,6 +263,15 @@ export class TypeGenerationOrchestrator {
         content: JSON.stringify(formMapping, null, 2) + '\n',
         type: 'entity',
       });
+      // Slim companion index (OE-22): the same forms WITHOUT the large per-form
+      // `fields` arrays, for a fast interface/main-form lookup that does not need
+      // to load every field set.
+      const formIndex = this.generateFormIndex(entityFormMeta);
+      allFiles.push({
+        relativePath: 'form-index.json',
+        content: JSON.stringify(formIndex, null, 2) + '\n',
+        type: 'entity',
+      });
     }
 
     // 4. Write barrel index
@@ -711,5 +720,33 @@ export class TypeGenerationOrchestrator {
     }
 
     return mapping;
+  }
+
+  /**
+   * Generate a slim form-index.json: the same per-entity form list as
+   * form-mapping.json but WITHOUT the (large) per-form `fields` arrays. This is
+   * the fast-lookup companion (OE-22): an agent that only needs interface names,
+   * enum names and the main-form marker loads a few KB instead of the full
+   * mapping (which can be hundreds of KB once every field set is listed). The
+   * `fields` stay in form-mapping.json for the rarer "which form binds field X?"
+   * question. Built from the same FormGenerationMeta, so the two never drift.
+   */
+  private generateFormIndex(
+    entityForms: Array<{ entityName: string; forms: FormGenerationMeta[] }>,
+  ): Record<string, Array<{ formName: string; interface: string; fieldsEnum: string; tabsEnum: string; isMain: boolean }>> {
+    const index: Record<string, Array<{ formName: string; interface: string; fieldsEnum: string; tabsEnum: string; isMain: boolean }>> = {};
+
+    for (const { entityName, forms } of entityForms) {
+      if (forms.length === 0) continue;
+      index[entityName] = forms.map((f) => ({
+        formName: f.formName,
+        interface: f.interfaceName,
+        fieldsEnum: f.fieldsEnumName,
+        tabsEnum: f.tabsEnumName,
+        isMain: f.isMain,
+      }));
+    }
+
+    return index;
   }
 }
