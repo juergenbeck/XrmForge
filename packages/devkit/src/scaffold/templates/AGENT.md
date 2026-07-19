@@ -864,6 +864,30 @@ each attribute to its control. `mock.getControl(Fields.Name)` works out of the b
   utilityOverrides: { getEntityMetadata } })` seeds the `userSettings.roles` ItemCollection
   (`get()/forEach/getLength`) and overrides `Xrm.Utility.getEntityMetadata`.
 
+**Static checks cover `tests/` too (OE-25).** Test files are typechecked (a second `tsc` pass via
+`tsconfig.tests.json`, run by `pnpm typecheck`) and linted (a lean `tests/` block: dead import/var checks
+only, not the D365 raw-string rules, since assertions use literal values by design). A type error in a
+test file fails the gate, so test code gets the same type safety as `src/`.
+
+**Mock `Xrm.WebApi` via `setupXrmMock`, never by casting the global.** `Xrm.WebApi.retrieveRecord`
+returns `Xrm.Async.PromiseLike<T>` (with `.then/.fail/.always`), not a native `Promise` (pitfall #12), so
+`Xrm.WebApi.retrieveRecord = (async () => ({ ... })) as typeof Xrm.WebApi.retrieveRecord` does NOT compile
+(`TS2352`: the types do not overlap) and now fails the `tests/` typecheck. Use the override, which takes a
+native `Promise` and is cast once inside the helper:
+
+```typescript
+setupXrmMock({
+  webApiOverrides: {
+    // The override is a plain function, so it can dispatch on its arguments.
+    retrieveRecord: async (entity) => (entity === EntityNames.Account ? { name: 'Acme' } : {}),
+  },
+});
+```
+
+For per-test variation, call `setupXrmMock({ ... })` again inside the test, or close the override over a
+mutable variable the test sets. `retrieveMultipleRecords`, `createRecord`, `updateRecord`, `deleteRecord`
+and `online.execute` take the same override shape.
+
 ## Pattern Recognition: Legacy to XrmForge
 
 ### Xrm API Patterns

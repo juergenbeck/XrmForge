@@ -34,6 +34,7 @@ describe('scaffoldProject', () => {
 
     expect(result.filesCreated).toContain('package.json');
     expect(result.filesCreated).toContain('tsconfig.json');
+    expect(result.filesCreated).toContain('tsconfig.tests.json');
     expect(result.filesCreated).toContain('xrmforge.config.json');
     expect(result.filesCreated).toContain('vitest.config.ts');
     expect(result.filesCreated).toContain('.gitignore');
@@ -46,7 +47,7 @@ describe('scaffoldProject', () => {
     expect(result.filesCreated).toContain('azure-pipelines.yml');
     expect(result.filesCreated).toContain('scripts/validate-form.mjs');
     expect(result.filesCreated).toContain('eslint.config.js');
-    expect(result.filesCreated).toHaveLength(17);
+    expect(result.filesCreated).toHaveLength(18);
   });
 
   it('should use project name in package.json', async () => {
@@ -274,7 +275,7 @@ describe('scaffoldProject', () => {
       namespace: 'Contoso',
     });
 
-    expect(result.filesCreated.length).toBe(17);
+    expect(result.filesCreated.length).toBe(18);
     const exists = await fs.access(path.join(dir, 'package.json')).then(() => true).catch(() => false);
     expect(exists).toBe(true);
   });

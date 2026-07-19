@@ -92,6 +92,7 @@ async function generateTemplates(config: ScaffoldConfig): Promise<Array<[string,
   return [
     ['package.json', generatePackageJson(projectName)],
     ['tsconfig.json', generateTsConfig()],
+    ['tsconfig.tests.json', generateTestsTsConfig()],
     ['xrmforge.config.json', generateXrmForgeConfig(lowerPrefix, namespace)],
     ['vitest.config.ts', await loadTemplate('vitest.config.ts')],
     ['.gitignore', await loadTemplate('gitignore')],
@@ -124,7 +125,10 @@ function generatePackageJson(projectName: string): string {
     type: 'module',
     scripts: {
       generate: 'xrmforge generate',
-      typecheck: 'tsc --noEmit',
+      // Two passes: the strict main config (src/ + generated/, skipLibCheck false) and the
+      // tests config (tests/ with skipLibCheck true, so happy-dom/vitest .d.ts internals do not
+      // fail while real type errors in the test code still surface). See tsconfig.tests.json.
+      typecheck: 'tsc --noEmit && tsc --noEmit -p tsconfig.tests.json',
       build: 'xrmforge build',
       watch: 'xrmforge build --watch',
       test: 'vitest run',
@@ -133,6 +137,10 @@ function generatePackageJson(projectName: string): string {
       'validate:form': 'node scripts/validate-form.mjs',
     },
     devDependencies: {
+      // @types/node: needed once tests/ is typechecked (tsconfig.tests.json). happy-dom and
+      // vitest .d.ts reference NodeJS/Buffer/vm; skipLibCheck hides their internals, but test
+      // code that touches Node globals still needs these types.
+      '@types/node': '^20.0.0',
       '@types/xrm': '^9.0.90',
       '@typescript-eslint/eslint-plugin': '^8.0.0',
       '@typescript-eslint/parser': '^8.0.0',
@@ -221,6 +229,35 @@ function generateTsConfig(): string {
     include: [
       'src/**/*.ts',
       'generated/**/*.ts',
+    ],
+  };
+  return JSON.stringify(config, null, 2) + '\n';
+}
+
+/**
+ * Generate tsconfig.tests.json content for a scaffolded project.
+ *
+ * A second, test-only typecheck pass. The main tsconfig deliberately keeps
+ * `skipLibCheck: false` to strictly check the generated types, but that makes the
+ * happy-dom/vitest `.d.ts` (which reference @types/node globals and collide with
+ * lib.dom) fail once `tests/` is in scope. This config extends the main one, adds
+ * `tests/` to the scope, turns on `skipLibCheck` (dependency `.d.ts` internals are
+ * not ours to fix) and adds the node types. Real type errors in the test code
+ * itself still surface. `pnpm typecheck` runs both passes.
+ *
+ * @returns Formatted JSON string
+ */
+function generateTestsTsConfig(): string {
+  const config = {
+    extends: './tsconfig.json',
+    compilerOptions: {
+      skipLibCheck: true,
+      types: ['xrm', 'node'],
+    },
+    include: [
+      'src/**/*.ts',
+      'generated/**/*.ts',
+      'tests/**/*.ts',
     ],
   };
   return JSON.stringify(config, null, 2) + '\n';
