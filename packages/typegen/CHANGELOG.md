@@ -1,5 +1,18 @@
 # @xrmforge/typegen
 
+## 0.20.0
+
+### Minor Changes
+
+- c9277bb: Emit a slim form-index.json next to form-mapping.json (OE-22)
+
+  `generate` now also writes `form-index.json`: the per-entity form list
+  (formName / interface / fieldsEnum / tabsEnum / isMain) WITHOUT the large per-form
+  `fields` arrays. It is the fast lookup for interface and main-form resolution that
+  does not need to load the full mapping (which grows to hundreds of KB once every
+  field set is listed). `form-mapping.json` is unchanged and still carries `fields`
+  for the rarer "which form binds field X?" question.
+
 ## 0.18.0
 
 ### Minor Changes
@@ -22,7 +35,7 @@
 - **Generate a per-entity `XxxFieldKinds` constant** (OE-16) into each `fields/<entity>.ts`, next to
   `XxxFields` / `XxxNavigationProperties` / `XxxExpands`. It is an `as const` object mapping each field's blank
   logical name to its attribute kind (`'string' | 'number' | 'boolean' | 'date' | 'optionset' | 'multiselect'
-  | 'lookup'`), consumed by `@xrmforge/helpers` `typedFields` for cross-entity / cross-form field access. New
+| 'lookup'`), consumed by `@xrmforge/helpers` `typedFields` for cross-entity / cross-form field access. New
   `getAttributeKind(attributeType)` in `type-mapping.ts` condenses `FORM_ATTRIBUTE_TYPE_MAP` to the kind; a
   field whose type has no clean kind (e.g. the `Uniqueidentifier` primary id) is omitted, never guessed. Keys
   are the BLANK logical name (what `getAttribute` expects on a form), including lookups (`primarycontactid`,
