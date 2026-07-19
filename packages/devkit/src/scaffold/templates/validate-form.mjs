@@ -199,6 +199,83 @@ function checkPattern(label, files, regex, excludeFiles = [], excludePatterns = 
   return violations.length;
 }
 
+/**
+ * Multi-line check for untyped (any) Xrm.WebApi.retrieveRecord responses (F-CONS-02).
+ *
+ * retrieveRecord<T = any> returns `any` by default (@types/xrm), so a response
+ * assigned WITHOUT a cast/type-parameter/annotation is silently `any` - with no
+ * `any` keyword anywhere in the code. Passing it to a reader (parseLookup,
+ * expanded, ...) loses all field type-safety, and no other gate catches it:
+ * no-explicit-any sees no explicit any, tsc is green, Check 3p only matches the
+ * `as Record<...>` cast.
+ *
+ * Deliberately NOT checkPattern (which is per-line): the correct inline cast is
+ * almost always multi-line, with `as Entity` on the CLOSING line, not on the
+ * retrieveRecord line (markant: 24 of 28 calls). A per-line regex would false-flag
+ * every multi-line cast. So we scan the whole expression from the declaration up
+ * to its terminating `;` and accept any of three typed forms in that window:
+ *   1. `) as Foo`            inline cast (incl. `)) as Foo`, `as unknown as Foo`)
+ *   2. `retrieveRecord<Foo>` explicit type parameter
+ *   3. `const x: Foo = ...`  PascalCase type annotation on the variable
+ * Only the pure any-case (NO `as` cast at all) is flagged here; `as any`/`as Record`
+ * go to no-explicit-any / Check 3p, so there is no double reporting. This is a text
+ * heuristic, not a type system - see ADR-2026-07-19-0730 for the accepted residual
+ * risks (`.then()` callbacks, retyped parameters, hand-invented cast names).
+ */
+function checkUntypedRetrieveRecord(label, files, excludeFiles = []) {
+  const declStart = /(?:const|let)\s+\w+[^=]*=\s*\(?\s*await\s+Xrm\.WebApi\.retrieveRecord\b(<[^>]*>)?/;
+  const pascalAnnotation = /(?:const|let)\s+\w+\s*:\s*(?!any\b|unknown\b|object\b|Record\b)[A-Z]\w*/;
+  const entityCast = /\bas\s+(?!any\b|unknown\b|Record\b|\{)[A-Z]\w*/;
+  // `as any` / `as unknown as {...}` / `as Record<...>` are the other gates' job
+  // (no-explicit-any, Check 3p). Recognise them so we don't double-report, but do
+  // NOT let an unrelated argument cast (e.g. `opts as string`) mute a real finding.
+  const coveredElsewhere = /\bas\s+(?:any\b|unknown\b|Record\b|\{)/;
+  const violations = [];
+  for (const file of files) {
+    const relPath = relative(process.cwd(), file);
+    if (excludeFiles.some((ex) => relPath.includes(ex))) continue;
+
+    const lines = readFileSync(file, 'utf-8').split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) continue;
+      const decl = declStart.exec(lines[i]);
+      if (!decl) continue;
+
+      // Collect the whole expression window: from here to the first line ending in `;`.
+      let j = i;
+      let windowText = lines[i];
+      while (!/;\s*(\/\/.*)?$/.test(lines[j]) && j < lines.length - 1 && j - i < 40) {
+        j++;
+        windowText += '\n' + lines[j];
+      }
+
+      const typed =
+        Boolean(decl[1]) ||                 // 2. explicit type parameter <Foo>
+        pascalAnnotation.test(lines[i]) ||  // 3. PascalCase variable annotation
+        entityCast.test(windowText);        // 1. `as Entity` cast in the window
+      // Flag the any-case (no valid entity cast); `as any`/`as Record`/`as {}`
+      // are covered by no-explicit-any / Check 3p (avoid double reporting).
+      if (!typed && !coveredElsewhere.test(windowText)) {
+        violations.push(`  ${relPath}:${i + 1}: ${trimmed}`);
+      }
+      i = j; // skip past the consumed expression
+    }
+  }
+
+  if (violations.length === 0) {
+    console.log(`${GREEN}OK${NC}   [0] ${label}`);
+  } else {
+    console.log(`${RED}FAIL${NC} [${violations.length}] ${label}`);
+    violations.slice(0, 10).forEach((v) => console.log(v));
+    if (violations.length > 10) {
+      console.log(`  ... and ${violations.length - 10} more`);
+    }
+    totalErrors += violations.length;
+  }
+  return violations.length;
+}
+
 const formFiles = collectTsFiles('src/forms').filter((f) => inScope(toRel(f)));
 const allSrcFiles = collectTsFiles('src').filter((f) => inScope(toRel(f)));
 
@@ -391,6 +468,16 @@ checkPattern(
   'Untyped WebApi response cast (use generated Entity interface; readers accept it directly)',
   allSrcFiles,
   /as\s+(?:Record\s*<\s*string\s*,\s*unknown\s*>|\{\s*\[\s*\w+\s*:\s*string\s*\]\s*:\s*unknown\s*\})/,
+  ['generated/'],
+);
+
+// 3p2. Untyped (any) retrieveRecord response (F-CONS-02). retrieveRecord<T = any>
+// returns `any` by default; an uncast response is silently any and no other gate
+// catches it (no-explicit-any, tsc, Check 3p all pass). Multi-line: the cast is on
+// the closing line, so a per-line regex would false-flag every multi-line cast.
+checkUntypedRetrieveRecord(
+  'Untyped retrieveRecord response (cast to a generated Entity interface; never leave it any)',
+  allSrcFiles,
   ['generated/'],
 );
 

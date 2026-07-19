@@ -135,6 +135,28 @@ describe('scaffoldProject', () => {
     expect(eslintConfig).toContain("'legacy-reference/**'");
   });
 
+  it('should flag untyped (any) retrieveRecord responses in validate-form.mjs (F-CONS-02)', async () => {
+    const dir = await createTmpDir();
+
+    await scaffoldProject({
+      targetDir: dir,
+      projectName: 'test',
+      prefix: 'contoso',
+      namespace: 'Contoso',
+    });
+
+    // F-CONS-02: retrieveRecord<T = any> returns `any` by default, so an uncast response
+    // is silently any and no other gate catches it (no-explicit-any, tsc, Check 3p all pass).
+    // The gate must ship the multi-line check that flags it (verified live against markant:
+    // 9 real Muster-2 finds, 0 false positives on the multi-line inline casts).
+    const gate = await fs.readFile(path.join(dir, 'scripts/validate-form.mjs'), 'utf-8');
+    expect(gate).toContain('checkUntypedRetrieveRecord');
+    expect(gate).toContain('Untyped retrieveRecord response');
+    expect(gate).toContain('F-CONS-02');
+    // The check must be wired into the gate run, not just defined.
+    expect(gate).toMatch(/checkUntypedRetrieveRecord\(\s*\n\s*'Untyped retrieveRecord response/);
+  });
+
   it('should generate valid tsconfig.json with @types/xrm', async () => {
     const dir = await createTmpDir();
 
