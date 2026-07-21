@@ -137,7 +137,9 @@ form.$unsafe('estimatedclosedate')?.setValue(closeDate);
 
 `$unsafe()` returns `Attribute | null` (nullable, because the field may not exist).
 Always use optional chaining (`?.`) when reading. The Entity-level Fields Enum ensures the
-field name is valid even though it's not on the form. A rare deliberate set-without-submit
+field name is valid even though it's not on the form. For ON-form fields, prefer the proxy directly
+(`form.field.setValue(v)` auto-submits); the bare `setAndSubmit(attr, v)` helper is only for when you
+hold a bare attribute rather than the proxy. A rare deliberate set-without-submit
 (e.g. a field set only to trigger onChange) uses the explicit raw
 `form.$context.getAttribute(field).setValue(v)` path, which states the intent and is not
 flagged by the gate.
@@ -1108,6 +1110,32 @@ beforeEach(() => { document.body.innerHTML = '<div id="content"></div>'; setupXr
 Mock the parent frame by assigning `globalThis.parent` (what `parentXrm()` reads). happy-dom quirk:
 a bare `<tr>` inserted via `insertAdjacentHTML` into a `<tbody>` is not parsed as a `tr` node - assert
 on the row's content, not on the `tr` count.
+
+### Referencing a separately-loaded WebResource (shared JS library)
+
+When a form script calls into a SEPARATE JavaScript WebResource that D365 loads on its own -
+wired as a form/ribbon library dependency and exposed under a global name (e.g. a shared
+`Contoso.Gdpr.RetentionUi` reused by several forms) - it is NOT an ES import and NOT bundled by
+esbuild. Type the runtime global with a hand-written ambient declaration and call it directly:
+
+```typescript
+// src/types/gdpr.d.ts - ambient declaration for the separately-loaded library
+declare namespace Contoso.Gdpr {
+  const RetentionUi: {
+    init(formContext: Xrm.FormContext): void;
+    // ... only the members this project actually calls
+  };
+}
+```
+
+```typescript
+// in a form script: call the global directly, do NOT import it
+Contoso.Gdpr.RetentionUi.init(form.$context);
+```
+
+Never `import` such a library (esbuild would try to bundle it; it is deployed as its own
+WebResource). The ambient `.d.ts` only types the global that D365 loads separately - it ships
+no runtime code.
 
 ## Drift Check (generated/ vs. live environment)
 

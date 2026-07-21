@@ -1,5 +1,17 @@
 # @xrmforge/devkit
 
+## 0.10.2
+
+### Patch Changes
+
+- AGENT.md: document cross-WebResource references and the submit-idiom choice (RETRO13-02 / RETRO13-03).
+
+  Adds a scaffold AGENT.md section for a form script calling a SEPARATELY loaded JS WebResource (exposed
+  under a global name, typed via a hand-written ambient `.d.ts`, never an ES import - esbuild must not bundle
+  it), and a sentence clarifying that on-form fields use the typedForm proxy directly (`form.field.setValue()`
+  auto-submits) while the bare `setAndSubmit(attr, v)` helper is only for a bare attribute. Documentation-only;
+  no code or gate change. Follows the OE-26 decision (Option 0: keep the a+b gate/doc guard, do not wrap `$unsafe`).
+
 ## 0.10.1
 
 ### Patch Changes
