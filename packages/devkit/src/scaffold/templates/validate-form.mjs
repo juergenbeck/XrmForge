@@ -410,6 +410,21 @@ checkPattern(
   /\$unsafe\s*\(\s*['"][a-z]/,
 );
 
+// 3l5. Off-form $unsafe(...).setValue() without submit (RETRO13-01 / F-LMA7-07).
+// The on-form proxy wraps setValue() to force SubmitMode.Always, but $unsafe()
+// returns the RAW attribute (no wrap). Off-form fields are never dirtied by the
+// user, so a value set this way is SILENTLY DROPPED on AutoSave. Off-form writes
+// must go through setUnsafeAndSubmit(form, field, value) (or setUnsafeAndSubmit(..,
+// null) to clear). Reading ($unsafe().getValue()) and event wiring
+// ($unsafe().addOnChange()) are NOT flagged - only the value-set path. A rare
+// deliberate set-without-submit must make the intent explicit via the raw
+// form.$context.getAttribute(field).setValue(v) path, which is not flagged.
+checkPattern(
+  'Off-form $unsafe().setValue() drops on AutoSave (use setUnsafeAndSubmit; off-form fields are never dirty)',
+  formFiles,
+  /\$unsafe\s*\([^)]*\)\s*\??\.\s*setValue\s*\(/,
+);
+
 // ── Handler Pattern ──────────────────────────────────────────────────────────
 
 // 3l. Exported handlers/commands/WebResource entries without an error-handling wrapper

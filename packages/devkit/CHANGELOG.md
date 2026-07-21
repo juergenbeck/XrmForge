@@ -1,5 +1,18 @@
 # @xrmforge/devkit
 
+## 0.10.1
+
+### Patch Changes
+
+- Gate + AGENT.md: flag off-form `$unsafe(...).setValue()` without submit (RETRO13-01 / F-LMA7-07).
+
+  The typedForm proxy auto-submits on-form `setValue`, but `$unsafe()` returns the raw attribute (no
+  auto-submit wrap), so off-form values set via `$unsafe(...).setValue()` are silently dropped on AutoSave
+  (off-form fields are never dirtied by the user). validate-form.mjs gains check 3l5 flagging
+  `$unsafe(...).setValue(` that is not routed through `setUnsafeAndSubmit`; the AGENT.md off-form section,
+  its example, the `typedFields` note and the NEVER list are corrected so the docs no longer teach the trap.
+  A deliberate set-without-submit uses the explicit raw `form.$context.getAttribute(field).setValue(v)` path.
+
 ## 0.9.1
 
 ### Patch Changes

@@ -110,21 +110,37 @@ export const onLoad = wrapHandler('LM.Account.onLoad', logger, (ctx) => {
 
 D365 loads all entity attributes into the FormContext, not just those on the form.
 If a field is NOT in the generated form interface (compile error on `form.fieldname`),
-use `$unsafe()` with the **Entity-level Fields Enum** (never a raw string):
+use `$unsafe()` with the **Entity-level Fields Enum** (never a raw string).
+
+**`$unsafe()` returns the RAW attribute - it does NOT auto-submit.** The on-form proxy
+wraps `form.field.setValue()` to force `SubmitMode.Always`; `$unsafe()` does not. Off-form
+fields are never dirtied by the user, so a value set via `$unsafe(...).setValue()` is
+SILENTLY DROPPED on AutoSave. To WRITE an off-form field, use `setUnsafeAndSubmit`:
 
 ```typescript
 import { OpportunityFields } from '../../generated/fields/opportunity.js';
+import { setUnsafeAndSubmit } from '@xrmforge/helpers';
 
-// Off-form field: not in the form interface, but loaded by D365
+// WRITE off-form: bundles the null check + setValue + SubmitMode.Always (returns
+// false if the field is absent). Pass null as the value to clear.
+setUnsafeAndSubmit(form, OpportunityFields.VslBeauftragung, closeDate);
+
+// READ / event-wire off-form: raw $unsafe is fine (no submit needed)
+const due = form.$unsafe(OpportunityFields.VslBeauftragung)?.getValue();
+form.$unsafe(OpportunityFields.VslBeauftragung)?.addOnChange(recalc);
+
+// WRONG: off-form field is never dirty -> AutoSave silently drops the value
 form.$unsafe(OpportunityFields.VslBeauftragung)?.setValue(closeDate);
-
 // WRONG: raw string in $unsafe
 form.$unsafe('estimatedclosedate')?.setValue(closeDate);
 ```
 
 `$unsafe()` returns `Attribute | null` (nullable, because the field may not exist).
-Always use optional chaining (`?.`). The Entity-level Fields Enum ensures the field
-name is valid even though it's not on the form.
+Always use optional chaining (`?.`) when reading. The Entity-level Fields Enum ensures the
+field name is valid even though it's not on the form. A rare deliberate set-without-submit
+(e.g. a field set only to trigger onChange) uses the explicit raw
+`form.$context.getAttribute(field).setValue(v)` path, which states the intent and is not
+flagged by the gate.
 
 **Cross-entity / cross-form scripts (no single FormTypeInfo fits): use `typedFields`.**
 
@@ -132,7 +148,8 @@ A script bound to several entities (e.g. a GDPR helper on account/contact/lead) 
 of one entity where no single form interface carries all the fields cannot use one `typedForm<...>`.
 Use `typedFields(formContext, kindMap)` from `@xrmforge/helpers`: a typed, **nullable** proxy driven
 by a kindMap (every accessor nullable, because a field may be absent on the current record), with the
-same auto-submit wrapping and `controls`/`$context`/`$unsafe` as `typedForm`. A kindMap maps each
+same auto-submit wrapping on regular field accessors and the same `controls`/`$context`/`$unsafe` escape
+hatches as `typedForm` (`$unsafe` returns the raw attribute - no auto-submit; see above). A kindMap maps each
 field's blank logical name to its **kind** - one of the seven `AttrKind` strings: `'string'`,
 `'number'`, `'boolean'`, `'date'`, `'optionset'`, `'multiselect'`, `'lookup'`. Write it as a
 hand-written map of **named constants used as computed keys** (never raw inline field names):
@@ -633,6 +650,7 @@ Xrm.Navigation.openForm({ entityName: EntityNames.Account, entityId: id });  // 
 - Never wrap a `XxxFields` lookup value again as `` `_${XxxFields.X}_value` `` (it is already `_value`-form; double-wrap -> `__..._value_value` -> OData 400). Use the Fields value directly in `$select`/`$filter`; use `XxxNavigationProperties` for `parseLookup` and single-target `$expand`/`@odata.bind` (a polymorphic lookup uses `XxxExpands` for both)
 - Never hand-build or construct a polymorphic-lookup `$expand` or `@odata.bind` name (use the generated `XxxExpands` member for BOTH the `$expand` path and the `@odata.bind` write key). The name is case-sensitive and not constructible: `ownerid` -> `owninguser`/`owningteam` (NOT `ownerid_systemuser`), `regardingobjectid` -> `regardingobjectid_account_task` (three-segment), custom lookups carry SchemaName casing. A guessed name fails at runtime with OData 400
 - Never raw strings in `$unsafe()` (use Entity-level Fields Enum: `form.$unsafe(AccountFields.X)`)
+- Never `form.$unsafe(X)?.setValue(v)` to write a value that must be saved - `$unsafe()` returns the raw attribute (no auto-submit) and off-form fields are never dirty, so AutoSave silently drops it. Use `setUnsafeAndSubmit(form, X, v)` (or `setUnsafeAndSubmit(form, X, null)` to clear). Raw `$unsafe().getValue()` / `.addOnChange()` (read/event, no submit) is fine
 - Never manual OData annotation access (`_value`, `@OData.Community.Display.V1.FormattedValue`, `@Microsoft.Dynamics.CRM.lookuplogicalname`), and never hand-assemble the annotation key as a concatenated string to sneak past the gate. For a LOOKUP use `parseLookup()` (extracts id + name + entityType). For a non-lookup display label (OptionSet/Virtual/DateTime/Money, e.g. `statecode`, `activitytypecode`) use `parseFormattedValue(response, fieldName)` from `@xrmforge/helpers` - the single allowed place that reads `@OData.Community.Display.V1.FormattedValue`. Useful in read-only HTML WebResources that show a label instead of the raw value.
 - Never hardcode an `@odata.bind` EntitySet plural - the set name is NOT the entity logical name. Resolve it via `(await Xrm.Utility.getEntityMetadata(logicalName)).EntitySetName`, then build `` `${navProperty}@odata.bind`: `/${entitySetName}(${id})` `` (there is no helper: the plural needs a metadata lookup, which is project-specific and worth caching)
 
