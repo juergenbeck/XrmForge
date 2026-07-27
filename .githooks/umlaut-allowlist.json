@@ -15,18 +15,17 @@
 
   "generated": [
     "(^|/)(\\.github|\\.claude)/skills/",
-    "(^|/)(handover|changelog|reviews|research|recherche|poc|backlog|planung|jira|output|scans|99_archiv|99_confluence-export)/",
-    "(^|/)_archive/",
+    "(^|/)(backlog|planung|jira|output|scans|99_confluence-export)/",
     "(^|/)Wissen/temp/",
     "(^|/)memory-snapshot[^/]*/",
-    "(feedback|bug-report|alte-notizen|lessons-learned|skeptiker-review)",
+    "(feedback|bug-report)",
     "(^|/)(bin|obj|publish|node_modules|dist|out|packages|TestResults)/",
     "\\.Designer\\.cs$",
     "\\.g\\.cs$",
     "^\\.githooks/(commit-msg|pre-commit)$",
     "(^|/)[^/]*(umlaut|surrogate)[^/]*\\.[a-z0-9]+$"
   ],
-  "_generated_help": "Repliziert die eingebauten md_only-Ausschlüsse (damit .md keinen Regress bekommt), plus Build-Artefakte, generierten C#-Code und das Umlaut-Tooling selbst (führt das Verstoß-Pattern als Daten).",
+  "_generated_help": "Repliziert die eingebauten md_only-Ausschlüsse (damit .md keinen Regress bekommt), plus Build-Artefakte, generierten C#-Code und das Umlaut-Tooling selbst (führt das Verstoß-Pattern als Daten). Seit 2026-07-27 (ADR-028) zusätzlich NICHT mehr ausgenommen: eigene Prosa in handover/, changelog/, reviews/, research/, recherche/, poc/, _archive/ und 99_archiv/ sowie alte-notizen, lessons-learned und skeptiker-review. Ausgenommen bleibt nur noch, was den Verstoß als Daten führt: Dumps (jira, backlog, planung), generierte Outputs (output, scans, Confluence-Export), gespiegelte Skills (Wissen/temp), 1:1-Kopien (memory-snapshot) und Fremdtext (feedback, bug-report).",
 
   "exceptions": [],
   "_exceptions_help": "Bewusste Einzeldatei-Ausnahmen: { path, reason (deutsch), date (YYYY-MM-DD) }."
