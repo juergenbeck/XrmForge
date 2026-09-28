@@ -64,6 +64,18 @@ def main():
         for marker in ('MERGE_HEAD', 'rebase-merge', 'rebase-apply', 'AUTO_MERGE'):
             if os.path.exists(os.path.join(gitdir, marker)):
                 reste.append(marker)
+        # AUTO_MERGE allein ist kein Abbruch, wenn es genau den Baum von HEAD trägt: Neuere
+        # git-Fassungen (gemessen an Apple Git 2.54, 26.09.2026) lassen es nach einem sauber
+        # beendeten `pull --rebase` liegen. Ein AUTO_MERGE neben Konflikten oder mit fremdem
+        # Baum bleibt gemeldet, das ist der DeutscheBahn-Fall vom 04.08.2026.
+        if reste == ['AUTO_MERGE'] and not konflikte:
+            try:
+                with open(os.path.join(gitdir, 'AUTO_MERGE'), encoding='ascii') as f:
+                    auto = f.read().strip()
+            except Exception:
+                auto = ''
+            if auto and auto == git(repo, 'rev-parse', 'HEAD^{tree}').strip():
+                reste = []
 
     if not (konflikte or autostash or reste):
         return 0

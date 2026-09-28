@@ -2,7 +2,7 @@
 # GENERATED FILE. DO NOT EDIT.
 # Source: werkzeuge/hook-sync/templates/python/check-turn-ende.py
 # Template-Version: codex-autarkie-v1
-# Source-SHA256: 97d31f21c0a1b8138084bfa3f68df6d29a17e402dac5304ec8812551ed5d8f06
+# Source-SHA256: ae8abec6db34e88debd47a40bfe3743abff69fa31ed8c8fc53031790ac3dfe3d
 """Stop-Hook: hält den Turn fest, solange die Antwort einen grünen Schritt benennt.
 
 Entscheid: ADR-2026-09-03-113147 (Das Anhalten des Turns wird geregelt, nicht die Form
@@ -272,6 +272,44 @@ def lesende_systempruefung(satz):
                for m in ROT.finditer(satz))
 
 
+# --- Der kaufmännische Wortschatz aus ROT, als eigene Gruppe -------------------------
+# Er steht zusätzlich hier, NICHT anstelle der Alternativen in ROT: dort wirkt er weiter
+# über `ROT.search(ende)`, dessen Verlustseite am 18.09.2026 gemessen und als untragbar
+# befunden wurde (ADR-2026-09-18-121202). Diese Gruppe wirkt allein im satzweisen Pfad.
+KAUFMAENNISCH = re.compile(r"(rechnung|angebot|vertrag|honorar|zahlung)", re.IGNORECASE)
+
+
+def kaufmaennischer_gegenstand(satz):
+    """True, wenn die roten Treffer des Satzes den GEGENSTAND meinen, nicht die Handlung.
+
+    ADR-2026-09-20-103646. Anlass: In Hekatron ließ der Riegel „Als nächsten Schritt trage
+    ich die Aussagen ... zum Angebotszuschnitt in SAP ... nach" enden, weil „Angebot" in
+    einem Themenwort steckt. Dieselbe Bauart wie bei „teams" (Produktname gegen
+    Kanalbeitrag) und „kündig" (Kündigung gegen Ankündigung): Das Wort ist richtig, seine
+    Lesart nicht.
+
+    ZWEI Bedingungen, beide tragend. Die erste: alle roten Treffer stammen aus dem
+    kaufmännischen Wortschatz - steht daneben ein anderes rotes Wort, bleibt der Satz rot.
+    Die zweite: `ERLAUBT` trifft im selben Satz. Sie ist keine Zutat. Ohne sie zählt „Als
+    Nächstes schicke ich die Rechnung an Vanessa raus" mit, dessen einziger roter Treffer
+    „Rechnung" ist - also eine echte Handlung mit Geldfolge. Gemessen ist das nicht
+    erschlossen: Der Fall hat die torlose Bauart beim ersten Messlauf zum Einsturz
+    gebracht und steht als Selbstprobenfall unten.
+
+    Gemessen über 49.350 Antworten ohne Werkzeugaufruf (`messung/kaufmaennisches_wort.py`):
+    vier Fälle, alle vier vollständig gelesen, alle vier grün. Bekannte Grenze in der
+    Gegenrichtung: „Als Nächstes schreibe ich die Rechnung für September" wird künftig
+    festgehalten, weil `ERLAUBT` über „schreib" trifft. Das ist die konservative Richtung -
+    der Riegel verhindert nichts, er verlangt einen Satz dazu.
+    """
+    treffer = [t.group(0) for t in ROT.finditer(satz)]
+    if not treffer:
+        return False
+    if not all(KAUFMAENNISCH.fullmatch(w) for w in treffer):
+        return False
+    return bool(ERLAUBT.search(satz))
+
+
 def next_step_sentence(absatz):
     """Explizite nächste Schritte erkennen, ohne daraus eine Erlaubnis abzuleiten."""
     if WARTEND.search(absatz):
@@ -285,7 +323,7 @@ def next_step_sentence(absatz):
         if satz.rstrip().endswith("?"):
             continue
         if ROT.search(satz):
-            if not lesende_systempruefung(satz):
+            if not lesende_systempruefung(satz) and not kaufmaennischer_gegenstand(satz):
                 continue
         return satz.strip()
     return None
@@ -372,6 +410,12 @@ def selbstprobe():
     Werkzeug defekt und meldet 2, nicht 0 und nicht 1."""
     proben = [
         # (Text, erwartet_blocken)
+        # ADR-2026-09-20-103646: der Positivfall aus Hekatron und sein Grauzonen-Gegenpol.
+        # Der zweite ist NICHT der klare Gegenpol, sondern der Fall, an dem die Bauart ohne
+        # Torbedingung einstürzt: sein einziger roter Treffer ist „Rechnung".
+        ("Als nächsten Schritt trage ich die Aussagen zum Angebotszuschnitt in SAP "
+         "in die neue Datei nach.", True),
+        ("Als Nächstes schicke ich die Rechnung an Vanessa raus.", False),
         ("Da ich damit gerade das Verfahren in der Hand habe, mache ich dort weiter, "
          "sofern du nichts anderes willst.", True),
         ("Soll ich mir den EK-Forecast der korrigierten Positionen ansehen?", True),
