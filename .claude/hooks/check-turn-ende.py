@@ -309,7 +309,7 @@ def kaufmaennischer_gegenstand(satz):
 EIGENE_HANDLUNG = re.compile(r"\bich\b", re.IGNORECASE)
 
 
-def wartet_auf_spaeteres_rot(saetze, i):
+def wartet_auf_folgendes_rot(satzliste, i):
     """True, wenn ein Warten HINTER dem Schrittsatz eine rote Handlung betrifft und den
     benannten Schritt deshalb nicht aufhebt.
 
@@ -321,18 +321,18 @@ def wartet_auf_spaeteres_rot(saetze, i):
     fielen am Bestand „kannst du sie rausgeben" und „liegt bei Lara" in den Block - ein
     Schritt Jürgens und einer einer Dritten.
     """
-    satz = saetze[i]
+    satz = satzliste[i]
     if not (EIGENE_HANDLUNG.search(satz) and ERLAUBT.search(satz)):
         return False
-    spaeter = [s for s in saetze[i + 1:] if WARTEND.search(s)]
-    return bool(spaeter) and all(ROT.search(s) for s in spaeter)
+    folgende = [s for s in satzliste[i + 1:] if WARTEND.search(s)]
+    return bool(folgende) and all(ROT.search(s) for s in folgende)
 
 
 def next_step_sentence(absatz):
     """Explizite nächste Schritte erkennen, ohne daraus eine Erlaubnis abzuleiten."""
-    saetze = step_sentences(absatz)
+    satzliste = step_sentences(absatz)
     wartend = bool(WARTEND.search(absatz))
-    for i, satz in enumerate(saetze):
+    for i, satz in enumerate(satzliste):
         marker = NEXT_STEP.search(satz)
         if not marker:
             continue
@@ -342,8 +342,8 @@ def next_step_sentence(absatz):
             continue
         # Ein Warten vor dem Schritt oder in ihm hebt ihn auf: der Schritt hängt daran.
         # Ein späteres Warten nur dann nicht, wenn es eine rote Handlung betrifft.
-        if wartend and (any(WARTEND.search(s) for s in saetze[:i + 1])
-                        or not wartet_auf_spaeteres_rot(saetze, i)):
+        if wartend and (any(WARTEND.search(s) for s in satzliste[:i + 1])
+                        or not wartet_auf_folgendes_rot(satzliste, i)):
             return None
         if ROT.search(satz):
             if not lesende_systempruefung(satz) and not kaufmaennischer_gegenstand(satz):
@@ -466,7 +466,7 @@ def selbstprobe():
          "Messung steht.", False),
         # Aus der Nachprüfung: das Warten VOR dem Schrittsatz allein, und ein Warten, das
         # nur über eine Satzgrenze hinweg trifft - dann trägt es kein einzelner Satz, und
-        # ohne `bool(spaeter)` löste `all([])` die Ausnahme aus.
+        # ohne `bool(folgende)` löste `all([])` die Ausnahme aus.
         ("Der Build läuft noch. Als Nächstes baue ich die Websuche. Für das Deploy melde "
          "ich mich, sobald die Messung steht.", False),
         ("Als Nächstes baue ich die Websuche, wenn Zeit ist. Dann durch ist alles.", False),
