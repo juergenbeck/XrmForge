@@ -2,7 +2,7 @@
 # GENERATED FILE. DO NOT EDIT.
 # Source: werkzeuge/hook-sync/templates/python/check-turn-ende.py
 # Template-Version: codex-autarkie-v1
-# Source-SHA256: ae8abec6db34e88debd47a40bfe3743abff69fa31ed8c8fc53031790ac3dfe3d
+# Source-SHA256: 75f2574f3b499a26302c7069b1c1a558a04f89b5cb3ec224e0d329fcb0610c81
 """Stop-Hook: hält den Turn fest, solange die Antwort einen grünen Schritt benennt.
 
 Entscheid: ADR-2026-09-03-113147 (Das Anhalten des Turns wird geregelt, nicht die Form
@@ -310,11 +310,33 @@ def kaufmaennischer_gegenstand(satz):
     return bool(ERLAUBT.search(satz))
 
 
+EIGENE_HANDLUNG = re.compile(r"\bich\b", re.IGNORECASE)
+
+
+def wartet_auf_folgendes_rot(satzliste, i):
+    """True, wenn ein Warten HINTER dem Schrittsatz eine rote Handlung betrifft und den
+    benannten Schritt deshalb nicht aufhebt.
+
+    ADR-2026-09-28-085018. Anlass: „Als Nächstes baue ich die Websuche fürs Relay ... Für
+    das Deploy auf homelab melde ich mich, sobald die lokale Messung steht." endete, weil
+    das „sobald" des Deploy-Satzes den ganzen Absatz als wartend markierte. Zwei
+    Bedingungen, beide tragend: Der spätere Warten-Satz nennt selbst ein rotes Wort, und
+    der Schrittsatz ist eine eigene Tätigkeit („ich" plus `ERLAUBT`). Ohne die zweite
+    fielen am Bestand „kannst du sie rausgeben" und „liegt bei Lara" in den Block - ein
+    Schritt Jürgens und einer einer Dritten.
+    """
+    satz = satzliste[i]
+    if not (EIGENE_HANDLUNG.search(satz) and ERLAUBT.search(satz)):
+        return False
+    folgende = [s for s in satzliste[i + 1:] if WARTEND.search(s)]
+    return bool(folgende) and all(ROT.search(s) for s in folgende)
+
+
 def next_step_sentence(absatz):
     """Explizite nächste Schritte erkennen, ohne daraus eine Erlaubnis abzuleiten."""
-    if WARTEND.search(absatz):
-        return None
-    for satz in step_sentences(absatz):
+    satzliste = step_sentences(absatz)
+    wartend = bool(WARTEND.search(absatz))
+    for i, satz in enumerate(satzliste):
         marker = NEXT_STEP.search(satz)
         if not marker:
             continue
@@ -322,6 +344,11 @@ def next_step_sentence(absatz):
             continue
         if satz.rstrip().endswith("?"):
             continue
+        # Ein Warten vor dem Schritt oder in ihm hebt ihn auf: der Schritt hängt daran.
+        # Ein späteres Warten nur dann nicht, wenn es eine rote Handlung betrifft.
+        if wartend and (any(WARTEND.search(s) for s in satzliste[:i + 1])
+                        or not wartet_auf_folgendes_rot(satzliste, i)):
+            return None
         if ROT.search(satz):
             if not lesende_systempruefung(satz) and not kaufmaennischer_gegenstand(satz):
                 continue
@@ -416,6 +443,37 @@ def selbstprobe():
         ("Als nächsten Schritt trage ich die Aussagen zum Angebotszuschnitt in SAP "
          "in die neue Datei nach.", True),
         ("Als Nächstes schicke ich die Rechnung an Vanessa raus.", False),
+        # ADR-2026-09-28-085018: der Anlassfall aus dem Gesprächsassistenten im Wortlaut
+        # und drei Grauzonenfälle. Die ersten zwei sind echte Antworten, an denen die
+        # Bauart ohne Bedingung „eigene Tätigkeit" falsch gelegen hätte; der dritte bindet
+        # die ROT-Bedingung des späteren Satzes.
+        ("Als Nächstes baue ich die Websuche fürs Relay, als Nachtrag zum ADR. Ich baue "
+         "und messe lokal, vor allem wie viel langsamer die Banner werden. Punkt 3 würde "
+         "ich gleich mitnehmen, weil beides ohnehin im selben Relay-Deploy landet. Für das "
+         "Deploy auf homelab melde ich mich, sobald die lokale Messung steht.", True),
+        ("Der nächste Schritt liegt bei Lara. Sobald sie grün meldet, startet die "
+         "Folge-Session den Jira-Nachzug.", False),
+        ("**Nächster Schritt:** Wenn die Texte so passen, kannst du sie rausgeben. Danach "
+         "würde ich OE-P13 zur Entscheidung bringen, sobald Timos Antwort zu den 6.221 da "
+         "ist, das ist die letzte Lücke vor der Quellfilter-Entscheidung, und die bestimmt "
+         "das Mengengerüst für den Cutover.", False),
+        ("Als Nächstes prüfe ich das Ergebnis. Das mache ich, sobald der Lauf durch ist.",
+         False),
+        # Die drei Fälle der ersten Abnahme: je eine Bedingung, die sonst von einer
+        # anderen verdeckt ungebunden bliebe - das Warten im Schrittsatz selbst, das „ich"
+        # allein und die grüne Tätigkeit allein.
+        ("Als Nächstes baue ich die Websuche, sobald der Lauf durch ist. Das Deploy auf "
+         "homelab mache ich, sobald die Messung steht.", False),
+        ("Als Nächstes baust du die Websuche und committest. Für das Deploy melde ich "
+         "mich, sobald die Messung steht.", False),
+        ("Als Nächstes melde ich mich bei Lara. Für das Deploy melde ich mich, sobald die "
+         "Messung steht.", False),
+        # Aus der Nachprüfung: das Warten VOR dem Schrittsatz allein, und ein Warten, das
+        # nur über eine Satzgrenze hinweg trifft - dann trägt es kein einzelner Satz, und
+        # ohne `bool(folgende)` löste `all([])` die Ausnahme aus.
+        ("Der Build läuft noch. Als Nächstes baue ich die Websuche. Für das Deploy melde "
+         "ich mich, sobald die Messung steht.", False),
+        ("Als Nächstes baue ich die Websuche, wenn Zeit ist. Dann durch ist alles.", False),
         ("Da ich damit gerade das Verfahren in der Hand habe, mache ich dort weiter, "
          "sofern du nichts anderes willst.", True),
         ("Soll ich mir den EK-Forecast der korrigierten Positionen ansehen?", True),
