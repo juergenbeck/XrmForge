@@ -6,8 +6,9 @@ Typografie (Halbgeviert-/Geviertstrich, die fünf Pfeile) steht. Der Aufruf erre
 bzw. das System dann nicht; Claude bekommt die Begründung zurück und muss mit echten
 Umlauten neu absetzen.
 
-Lückenschluss zu block-umlaut-typografie.py: jener greift nur auf .md-Datei-
-Schreibvorgänge und prüft den file_path. Die Texte, die per AskUserQuestion an den
+Lückenschluss zu den Datei-Sperren block-umlaute.py und block-typografie.py (bis
+2026-10-10 die lokale block-umlaut-typografie.py): jene greifen nur auf Datei-
+Schreibvorgänge und prüfen den file_path. Die Texte, die per AskUserQuestion an den
 User gehen (Frage, Header, Options-Label/-Description/-Preview) und die per
 TaskCreate/TaskUpdate gesetzten Frei-Text-Felder (subject/description/activeForm),
 sind deutsche Prosa-UI und unterliegen derselben Umlaut-/Typografie-Pflicht, liefen
