@@ -8,7 +8,8 @@ gesetzt wird.
 > Hook-Kette (`umlaut_check_lib.py`, `pre-commit.py`, `pre-commit`,
 > `fix-typografie.py`, `.claude/hooks/check-umlaute.py`,
 > `.claude/hooks/check-tool-umlaute.py`,
-> `.claude/hooks/block-typografie.py`, `.claude/hooks/check-git-sync.py`,
+> `.claude/hooks/block-typografie.py`, `.claude/hooks/block-umlaute.py`,
+> `.claude/hooks/check-git-sync.py`,
 > `.claude/hooks/check-session-state-groesse.py`) werden
 > automatisch aus der zentralen
 > Trigger-Liste `~/.claude/umlaute-triggers.json` plus den Templates unter
@@ -117,6 +118,37 @@ erfasst `.txt` trotzdem, dort ist die Meldung folgenlos korrigierbar.
 Mit der üblichen Repo-Konfiguration (`enforcement: warn`, `block_extensions:
 [".md"]`) warnen die neuen Endungen beim Commit, während `.md` blockt. Wer `.html`
 ebenfalls blockend führen will, trägt die Endung in `block_extensions` ein.
+
+## Umlaut-Schreibsperre: derselbe Maßstab wie der Commit, nur früher
+
+Seit dem 10.10.2026 blockt `.claude/hooks/block-umlaute.py` (PreToolUse auf
+`Write|Edit|MultiEdit`) einen Schreibvorgang auf eine `.md`, der ASCII-Ersatz
+(ae/oe/ue/ss) in eine Prosa-Zeile bringt. Die Typografie bleibt allein bei
+`block-typografie.py`, geprüft wird nichts doppelt.
+
+**Die Sperre führt keinen eigenen Maßstab.** Sie lädt zur Laufzeit die
+`.githooks/pre-commit.py` des Repos, in dem die Zieldatei liegt, und blockt genau
+das, was der Commit-Check an hinzugefügten Zeilen blocken würde: dieselbe Lib,
+dieselbe `umlaut-allowlist.json` (`generated`, `exceptions`, `file_scope`,
+`enforcement`, `block_extensions`), Fence-Fundstellen blocken auch hier nie. Ein
+Repo, das `.md` nur warnend führt, bekommt deshalb keine Schreibsperre.
+
+**Geprüft wird der neue Dateistand, nicht das Fragment.** Bei einem `Edit` bildet
+der Hook den Stand nach der Ersetzung und meldet nur Zeilen, die gegenüber dem
+alten Stand neu sind. Eine mitgeführte Altzeile mit ASCII-Ersatz blockt also
+nicht, und ein Edit innerhalb eines bestehenden Code-Fence gilt als Fence-Inhalt.
+
+**Kein `--no-verify`, deshalb nennt die Meldung die Auswege:** Eigennamen,
+Tabellen-, Feld- und Ordnernamen sowie das Wort selbst als Gegenstand gehören in
+Inline-Code, ein mehrzeiliges wörtliches Fremdzitat in einen Code-Fence, eine
+Datei mit Fremddaten als `exceptions`-Eintrag in die Allowlist. Gemessen am
+10.10.2026 über 12.856 frühere Schreibvorgänge: 160 wären geblockt worden, gut
+ein Drittel der Stichprobe davon waren solche Namen oder Erwähnungen, die der
+Commit-Check genauso blockt.
+
+**Fail-open:** Fehlt `.githooks/pre-commit.py` über der Zieldatei, scheitert der
+Import oder lässt sich der neue Stand nicht bilden, läuft der Schreibvorgang
+durch. Entscheid: ADR-2026-10-10-014632 im Repo `claudecode`.
 
 ## Betreff einer Commit-Message nie mit `#` beginnen
 
