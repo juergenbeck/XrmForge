@@ -10,6 +10,7 @@ gesetzt wird.
 > `.claude/hooks/check-tool-umlaute.py`,
 > `.claude/hooks/block-typografie.py`, `.claude/hooks/block-umlaute.py`,
 > `.claude/hooks/check-git-sync.py`,
+> `.claude/hooks/check-regeldatei-rueckfall.py`,
 > `.claude/hooks/check-session-state-groesse.py`) werden
 > automatisch aus der zentralen
 > Trigger-Liste `~/.claude/umlaute-triggers.json` plus den Templates unter
@@ -149,6 +150,29 @@ Commit-Check genauso blockt.
 **Fail-open:** Fehlt `.githooks/pre-commit.py` über der Zieldatei, scheitert der
 Import oder lässt sich der neue Stand nicht bilden, läuft der Schreibvorgang
 durch. Entscheid: ADR-2026-10-10-014632 im Repo `claudecode`.
+
+## Regeldatei-Wächter: ein zurückgefallener Regelstand fällt beim Start auf
+
+Seit dem 11.10.2026 prüft `.claude/hooks/check-regeldatei-rueckfall.py` bei jedem
+SessionStart, ob eine Regeldatei im Arbeitsbaum auf einen alten Stand zurückgefallen
+ist. Standard-Liste: `CLAUDE.md`, `AGENTS.md`, `.claude/settings.json`; ein Repo mit
+anderen Regeldateien trägt sie im Feld `regeldateien` seines Eintrags in
+`umlaute-triggers.json`. Codex ruft dieselbe Datei am SessionStart auf.
+
+Gemeldet werden genau drei Fälle, alles andere bleibt still:
+
+- **Rückfall:** die Arbeitskopie ist byte-identisch mit einem älteren committeten
+  Stand. Rat: prüfen und in aller Regel `git restore -- <datei>`.
+- **Rücknahme oder veraltet:** sie entspricht dem Stand direkt vor der letzten
+  Änderung. Das kann ein bewusstes Zurücknehmen sein oder eine Kopie, der genau diese
+  Änderung fehlt; die Meldung legt sich nicht fest.
+- **Großer Verlust:** sie ist uncommittet mindestens 50 Zeilen kürzer als `HEAD`.
+  Bei einem bewussten Umbau verschwindet die Meldung mit dem Commit.
+
+Der Hook misst nur und schreibt nie; die Meldung kommt als `additionalContext` und ist
+an den Nutzer weiterzugeben. Anlass war ein unbemerkter Rückfall der Markant-`CLAUDE.md`
+auf einen viereinhalb Monate alten Stand (Markant TOOL-0035), Entscheid
+ADR-2026-10-11-165331 im Repo `claudecode`.
 
 ## Betreff einer Commit-Message nie mit `#` beginnen
 
