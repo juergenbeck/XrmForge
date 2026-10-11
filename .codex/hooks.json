@@ -12,6 +12,20 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "H=\"$(git rev-parse --show-toplevel)/.claude/hooks/check-regeldatei-rueckfall.py\"; [ -f \"$H\" ] || exit 0; python3 -B \"$H\"",
+            "commandWindows": "$h = \"$(git rev-parse --show-toplevel)/.claude/hooks/check-regeldatei-rueckfall.py\"; if (-not (Test-Path -LiteralPath $h)) { exit 0 }; py -3 -B $h; exit $LASTEXITCODE",
+            "timeout": 20,
+            "statusMessage": "Regeldateien prüfen"
+          }
+        ]
+      }
     ]
   }
 }
