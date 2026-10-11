@@ -5,8 +5,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -B \"$(git rev-parse --show-toplevel)/.codex/autarkie/check-turn-ende.py\"",
-            "commandWindows": "py -3 -B \"$(git rev-parse --show-toplevel)/.codex/autarkie/check-turn-ende.py\"; exit $LASTEXITCODE",
+            "command": "H=\"$(git rev-parse --show-toplevel)/.codex/autarkie/check-turn-ende.py\"; [ -f \"$H\" ] || exit 0; python3 -B \"$H\"",
+            "commandWindows": "$h = \"$(git rev-parse --show-toplevel)/.codex/autarkie/check-turn-ende.py\"; if (-not (Test-Path -LiteralPath $h)) { exit 0 }; py -3 -B $h; exit $LASTEXITCODE",
             "timeout": 10,
             "statusMessage": "Ausführbare nächste Schritte fortsetzen"
           }

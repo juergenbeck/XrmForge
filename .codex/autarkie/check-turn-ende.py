@@ -2,7 +2,7 @@
 # GENERATED FILE. DO NOT EDIT.
 # Source: werkzeuge/hook-sync/templates/python/check-turn-ende.py
 # Template-Version: codex-autarkie-v1
-# Source-SHA256: f3f85dd0dcaf4e447f08a8bd2aea13249e163a91489301b3aa911353259180d9
+# Source-SHA256: fec43aa1615c5868a349d8dcec15c6663ff2f3529134fa1801364f3af20afc24
 """Stop-Hook: hält den Turn fest, solange die Antwort einen grünen Schritt benennt.
 
 Entscheid: ADR-2026-09-03-113147 (Das Anhalten des Turns wird geregelt, nicht die Form
