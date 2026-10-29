@@ -151,6 +151,34 @@ Commit-Check genauso blockt.
 Import oder lässt sich der neue Stand nicht bilden, läuft der Schreibvorgang
 durch. Entscheid: ADR-2026-10-10-014632 im Repo `claudecode`.
 
+## Sitzungsregister: parallele Sitzungen bemerken einander
+
+Seit dem 29.10.2026 trägt jedes Repo mit `kit: python` das Sitzungsregister aus
+`claudecode` (ADR-2026-10-28-202822). Jede Claude-Sitzung trägt sich unter
+`~/.claude/sessions-aktiv/` ein (`register-sitzung.py`, SessionStart und
+UserPromptSubmit). `check-sitzungskollision.py` warnt vor Write und Edit, wenn eine
+andere lebende Sitzung denselben Pfad im selben Repo beansprucht, `check-bash-anspruch.py`
+leitet schwache Ansprüche aus Bash-Schreibzielen ab, und `gib-saubere-ansprueche-frei.py`
+gibt am Turn-Ende jeden eigenen Anspruch auf eine committete, unveränderte Datei frei.
+Die Logik liegt in `sitzungsregister_lib.py`. Alle Hooks warnen nur und enden bei jedem
+Fehler still mit Exit 0.
+
+Der Commit-Riegel `.githooks/sitzungsriegel.py` läuft im Wrapper `pre-commit` zwischen
+dem Umlaut-Check und `pre-commit-local.py`. Seine Betriebsart steht in
+`.githooks/sitzungsriegel.modus`, geschrieben aus dem Feld `sitzungsriegel` der JSON:
+`blockend` nur in `claudecode`, sonst `protokollierend`. Protokollierend heißt, er nennt
+den Treffer, schreibt eine Zeile nach `~/.claude/sitzungsregister-riegel.jsonl` mit
+`ergebnis: durchgelassen` und lässt den Commit durch. Scharf geschaltet wird per
+Folge-ADR, sobald 1.500 protokollierende Läufe ohne Halter über vier Stunden still
+vorliegen.
+
+Die Werkzeuge bleiben in `claudecode` und sind von hier aus über Starter erreichbar:
+
+    python ~/.claude/scripts/sitzungsregister-melde-namen.py "<name>" --peers <datei>
+    python ~/.claude/scripts/sitzungsregister-melde-freigabe.py <pfad>
+    python ~/.claude/scripts/sitzungsregister-melde-schreibziel.py <pfad>
+    python ~/.claude/scripts/sitzungsregister-zeige.py
+
 ## Regeldatei-Wächter: ein zurückgefallener Regelstand fällt beim Start auf
 
 Seit dem 11.10.2026 prüft `.claude/hooks/check-regeldatei-rueckfall.py` bei jedem

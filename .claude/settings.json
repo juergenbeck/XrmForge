@@ -14,6 +14,16 @@
             "command": "command -v python3 >/dev/null 2>&1 && PYBIN=python3 || PYBIN=python; HOOK=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/check-wissens-persistenz.py\"; [ -f \"$HOOK\" ] || exit 0; \"$PYBIN\" -B \"$HOOK\""
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "command -v python3 >/dev/null 2>&1 && PYBIN=python3 || PYBIN=python; HOOK=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/register-sitzung.py\"; [ -f \"$HOOK\" ] || exit 0; \"$PYBIN\" -B \"$HOOK\"",
+            "timeout": 20
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -44,6 +54,26 @@
             "type": "command",
             "shell": "bash",
             "command": "command -v python3 >/dev/null 2>&1 && PYBIN=python3 || PYBIN=python; HOOK=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/block-umlaute.py\"; [ -f \"$HOOK\" ] || exit 0; \"$PYBIN\" -B \"$HOOK\""
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "command -v python3 >/dev/null 2>&1 && PYBIN=python3 || PYBIN=python; HOOK=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/check-sitzungskollision.py\"; [ -f \"$HOOK\" ] || exit 0; \"$PYBIN\" -B \"$HOOK\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "command -v python3 >/dev/null 2>&1 && PYBIN=python3 || PYBIN=python; HOOK=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/check-bash-anspruch.py\"; [ -f \"$HOOK\" ] || exit 0; \"$PYBIN\" -B \"$HOOK\""
           }
         ]
       }
@@ -124,6 +154,16 @@
             "statusMessage": "Regeldateien prüfen"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "command -v python3 >/dev/null 2>&1 && PYBIN=python3 || PYBIN=python; HOOK=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/register-sitzung.py\"; [ -f \"$HOOK\" ] || exit 0; \"$PYBIN\" -B \"$HOOK\"",
+            "timeout": 20
+          }
+        ]
       }
     ],
     "SessionEnd": [
@@ -146,6 +186,15 @@
             "type": "command",
             "shell": "bash",
             "command": "command -v python3 >/dev/null 2>&1 && PYBIN=python3 || PYBIN=python; HOOK=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/check-turn-ende.py\"; [ -f \"$HOOK\" ] || exit 0; \"$PYBIN\" -B \"$HOOK\""
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "command -v python3 >/dev/null 2>&1 && PYBIN=python3 || PYBIN=python; HOOK=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/gib-saubere-ansprueche-frei.py\"; [ -f \"$HOOK\" ] || exit 0; \"$PYBIN\" -B \"$HOOK\""
           }
         ]
       }

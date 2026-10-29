@@ -4,7 +4,8 @@
 # AUTO-GENERATED aus ~/.claude/hook-templates/python/pre-commit
 # (ausgerollt von ~/.claude/scripts/Sync-UmlautTriggers.ps1). Nicht von Hand editieren.
 #
-# Ablauf: (1) zentraler Umlaut-Check .githooks/pre-commit.py; (2) optionaler
+# Ablauf: (1) zentraler Umlaut-Check .githooks/pre-commit.py; (2) Sitzungsriegel
+# .githooks/sitzungsriegel.py, falls vorhanden; (3) optionaler
 # projekt-lokaler Check .githooks/pre-commit-local.py, falls vorhanden (NICHT vom
 # Sync verwaltet — hier klinkt jedes Repo eigene Prüfungen ein). Plattformneutral:
 # bevorzugt python3 (macOS/Linux), fällt auf python zurück (Windows). Keine
@@ -37,7 +38,16 @@ fi
 # 1. Zentraler Umlaut-Check (auto-generiert, für alle kit=python-Repos gleich).
 "$PYBIN" -B "$HOOK_PY"
 
-# 2. Optionaler projekt-lokaler Pre-Commit-Check, falls vorhanden (NICHT vom Sync
+# 2. Sitzungsriegel (auto-generiert, ADR-2026-10-28-202822): fremde Ansprüche aus dem
+#    Sitzungsregister im Commit. Blockt nur in Repos mit Betriebsart `blockend`
+#    (.githooks/sitzungsriegel.modus), sonst protokolliert er. Fehlt die Datei, entfällt der
+#    Schritt still (fail-open, ADR-2026-09-02-141242).
+HOOK_RIEGEL="$REPO_ROOT/.githooks/sitzungsriegel.py"
+if [ -f "$HOOK_RIEGEL" ]; then
+    "$PYBIN" -B "$HOOK_RIEGEL"
+fi
+
+# 3. Optionaler projekt-lokaler Pre-Commit-Check, falls vorhanden (NICHT vom Sync
 #    verwaltet). Jedes Repo darf hier eigene Prüfungen einklinken (z.B. Doku-/
 #    Konsistenz-Abgleich), ohne die auto-generierte Kette zu verändern. Exit != 0
 #    blockt den Commit; Bypass im Notfall wie üblich mit git commit --no-verify.
