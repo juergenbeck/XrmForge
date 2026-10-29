@@ -15,11 +15,15 @@ Token-Zahl, die unabhängig vom angenommenen Fenster korrekt ist.
 State-File pro Session, damit dieselbe Schwelle nicht mehrfach feuert.
 fail-open: jeder Fehler -> Exit 0.
 
-Zusätzlich zu den Prozentschwellen gibt es eine absolute Schwelle (WARN_ABSOLUT, per
-CLAUDE_KONTEXT_WARN_ABSOLUT überschreibbar): Claude Code komprimiert seit 2.1.308 teils
-schon ab rund 270k Token, bei einem 1-Mio-Fenster also lange vor der 50-Prozent-Marke.
-Sie meldet einmal je Anstieg und wird wieder scharf, sobald die Füllung darunter fällt
-(also nach einem Komprimieren). ADR-2026-10-29-094355 im Repo claudecode.
+Zusätzlich zu den Prozentschwellen gibt es eine absolute Schwelle für die
+Leerlauf-Komprimierung: Ist sie aktiv, komprimiert Claude Code eine Sitzung, die etwa eine
+Stunde ruht, sobald ihr Kontext deren Schwelle erreicht (Default 200.000 Token), bei einem
+1-Mio-Fenster also lange vor der 50-Prozent-Marke. Der Hook liest dafür die wirksame
+Einstellung (idleCompaction, CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS, DISABLE_AUTO_COMPACT),
+statt eine Zahl anzunehmen; ist sie aus, entfällt die Warnung. CLAUDE_KONTEXT_WARN_ABSOLUT
+erzwingt eine eigene Schwelle. Sie meldet einmal je Anstieg und wird wieder scharf, sobald
+die Füllung darunter fällt (also nach einem Komprimieren). ADR-2026-10-29-094355 und
+ADR-2026-10-29-142428 im Repo claudecode.
 
 GENERIERT aus ~/.claude/hook-templates/python/check-kontextlast.py durch
 Sync-UmlautTriggers.ps1. Änderungen am Rahmen gehören ins Template, nicht hierher.
@@ -39,7 +43,10 @@ except Exception:
 
 SCHWELLEN = [50, 70, 85]
 DEFAULT_WINDOW = 1000000
-WARN_ABSOLUT = 200000
+# Default-Schwelle und Untergrenze der Leerlauf-Komprimierung laut Doku settings-reference,
+# Abschnitt idleCompaction (gelesen am 29.10.2026).
+LEERLAUF_DEFAULT = 200000
+LEERLAUF_MINIMUM = 100000
 
 # Kontextfenster je Modell. Quelle: Skill `claude-api` (Modelltabelle, Stand 2026-06-24),
 # gegengeprüft am 15.08.2026 an den real erreichten Maxima von 1153 Transcripten: kein
@@ -131,13 +138,49 @@ def fenster_ableiten(modell):
     return window, herkunft
 
 
-def schwelle_absolut():
-    """Absolute Warnschwelle in Token. Vorrang: CLAUDE_KONTEXT_WARN_ABSOLUT, sonst WARN_ABSOLUT."""
+def _ist_gesetzt(wert):
+    return str(wert).strip().lower() not in ('', '0', 'false', 'no', 'off')
+
+
+def leerlauf_schwelle(projekt):
+    """Schwelle der Leerlauf-Komprimierung für diese Sitzung, oder None, wenn sie aus ist.
+
+    Reihenfolge wie bei Claude Code: lokale Projekt-Settings, Projekt-Settings, User-Settings;
+    der erste gesetzte Wert für idleCompaction gilt. Managed Settings liest der Hook nicht."""
+    if _ist_gesetzt(os.environ.get('DISABLE_AUTO_COMPACT', '')):
+        return None
+    pfade = []
+    if projekt:
+        pfade += [os.path.join(projekt, '.claude', 'settings.local.json'),
+                  os.path.join(projekt, '.claude', 'settings.json')]
+    pfade.append(os.path.join(os.path.expanduser('~'), '.claude', 'settings.json'))
+    for pfad in pfade:
+        try:
+            with open(pfad, encoding='utf-8') as fh:
+                wert = json.load(fh).get('idleCompaction')
+        except Exception:
+            continue
+        if isinstance(wert, bool):
+            if not wert:
+                return None
+            break
     try:
-        wert = int(os.environ.get('CLAUDE_KONTEXT_WARN_ABSOLUT') or WARN_ABSOLUT)
+        schwelle = int(os.environ.get('CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS') or LEERLAUF_DEFAULT)
     except Exception:
-        wert = WARN_ABSOLUT
-    return wert if wert > 0 else WARN_ABSOLUT
+        schwelle = LEERLAUF_DEFAULT
+    return max(schwelle, LEERLAUF_MINIMUM)
+
+
+def schwelle_absolut(projekt):
+    """Absolute Warnschwelle in Token oder None. Vorrang: CLAUDE_KONTEXT_WARN_ABSOLUT, sonst die
+    Schwelle der Leerlauf-Komprimierung, falls sie aktiv ist."""
+    try:
+        erzwungen = int(os.environ.get('CLAUDE_KONTEXT_WARN_ABSOLUT') or 0)
+    except Exception:
+        erzwungen = 0
+    if erzwungen > 0:
+        return erzwungen
+    return leerlauf_schwelle(projekt)
 
 
 def meldung_absolut_standard(tokens, schwelle):
@@ -145,9 +188,10 @@ def meldung_absolut_standard(tokens, schwelle):
     in seiner Textregion ersetzen."""
     return (
         "KOMPRIMIERUNG IN SICHT (Hook check-kontextlast)\n\n"
-        "Kontextfüllung ~%dk Token, absolute Schwelle %dk erreicht (justierbar via "
-        "CLAUDE_KONTEXT_WARN_ABSOLUT). Claude Code komprimiert teils schon ab rund 270k Token "
-        "und ersetzt dann den Verlauf durch eine Zusammenfassung von wenigen tausend Zeichen.\n\n"
+        "Kontextfüllung ~%dk Token, Schwelle %dk erreicht. Ab hier komprimiert Claude Code diese "
+        "Sitzung, sobald sie etwa eine Stunde ruht (Leerlauf-Komprimierung; abschaltbar mit "
+        "\"idleCompaction\": false in settings.json, Schwelle per CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS), "
+        "und ersetzt den Verlauf durch eine Zusammenfassung von wenigen tausend Zeichen.\n\n"
         "Was in dieser Sitzung an Messwerten, Entscheidungen, verworfenen Wegen und Vorgaben "
         "des Users bisher nur im Chat steht, jetzt read-orientiert wegschreiben und committen. "
         "Den Stand dem User sichtbar nennen (absolute Token-Zahl)."
@@ -251,8 +295,8 @@ def main():
             pass
 
     # Absolute Schwelle: einmal je Anstieg, nach dem Unterschreiten (Komprimieren) wieder scharf.
-    schwelle = schwelle_absolut()
-    if tokens < schwelle:
+    schwelle = schwelle_absolut(os.environ.get('CLAUDE_PROJECT_DIR') or data.get('cwd') or '')
+    if schwelle is None or tokens < schwelle:
         absolut_gemeldet = False
     elif not absolut_gemeldet:
         absolut_gemeldet = True

@@ -181,13 +181,18 @@ Die Werkzeuge bleiben in `claudecode` und sind von hier aus über Starter erreic
 
 ## Komprimierung: Zusammenfassung sichern, danach nachlesen
 
-Seit Claude Code 2.1.308 komprimiert der Kontext teils schon ab rund 270k Token. Danach sieht
-die Sitzung nur noch eine Zusammenfassung von wenigen tausend Zeichen, und was nur im Chat
-stand, ist aus dem Blick. Drei Hooks fangen das ab (ADR-2026-10-29-094355 und
-ADR-2026-10-29-095541 im Repo claudecode):
+Claude Code komprimiert den Kontext bei rund 967k Token und, solange die
+Leerlauf-Komprimierung an ist, schon ab 200k Token, sobald eine Sitzung etwa eine Stunde ruht.
+Danach sieht die Sitzung nur noch eine Zusammenfassung von wenigen tausend Zeichen, und was nur
+im Chat stand, ist aus dem Blick. Auf Jürgens Rechnern ist die Leerlauf-Komprimierung über
+`"idleCompaction": false` in der globalen `settings.json` aus. Drei Hooks fangen das Übrige ab
+(ADR-2026-10-29-094355, ADR-2026-10-29-095541 und ADR-2026-10-29-142428 im Repo claudecode):
 
-- `.claude/hooks/check-kontextlast.py` warnt zusätzlich einmal ab 200k Token (überschreibbar
-  per `CLAUDE_KONTEXT_WARN_ABSOLUT`), damit vorher persistiert wird.
+- `.claude/hooks/check-kontextlast.py` warnt zusätzlich einmal, sobald die Schwelle der
+  Leerlauf-Komprimierung erreicht ist. Die Schwelle liest er aus der wirksamen Einstellung
+  (`idleCompaction`, `CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS`, `DISABLE_AUTO_COMPACT`); ist die
+  Leerlauf-Komprimierung aus, entfällt die Warnung. `CLAUDE_KONTEXT_WARN_ABSOLUT` erzwingt eine
+  eigene Schwelle.
 - `.claude/hooks/sichere-komprimierung.py` (`PostCompact`) legt die Zusammenfassung im Wortlaut
   mit Transcript-Pfad unter `.claude/komprimierungen/` ab. Der Ordner ist gitignoriert, weil er
   Sitzungsinhalt in beliebiger Sensibilität trägt.
