@@ -234,8 +234,8 @@ def herzschlag(repo: str | None = None, strang: str | None = None,
     # Prompt läuft, wäre das Feld praktisch nie älter als eine Eingabe, und die Kollisionsregel
     # bliebe unentscheidbar wie zuvor (ADR-2026-09-01-204329). Vom Nachweis gefunden, nicht
     # gedacht: Kriterium 2a fiel mit „nachher None".
-    # Auch die schwachen Ansprueche ueberleben den Herzschlag - derselbe Fallstrick wie oben,
-    # er baut den Eintrag neu und uebernimmt nur, was hier ausdruecklich steht.
+    # Auch die schwachen Ansprüche überleben den Herzschlag - derselbe Fallstrick wie oben,
+    # er baut den Eintrag neu und übernimmt nur, was hier ausdrücklich steht.
     # Beide schwachen Felder auf einmal, über SCHWACHE_FELDER: Ein neues Feld, das hier vergessen
     # wird, verschwindet bei jedem Prompt wieder - derselbe Fallstrick hat bei `anschreibname` und
     # bei `anspruch_seit` je einmal zugeschlagen und wurde beide Male erst vom Nachweis gefunden.
@@ -937,7 +937,7 @@ def gib_anspruch_frei(pfad: str, kennung: str | None = None) -> list[str] | None
     entfernt = entfernt + schwach_entfernt
     eintrag['ansprueche'] = [a for a in ansprueche if a not in entfernt]
     # Der Zeitpunkt geht mit dem Anspruch: sonst beschriebe das Feld einen Pfad, den niemand
-    # mehr hält, und ein spaeter neu entstehender Anspruch erbte das alte Alter.
+    # mehr hält, und ein später neu entstehender Anspruch erbte das alte Alter.
     stempel_pflegen(eintrag, [])
     eintrag['lebenszeichen'] = time.time()
     schreibe(eintrag)
@@ -1067,7 +1067,7 @@ class Peerliste:
         self.gekappt = any(marke in klein for marke in _KAPPUNG_MARKEN)
         self.ist_listing = any(marke in klein for marke in _LISTING_MARKEN)
 
-    def traeger(self, name: str) -> tuple[int, str | None]:
+    def namensvorkommen(self, name: str) -> tuple[int, str | None]:
         """(Zahl der Zeilen mit diesem Namen, eigene Referenz aus der Selbstauskunft).
 
         Gezählt werden Zeilen, nicht Vorkommen: eine Zeile ist eine Sitzung. Die Referenz stammt
@@ -1090,7 +1090,7 @@ class Peerliste:
         return anzahl, eigene
 
     def kennt(self, name: str) -> bool:
-        return self.traeger(name)[0] > 0
+        return self.namensvorkommen(name)[0] > 0
 
 
 def werte_peerliste(text: str) -> Peerliste:
