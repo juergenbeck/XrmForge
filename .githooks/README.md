@@ -190,7 +190,8 @@ im Chat stand, ist aus dem Blick. Auf Jürgens Rechnern ist die Leerlauf-Komprim
 
 - `.claude/hooks/check-kontextlast.py` warnt zusätzlich einmal, sobald die Schwelle der
   Leerlauf-Komprimierung erreicht ist. Die Schwelle liest er aus der wirksamen Einstellung
-  (`idleCompaction`, `CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS`, `DISABLE_AUTO_COMPACT`); ist die
+  (`idleCompaction`, `autoCompactEnabled`, `CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS`,
+  `DISABLE_AUTO_COMPACT`; Managed Settings und `--settings` liest er nicht); ist die
   Leerlauf-Komprimierung aus, entfällt die Warnung. `CLAUDE_KONTEXT_WARN_ABSOLUT` erzwingt eine
   eigene Schwelle.
 - `.claude/hooks/sichere-komprimierung.py` (`PostCompact`) legt die Zusammenfassung im Wortlaut

@@ -19,7 +19,8 @@ Zusätzlich zu den Prozentschwellen gibt es eine absolute Schwelle für die
 Leerlauf-Komprimierung: Ist sie aktiv, komprimiert Claude Code eine Sitzung, die etwa eine
 Stunde ruht, sobald ihr Kontext deren Schwelle erreicht (Default 200.000 Token), bei einem
 1-Mio-Fenster also lange vor der 50-Prozent-Marke. Der Hook liest dafür die wirksame
-Einstellung (idleCompaction, CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS, DISABLE_AUTO_COMPACT),
+Einstellung (idleCompaction, autoCompactEnabled, CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS,
+DISABLE_AUTO_COMPACT; ohne Managed Settings und --settings),
 statt eine Zahl anzunehmen; ist sie aus, entfällt die Warnung. CLAUDE_KONTEXT_WARN_ABSOLUT
 erzwingt eine eigene Schwelle. Sie meldet einmal je Anstieg und wird wieder scharf, sobald
 die Füllung darunter fällt (also nach einem Komprimieren). ADR-2026-10-29-094355 und
@@ -146,7 +147,9 @@ def leerlauf_schwelle(projekt):
     """Schwelle der Leerlauf-Komprimierung für diese Sitzung, oder None, wenn sie aus ist.
 
     Reihenfolge wie bei Claude Code: lokale Projekt-Settings, Projekt-Settings, User-Settings;
-    der erste gesetzte Wert für idleCompaction gilt. Managed Settings liest der Hook nicht."""
+    je Schlüssel gilt der erste gesetzte Wert. Aus ist sie bei idleCompaction false, bei
+    autoCompactEnabled false (laut Doku schaltet das die Leerlauf-Komprimierung mit ab) und bei
+    DISABLE_AUTO_COMPACT. Managed Settings und das Flag --settings liest der Hook nicht."""
     if _ist_gesetzt(os.environ.get('DISABLE_AUTO_COMPACT', '')):
         return None
     pfade = []
@@ -154,16 +157,18 @@ def leerlauf_schwelle(projekt):
         pfade += [os.path.join(projekt, '.claude', 'settings.local.json'),
                   os.path.join(projekt, '.claude', 'settings.json')]
     pfade.append(os.path.join(os.path.expanduser('~'), '.claude', 'settings.json'))
+    werte = {}
     for pfad in pfade:
         try:
             with open(pfad, encoding='utf-8') as fh:
-                wert = json.load(fh).get('idleCompaction')
+                daten = json.load(fh)
         except Exception:
             continue
-        if isinstance(wert, bool):
-            if not wert:
-                return None
-            break
+        for name in ('idleCompaction', 'autoCompactEnabled'):
+            if name not in werte and isinstance(daten.get(name), bool):
+                werte[name] = daten[name]
+    if werte.get('idleCompaction') is False or werte.get('autoCompactEnabled') is False:
+        return None
     try:
         schwelle = int(os.environ.get('CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS') or LEERLAUF_DEFAULT)
     except Exception:
