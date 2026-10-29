@@ -15,6 +15,12 @@ Token-Zahl, die unabhängig vom angenommenen Fenster korrekt ist.
 State-File pro Session, damit dieselbe Schwelle nicht mehrfach feuert.
 fail-open: jeder Fehler -> Exit 0.
 
+Zusätzlich zu den Prozentschwellen gibt es eine absolute Schwelle (WARN_ABSOLUT, per
+CLAUDE_KONTEXT_WARN_ABSOLUT überschreibbar): Claude Code komprimiert seit 2.1.308 teils
+schon ab rund 270k Token, bei einem 1-Mio-Fenster also lange vor der 50-Prozent-Marke.
+Sie meldet einmal je Anstieg und wird wieder scharf, sobald die Füllung darunter fällt
+(also nach einem Komprimieren). ADR-2026-10-29-094355 im Repo claudecode.
+
 GENERIERT aus ~/.claude/hook-templates/python/check-kontextlast.py durch
 Sync-UmlautTriggers.ps1. Änderungen am Rahmen gehören ins Template, nicht hierher.
 AUSGENOMMEN ist die mit KONTEXTLAST-TEXTE markierte Region weiter unten: die ist
@@ -33,6 +39,7 @@ except Exception:
 
 SCHWELLEN = [50, 70, 85]
 DEFAULT_WINDOW = 1000000
+WARN_ABSOLUT = 200000
 
 # Kontextfenster je Modell. Quelle: Skill `claude-api` (Modelltabelle, Stand 2026-06-24),
 # gegengeprüft am 15.08.2026 an den real erreichten Maxima von 1153 Transcripten: kein
@@ -124,6 +131,30 @@ def fenster_ableiten(modell):
     return window, herkunft
 
 
+def schwelle_absolut():
+    """Absolute Warnschwelle in Token. Vorrang: CLAUDE_KONTEXT_WARN_ABSOLUT, sonst WARN_ABSOLUT."""
+    try:
+        wert = int(os.environ.get('CLAUDE_KONTEXT_WARN_ABSOLUT') or WARN_ABSOLUT)
+    except Exception:
+        wert = WARN_ABSOLUT
+    return wert if wert > 0 else WARN_ABSOLUT
+
+
+def meldung_absolut_standard(tokens, schwelle):
+    """Meldung der absoluten Schwelle. Ein Repo kann sie mit meldung_absolut(tokens, schwelle)
+    in seiner Textregion ersetzen."""
+    return (
+        "KOMPRIMIERUNG IN SICHT (Hook check-kontextlast)\n\n"
+        "Kontextfüllung ~%dk Token, absolute Schwelle %dk erreicht (justierbar via "
+        "CLAUDE_KONTEXT_WARN_ABSOLUT). Claude Code komprimiert teils schon ab rund 270k Token "
+        "und ersetzt dann den Verlauf durch eine Zusammenfassung von wenigen tausend Zeichen.\n\n"
+        "Was in dieser Sitzung an Messwerten, Entscheidungen, verworfenen Wegen und Vorgaben "
+        "des Users bisher nur im Chat steht, jetzt read-orientiert wegschreiben und committen. "
+        "Den Stand dem User sichtbar nennen (absolute Token-Zahl)."
+        % (round(tokens / 1000), round(schwelle / 1000))
+    )
+
+
 # === KONTEXTLAST-TEXTE ANFANG (repo-spezifisch, vom Sync nicht angetastet) ===
 # Alles zwischen diesen beiden Markern gehört diesem Repo. Der Sync rendert den
 # Rahmen darum herum neu und lässt diese Region unverändert stehen. Pflicht ist
@@ -198,29 +229,48 @@ def main():
         pass
     state_file = os.path.join(state_dir, 'session-' + str(session_id) + '.json')
     last_level = 0
+    absolut_gemeldet = False
     try:
         with open(state_file, encoding='utf-8') as fh:
             st = json.load(fh)
             # lastSchwelle: Altbestand aus Innoform, damit ein laufender State nicht neu feuert.
             last_level = int(st.get('lastLevel', st.get('lastSchwelle', 0)) or 0)
+            absolut_gemeldet = bool(st.get('absolutGemeldet', False))
     except Exception:
         last_level = 0
 
+    teile = []
+
     due = [s for s in SCHWELLEN if pct >= s and s > last_level]
-    if not due:
-        return 0
-    reached = max(due)
+    if due:
+        reached = max(due)
+        last_level = reached
+        try:
+            teile.append(meldung(pct, tokens, window, reached, herkunft))
+        except Exception:
+            pass
+
+    # Absolute Schwelle: einmal je Anstieg, nach dem Unterschreiten (Komprimieren) wieder scharf.
+    schwelle = schwelle_absolut()
+    if tokens < schwelle:
+        absolut_gemeldet = False
+    elif not absolut_gemeldet:
+        absolut_gemeldet = True
+        try:
+            text_absolut = globals().get('meldung_absolut') or meldung_absolut_standard
+            teile.append(text_absolut(tokens, schwelle))
+        except Exception:
+            pass
 
     try:
         with open(state_file, 'w', encoding='utf-8') as fh:
-            json.dump({'lastLevel': reached}, fh)
+            json.dump({'lastLevel': last_level, 'absolutGemeldet': absolut_gemeldet}, fh)
     except Exception:
         pass
 
-    try:
-        msg = meldung(pct, tokens, window, reached, herkunft)
-    except Exception:
+    if not teile:
         return 0
+    msg = '\n\n'.join(teile)
 
     print(json.dumps({'hookSpecificOutput': {'hookEventName': 'UserPromptSubmit',
                                              'additionalContext': msg}}, ensure_ascii=False))
