@@ -5,8 +5,10 @@ Nach dem Komprimieren sieht die Sitzung nur noch eine Zusammenfassung. Sie schl�
 Transcript nur nach, wenn ihr eine Lücke auffällt, und was die Zusammenfassung still
 auslässt, fällt nicht auf. Dieser Hook gibt ihr deshalb ausdrücklich den Auftrag, die
 Zusammenfassung gegen das Transcript zu prüfen und Ungesichertes jetzt wegzuschreiben.
-Er nennt den Transcript-Pfad und, falls sichere-komprimierung.py schon gelaufen ist, die
-gesicherte Zusammenfassung derselben Sitzung; von dieser Reihenfolge hängt er nicht ab.
+Er nennt den Transcript-Pfad und den Ordner, in dem sichere-komprimierung.py die
+Zusammenfassung ablegt. Eine Datei nennt er bewusst nicht: SessionStart(compact) läuft rund
+eine Sekunde VOR PostCompact, die Sicherung dieser Komprimierung gibt es also noch nicht, und
+eine ältere derselben Sitzung wäre die falsche (gemessen am 29.10.2026, ADR-2026-10-29-165621).
 
 Entscheid: ADR-2026-10-29-094355 im Repo claudecode. fail-open: jeder Fehler -> Exit 0.
 
@@ -14,7 +16,6 @@ GENERIERT aus ~/.claude/hook-templates/python/nach-komprimierung.py durch Sync-U
 (Kern-Sub-Hook seit ADR-2026-10-29-095541 im Repo claudecode). Änderungen gehören ins
 Template, nicht hierher; der nächste Sync überschreibt diese Datei.
 """
-import glob
 import json
 import os
 import sys
@@ -25,10 +26,9 @@ except Exception:
     pass
 
 
-def gesicherte_datei(data, session_id):
+def sicherungsordner(data):
     basis = os.environ.get('CLAUDE_PROJECT_DIR') or data.get('cwd') or os.getcwd()
-    treffer = glob.glob(os.path.join(basis, '.claude', 'komprimierungen', '*-%s.md' % session_id[:8]))
-    return max(treffer) if treffer else None
+    return os.path.join(basis, '.claude', 'komprimierungen')
 
 
 def main():
@@ -42,7 +42,6 @@ def main():
 
     session_id = str(data.get('session_id') or '')
     transcript = data.get('transcript_path') or 'unbekannt'
-    sicherung = gesicherte_datei(data, session_id) if session_id else None
 
     zeilen = [
         'NACH DER KOMPRIMIERUNG (Hook nach-komprimierung, ADR-2026-10-29-094355)',
@@ -51,8 +50,14 @@ def main():
         'Transcript liegt unter:',
         '    %s' % transcript,
     ]
-    if sicherung:
-        zeilen += ['Die Zusammenfassung ist im Wortlaut gesichert unter:', '    %s' % sicherung]
+    if session_id:
+        zeilen += [
+            'Die Zusammenfassung dieser Komprimierung legt sichere-komprimierung.py unmittelbar nach '
+            'diesem Hinweis im Wortlaut ab, als jüngste Datei mit dem Muster *-%s.md im Ordner:'
+            % session_id[:8],
+            '    %s' % sicherungsordner(data),
+            'Ältere Dateien desselben Musters gehören zu früheren Komprimierungen dieser Sitzung.',
+        ]
     zeilen += [
         '',
         'Bevor du weiterarbeitest, prüf im Transcript den Abschnitt vor der Komprimierung auf '
