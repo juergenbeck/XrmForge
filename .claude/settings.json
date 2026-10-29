@@ -164,6 +164,17 @@
             "timeout": 20
           }
         ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "command -v python3 >/dev/null 2>&1 && PYBIN=python3 || PYBIN=python; HOOK=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/nach-komprimierung.py\"; [ -f \"$HOOK\" ] || exit 0; \"$PYBIN\" -B \"$HOOK\"",
+            "timeout": 15
+          }
+        ]
       }
     ],
     "SessionEnd": [
@@ -195,6 +206,18 @@
             "type": "command",
             "shell": "bash",
             "command": "command -v python3 >/dev/null 2>&1 && PYBIN=python3 || PYBIN=python; HOOK=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/gib-saubere-ansprueche-frei.py\"; [ -f \"$HOOK\" ] || exit 0; \"$PYBIN\" -B \"$HOOK\""
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "command -v python3 >/dev/null 2>&1 && PYBIN=python3 || PYBIN=python; HOOK=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/sichere-komprimierung.py\"; [ -f \"$HOOK\" ] || exit 0; \"$PYBIN\" -B \"$HOOK\"",
+            "timeout": 15
           }
         ]
       }

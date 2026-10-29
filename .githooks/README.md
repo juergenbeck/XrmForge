@@ -179,6 +179,25 @@ Die Werkzeuge bleiben in `claudecode` und sind von hier aus über Starter erreic
     python ~/.claude/scripts/sitzungsregister-melde-schreibziel.py <pfad>
     python ~/.claude/scripts/sitzungsregister-zeige.py
 
+## Komprimierung: Zusammenfassung sichern, danach nachlesen
+
+Seit Claude Code 2.1.308 komprimiert der Kontext teils schon ab rund 270k Token. Danach sieht
+die Sitzung nur noch eine Zusammenfassung von wenigen tausend Zeichen, und was nur im Chat
+stand, ist aus dem Blick. Drei Hooks fangen das ab (ADR-2026-10-29-094355 und
+ADR-2026-10-29-095541 im Repo claudecode):
+
+- `.claude/hooks/check-kontextlast.py` warnt zusätzlich einmal ab 200k Token (überschreibbar
+  per `CLAUDE_KONTEXT_WARN_ABSOLUT`), damit vorher persistiert wird.
+- `.claude/hooks/sichere-komprimierung.py` (`PostCompact`) legt die Zusammenfassung im Wortlaut
+  mit Transcript-Pfad unter `.claude/komprimierungen/` ab. Der Ordner ist gitignoriert, weil er
+  Sitzungsinhalt in beliebiger Sensibilität trägt.
+- `.claude/hooks/nach-komprimierung.py` (`SessionStart` mit Matcher `compact`) gibt der Sitzung
+  den Auftrag, die Zusammenfassung gegen das Transcript zu prüfen und Ungesichertes jetzt
+  wegzuschreiben.
+
+Ein Hook kann das Komprimieren nur mechanisch begleiten: `PreCompact` könnte blocken, dem
+Modell aber nichts mitteilen; inhaltlich entscheiden kann erst die Sitzung danach.
+
 ## Regeldatei-Wächter: ein zurückgefallener Regelstand fällt beim Start auf
 
 Seit dem 11.10.2026 prüft `.claude/hooks/check-regeldatei-rueckfall.py` bei jedem

@@ -41,3 +41,6 @@ __pycache__/
 .claude/scheduled_tasks.lock
 .claude/worktrees/
 .claude/settings.local.json
+
+# Hook-/Tooling-Schutz (vom Umlaut-Sync ergänzt).
+.claude/komprimierungen/
