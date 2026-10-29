@@ -209,6 +209,13 @@ def main() -> int:
                 print('     %s' % hinweis)
     print()
     if not blockend:
+        # Auch ohne Blockade braucht der Treffer einen Weg zur Auflösung: Die haltende Sitzung gibt
+        # die Datei frei, und der Aufruf muss im Repo des Commits ausführbar sein (Kriterium 8 aus
+        # ADR-2026-10-28-202822, dort der Starter unter ~/.claude/scripts/).
+        print(' Ist die Datei frei, gibt die haltende Sitzung sie mit einem Aufruf frei:')
+        print()
+        print('   %s <pfad>' % reg.werkzeug_aufruf('melde-freigabe.py', str(repo)))
+        print()
         return 0
     print(' So geht es weiter:')
     print()
