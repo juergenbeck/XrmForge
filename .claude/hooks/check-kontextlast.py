@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""UserPromptSubmit-Hook: warnt an Schwellen, wenn der Kontext voll läuft.
+"""UserPromptSubmit- und PostToolUse-Hook: warnt an Schwellen, wenn der Kontext voll läuft.
+
+Läuft an beiden Ereignissen, damit auch eine autark arbeitende Sitzung, die keine Nachricht des
+Users bekommt, ihre Schwellen erfährt (ADR-2026-11-07-190610 im Repo claudecode). Gemeldet wird
+mit dem Ereignisnamen aus der Eingabe; jede Schwelle einmal je Sitzung, gleich an welchem
+Ereignis. Im Subagenten (agent_id gesetzt oder Transcript unter subagents/) schweigt er.
 
 Misst die ECHTE Kontextfüllung aus dem jüngsten usage-Eintrag des Transcripts
 (input_tokens + cache_read_input_tokens + cache_creation_input_tokens); das ist auch
@@ -44,6 +49,9 @@ except Exception:
 
 SCHWELLEN = [50, 60, 70, 85]
 DEFAULT_WINDOW = 1000000
+# Gelesen wird nur das Ende des Transcripts; der jüngste usage-Eintrag steht dort. Erst wenn
+# dieser Ausschnitt keinen trägt, wird die ganze Datei gelesen (ADR-2026-11-07-190610).
+LESE_ENDE_BYTES = 4 * 1024 * 1024
 # Default-Schwelle und Untergrenze der Leerlauf-Komprimierung laut Doku settings-reference,
 # Abschnitt idleCompaction (gelesen am 29.10.2026).
 LEERLAUF_DEFAULT = 200000
@@ -81,15 +89,40 @@ def fenster_aus_modell(modell):
     return None
 
 
+def _zeilen(transcript_path, nur_ende):
+    """Zeilen des Transcripts; bei nur_ende nur die der letzten LESE_ENDE_BYTES."""
+    with open(transcript_path, 'rb') as fh:
+        if nur_ende:
+            fh.seek(0, os.SEEK_END)
+            groesse = fh.tell()
+            if groesse > LESE_ENDE_BYTES:
+                fh.seek(groesse - LESE_ENDE_BYTES)
+                daten = fh.read()
+                # Die erste Zeile ist angeschnitten und wird verworfen.
+                daten = daten.split(b'\n', 1)[1] if b'\n' in daten else b''
+                return daten.decode('utf-8', errors='replace').split('\n')
+            fh.seek(0)
+        return fh.read().decode('utf-8', errors='replace').split('\n')
+
+
 def kontext_tokens(transcript_path):
     """Jüngster usage-Eintrag: (Summe der Eingabe-Token, Modell) = aktuelle Kontextfüllung."""
     if not transcript_path or not os.path.isfile(transcript_path):
         return None, None
-    try:
-        with open(transcript_path, encoding='utf-8', errors='replace') as fh:
-            lines = fh.readlines()
-    except Exception:
-        return None, None
+    for nur_ende in (True, False):
+        try:
+            lines = _zeilen(transcript_path, nur_ende)
+        except Exception:
+            return None, None
+        ergebnis = _juengster_usage(lines)
+        if ergebnis[0]:
+            return ergebnis
+        if nur_ende and os.path.getsize(transcript_path) <= LESE_ENDE_BYTES:
+            break
+    return None, None
+
+
+def _juengster_usage(lines):
     for line in reversed(lines):
         line = line.strip()
         if not line or '"usage"' not in line:
@@ -308,6 +341,13 @@ def main():
 
     transcript_path = data.get('transcript_path', '')
     session_id = data.get('session_id', 'unknown')
+    ereignis = data.get('hook_event_name') or 'UserPromptSubmit'
+
+    # Im Subagenten schweigen und den State nicht anfassen: sonst markierte ein voller Subagent
+    # die Schwelle der Hauptsitzung als gemeldet (ADR-2026-11-07-190610).
+    teile_pfad = transcript_path.replace('\\', '/').split('/')
+    if data.get('agent_id') or 'subagents' in teile_pfad:
+        return 0
 
     tokens, modell = kontext_tokens(transcript_path)
     if not tokens:
@@ -372,7 +412,7 @@ def main():
         return 0
     msg = '\n\n'.join(teile)
 
-    print(json.dumps({'hookSpecificOutput': {'hookEventName': 'UserPromptSubmit',
+    print(json.dumps({'hookSpecificOutput': {'hookEventName': ereignis,
                                              'additionalContext': msg}}, ensure_ascii=False))
     return 0
 
