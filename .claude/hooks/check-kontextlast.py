@@ -94,9 +94,9 @@ def _zeilen(transcript_path, nur_ende):
     with open(transcript_path, 'rb') as fh:
         if nur_ende:
             fh.seek(0, os.SEEK_END)
-            groesse = fh.tell()
-            if groesse > LESE_ENDE_BYTES:
-                fh.seek(groesse - LESE_ENDE_BYTES)
+            size = fh.tell()
+            if size > LESE_ENDE_BYTES:
+                fh.seek(size - LESE_ENDE_BYTES)
                 daten = fh.read()
                 # Die erste Zeile ist angeschnitten und wird verworfen.
                 daten = daten.split(b'\n', 1)[1] if b'\n' in daten else b''
