@@ -42,7 +42,7 @@ try:
 except Exception:
     pass
 
-SCHWELLEN = [50, 70, 85]
+SCHWELLEN = [50, 60, 70, 85]
 DEFAULT_WINDOW = 1000000
 # Default-Schwelle und Untergrenze der Leerlauf-Komprimierung laut Doku settings-reference,
 # Abschnitt idleCompaction (gelesen am 29.10.2026).
@@ -204,6 +204,42 @@ def meldung_absolut_standard(tokens, schwelle):
     )
 
 
+# Standard-Reaktionen des Rahmens. Sie greifen, wenn die regionseigene meldung() wirft, etwa
+# weil ihr REAKTION-Dict eine Schwelle nicht kennt. Inhalt: globale CLAUDE.md, Abschnitt
+# „Automatische Sessionübergabe ab 60 % Kontext“ (ADR-2026-11-07-122259 im Repo claudecode).
+STANDARD_REAKTION = {
+    50: "Leise Schwelle: den Stand dem User sichtbar nennen (absolute Token-Zahl, Prozent, "
+        "Schwelle). Noch keine Übergabe; den laufenden Mikro-Auftrag so schneiden, dass er vor "
+        "60 % committet ist. Ab 60 % übergibt die Sitzung automatisch.",
+    60: "Übergabe-Schwelle: jetzt ohne Rückfrage die vollständige Sessionübergabe nach der "
+        "Konvention dieses Repos durchführen (globale CLAUDE.md, Abschnitt „Automatische "
+        "Sessionübergabe ab 60 % Kontext“). Den laufenden Mikro-Schritt beenden oder als "
+        "Zwischenstand committen; laufende Hintergrundläufe und Absprachen mit anderen Sitzungen "
+        "gehören in den Handover; die Folgesitzung starten, sofern der Kickoff offene oder rote "
+        "Punkte führt. Danach hält sich diese Sitzung aus dem Strang heraus: keine Fragen, keine "
+        "Entscheidungen mehr vorlegen; die Schlussmeldung nennt nur, dass übergeben ist, wo "
+        "Kickoff und Handover liegen und welche Folgesitzung läuft.",
+    70: "Deutliche Schwelle: die Übergabe ab 60 % ist überfällig. Ist sie noch nicht geschehen, "
+        "jetzt ohne Rückfrage übergeben und keinen neuen Arbeitsblock beginnen. Ist sie "
+        "geschehen, im Strang nichts mehr tun.",
+    85: "Kritische Schwelle: keine neuen Nachlade-Reads. Ist die Übergabe noch nicht geschehen, "
+        "sofort ohne Rückfrage übergeben, bevor Auto-Compact die scharfen Details verdichtet. "
+        "Ist sie geschehen, im Strang nichts mehr tun.",
+}
+
+
+def meldung_standard(pct, tokens, window, reached, herkunft):
+    """Rückfall-Meldung des Rahmens, falls die regionseigene meldung() wirft."""
+    return (
+        "KONTEXTLAST ~%d%% (Hook check-kontextlast, Standardtext des Rahmens)\n\n"
+        "Echte Kontextfüllung: ~%dk von ~%dk Token (jüngster usage-Eintrag des Transcripts; "
+        "Schwelle %d%% erreicht; Fenster aus: %s, justierbar via CLAUDE_CONTEXT_WINDOW).\n\n"
+        "%s"
+        % (pct, round(tokens / 1000), round(window / 1000), reached, herkunft,
+           STANDARD_REAKTION[reached])
+    )
+
+
 # === KONTEXTLAST-TEXTE ANFANG (repo-spezifisch, vom Sync nicht angetastet) ===
 # Alles zwischen diesen beiden Markern gehört diesem Repo. Der Sync rendert den
 # Rahmen darum herum neu und lässt diese Region unverändert stehen. Pflicht ist
@@ -216,13 +252,23 @@ def meldung_absolut_standard(tokens, schwelle):
 # der Meldungstext braucht, gehören ebenfalls hierher.
 
 REAKTION = {
-    50: "Leise Schwelle: Übergabe nach dem laufenden Mikro-Auftrag einplanen, Stand-Meldung "
-        "vorbereiten. Der User entscheidet, ob übergeben wird, kein Auto-Start-Imperativ.",
-    70: "Deutliche Schwelle: nächsten sinnvollen Schnitt suchen, Übergabe-Vorschlag formulieren "
-        "und User-Entscheidung abwarten, bevor neue Arbeitsblöcke beginnen.",
-    85: "Kritische Schwelle: nichts Neues mehr anfangen, keine neuen Nachlade-Reads. Jetzt "
-        "übergeben oder den Stand als Spec/Briefing im Repo sichern, bevor Auto-Compact die "
-        "scharfen Details (exakte Namen, Zeilennummern, Belege) verdichtet.",
+    50: "Leise Schwelle: den Stand dem User sichtbar nennen (absolute Token-Zahl, Prozent, "
+        "Schwelle). Noch keine Übergabe; den laufenden Mikro-Auftrag so schneiden, dass er vor "
+        "60 % committet ist. Ab 60 % übergibt die Sitzung automatisch.",
+    60: "Übergabe-Schwelle: jetzt ohne Rückfrage die vollständige Sessionübergabe nach der "
+        "Konvention dieses Repos durchführen (globale CLAUDE.md, Abschnitt „Automatische "
+        "Sessionübergabe ab 60 % Kontext“). Den laufenden Mikro-Schritt beenden oder als "
+        "Zwischenstand committen; laufende Hintergrundläufe und Absprachen mit anderen Sitzungen "
+        "gehören in den Handover; die Folgesitzung starten, sofern der Kickoff offene oder rote "
+        "Punkte führt. Danach hält sich diese Sitzung aus dem Strang heraus: keine Fragen, keine "
+        "Entscheidungen mehr vorlegen; die Schlussmeldung nennt nur, dass übergeben ist, wo "
+        "Kickoff und Handover liegen und welche Folgesitzung läuft.",
+    70: "Deutliche Schwelle: die Übergabe ab 60 % ist überfällig. Ist sie noch nicht geschehen, "
+        "jetzt ohne Rückfrage übergeben und keinen neuen Arbeitsblock beginnen. Ist sie "
+        "geschehen, im Strang nichts mehr tun.",
+    85: "Kritische Schwelle: keine neuen Nachlade-Reads. Ist die Übergabe noch nicht geschehen, "
+        "sofort ohne Rückfrage übergeben, bevor Auto-Compact die scharfen Details verdichtet. "
+        "Ist sie geschehen, im Strang nichts mehr tun.",
 }
 
 UEBERGABE_HINWEIS = (
@@ -297,7 +343,12 @@ def main():
         try:
             teile.append(meldung(pct, tokens, window, reached, herkunft))
         except Exception:
-            pass
+            # Die Region kennt die Schwelle nicht (oder ist defekt): Rahmen meldet selbst,
+            # damit die Übergabe-Anweisung nicht still entfällt (ADR-2026-11-07-122259).
+            try:
+                teile.append(meldung_standard(pct, tokens, window, reached, herkunft))
+            except Exception:
+                pass
 
     # Absolute Schwelle: einmal je Anstieg, nach dem Unterschreiten (Komprimieren) wieder scharf.
     schwelle = schwelle_absolut(os.environ.get('CLAUDE_PROJECT_DIR') or data.get('cwd') or '')
