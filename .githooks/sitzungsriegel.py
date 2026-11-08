@@ -145,6 +145,37 @@ def protokolliere(repo: Path, dateien: list[str], treffer: list, modus: str = 'b
         datei.write(zeile + '\n')
 
 
+def eigene_mit_anspruch(reg, repo: Path, dateien: list[str]) -> list[str]:
+    """Die Dateien unter `dateien`, auf die die committende Sitzung selbst einen Anspruch hält.
+
+    Nur die starken Ansprüche (`ansprueche`), dieselbe Menge, die der Riegel bei fremden Sitzungen
+    prüft. Fail-open: Lässt sich die eigene Sitzung nicht bestimmen oder das Register nicht lesen,
+    ist die Liste leer und die Meldung bleibt, wie sie ohne diese Prüfung war.
+    """
+    try:
+        eigene_id = reg.eigene_session_id()
+        if not eigene_id:
+            return []
+        kennung = reg.kennung_aus(eigene_id)
+        eigene = [e for e in reg.lies_register() if e.get('kennung') == kennung]
+        ziel_repo = reg.repo_des_ziels(str(repo))
+        ergebnis = []
+        for datei in dateien:
+            for eintrag in eigene:
+                # Ein Anspruch gilt nur im eigenen Repo (ADR-2026-08-29-202848), sonst träfe ein
+                # gleichnamiger Pfad aus einem anderen Repo.
+                if not reg.eintrag_gilt_hier(eintrag, datei, ziel_repo):
+                    continue
+                ziel = reg.normpfad(datei, eintrag.get('repo') or str(repo))
+                if any(isinstance(a, str) and reg.anspruch_trifft(a, ziel)
+                       for a in (eintrag.get('ansprueche') or [])):
+                    ergebnis.append(datei)
+                    break
+        return sorted(set(ergebnis))
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def main() -> int:
     dateien = zu_committende_dateien()
     if not dateien:
@@ -230,6 +261,20 @@ def main() -> int:
     print()
     print('   %s <pfad>' % reg.werkzeug_aufruf('melde-freigabe.py', str(repo)))
     print()
+    wechselseitig = eigene_mit_anspruch(reg, repo, [d for d, _e, _a in treffer])
+    if wechselseitig:
+        # ADR-2026-11-08-112355, Punkt 3: Hält die committende Sitzung selbst einen Anspruch auf
+        # die Datei, hängt die andere Sitzung beim Commit genauso an ihr. Der Rat oben, die andere
+        # um Freigabe zu bitten, führt dann im Kreis; der Ausweg ohne fremde Hilfe steht hier.
+        print(' Du hältst selbst einen Anspruch auf diese Datei:')
+        for datei in wechselseitig:
+            print('   %s' % datei)
+        print(' Die andere Sitzung hängt beim Commit genauso an dir. Einer von euch gibt')
+        print(' seinen Anspruch frei, dann kann der andere committen, und sein Commit nimmt')
+        print(' beide Fassungen der Datei mit. Deinen eigenen gibst du so frei:')
+        print()
+        print('   %s <pfad>' % reg.werkzeug_aufruf('melde-freigabe.py', str(repo)))
+        print()
     print(' Ist die Sitzung nicht erreichbar, kann sie den Pfad auch mitcommitten.')
     print(' `--no-verify` ist der letzte Ausweg und schaltet die GANZE Hook-Kette ab,')
     print(' nicht nur diesen Riegel: Umlaut-, Typografie- und Inhaltsprüfung fallen')
