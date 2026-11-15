@@ -61,9 +61,9 @@ def main():
         except (OSError, ValueError):
             alter, inhalt = None, None
         # Der Mod kann keine Datei löschen; einen abgebrochenen Versuch markiert er mit "verworfen".
-        gueltig = (isinstance(inhalt, dict) and inhalt.get('session_id') == session_id
+        passend = (isinstance(inhalt, dict) and inhalt.get('session_id') == session_id
                    and not inhalt.get('verworfen'))
-        if gueltig and alter is not None and 0 <= alter <= MARKIERUNG_HOECHSTENS_S:
+        if passend and alter is not None and 0 <= alter <= MARKIERUNG_HOECHSTENS_S:
             try:
                 os.remove(markierung)
             except OSError:
