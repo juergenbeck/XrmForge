@@ -30,6 +30,11 @@ Zweite Prüfung (ADR-2026-11-15-111850). Greift der Riegel nicht, prüft `pruefe
 ob die Antwort etwas von Jürgen erbittet, ihr letzter Absatz aber weder eine Frage noch die Bitte
 selbst trägt; dann meldet sie das einmal zurück, mit denselben Sicherungen wie der Riegel.
 
+Sammelstelle (ADR-2026-11-15-151718). Unabhängig vom Urteil trägt der Hook am Turn-Ende eine
+Frage an Jürgen im letzten Absatz nach `~/.claude/offene-fragen/<session-id>.json` ein und
+entfernt den Eintrag, wenn der Turn ohne Frage endet. Diese Nebenwirkung ist getrennt
+fail-open: Kann sie nicht schreiben, bleiben Urteil, Ausgabe und Exitcode unverändert.
+
 Selbstprobe: `python check-turn-ende.py --selbstprobe` (0 sauber, 2 Werkzeug defekt).
 """
 
@@ -37,6 +42,8 @@ import json
 import os
 import re
 import sys
+import tempfile
+import time
 
 # --- Rote Handlungen: hier endet der Turn, die Freigabe ist Jürgens ------------------
 ROT = re.compile(
@@ -522,6 +529,112 @@ def beurteile_gesamt(nachricht):
     return pruefe_bitte_am_ende(nachricht)
 
 
+# --- Sammelstelle offener Fragen (ADR-2026-11-15-151718) ------------------------------
+# Erfasst wird, wenn der letzte Absatz eine Frage stellt (ein Satz, der außerhalb von Code,
+# Zitatzeilen und „…“-Zitaten mit „?" endet) oder eine Bitte an Jürgen trägt. Die Art ist
+# `freigabe`, wenn der Absatz einen der roten Signalbegriffe aus ROT nennt, sonst `antwort`.
+# Eine verkannte Freigabe kommt in der Zielsitzung nur als Information an und gibt nichts
+# frei (ADR, Konsequenzen); deshalb genügt hier dieselbe Heuristik wie im Riegel.
+
+def sammelstelle_verzeichnis():
+    eigen = os.environ.get("OFFENE_FRAGEN_DIR")
+    if eigen:
+        return eigen
+    return os.path.join(os.path.expanduser("~"), ".claude", "offene-fragen")
+
+
+def frage_im_letzten_absatz(nachricht):
+    """Der letzte Absatz im Wortlaut, wenn er eine Frage oder Bitte an Jürgen trägt, sonst None."""
+    sauber = ohne_zitatspannen(ohne_zitate(nachricht))
+    absatz = letzter_absatz(sauber)
+    if not absatz:
+        return None
+    frage = any(t.rstrip().endswith("?") for t in step_sentences(absatz))
+    if not frage and not bitte_satz(absatz):
+        return None
+    return letzter_absatz(nachricht) or absatz
+
+
+def art_der_frage(absatz):
+    sauber = ohne_zitatspannen(ohne_zitate(absatz))
+    return "freigabe" if ROT.search(sauber) else "antwort"
+
+
+def _registereintrag(session_id):
+    """Adresse und Strang aus dem Sitzungsregister, falls vorhanden. Nie tragend."""
+    try:
+        kennung = (session_id or "").replace("-", "")[:6]
+        ordner = os.environ.get("SITZUNGSREGISTER_DIR") or os.path.join(
+            os.path.expanduser("~"), ".claude", "sessions-aktiv")
+        with open(os.path.join(ordner, kennung + ".json"), encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def erfasse_frage(daten, jetzt=None):
+    """Schreibt oder entfernt den Eintrag dieser Sitzung. Gibt 'geschrieben', 'entfernt',
+    'nichts' oder 'übersprungen' zurück; Fehler steigen auf und werden in main() gefangen."""
+    if daten.get("agent_id") or daten.get("hook_event_name", "Stop") != "Stop":
+        return "übersprungen"                   # Subagent: keine Frage an Jürgen
+    session_id = daten.get("session_id") or ""
+    if not re.fullmatch(r"[0-9A-Za-z-]{8,80}", session_id):
+        return "übersprungen"
+    ordner = sammelstelle_verzeichnis()
+    ziel = os.path.join(ordner, session_id + ".json")
+    absatz = frage_im_letzten_absatz(daten.get("last_assistant_message") or "")
+    if not absatz:
+        if os.path.exists(ziel):
+            os.remove(ziel)
+            return "entfernt"
+        return "nichts"
+    reg = _registereintrag(session_id)
+    eintrag = {
+        "session_id": session_id,
+        "kennung": session_id.replace("-", "")[:6],
+        "adresse": reg.get("adresse", ""),
+        "strang": reg.get("strang", ""),
+        "rechner": reg.get("rechner") or os.environ.get("COMPUTERNAME", ""),
+        "pid": reg.get("pid"),
+        "repo": reg.get("repo_name") or os.path.basename(daten.get("cwd") or "") or "",
+        "cwd": daten.get("cwd", ""),
+        "transcript_path": daten.get("transcript_path", ""),
+        "zeit": time.time() if jetzt is None else jetzt,
+        "art": art_der_frage(absatz),
+        "absatz": absatz,
+    }
+    os.makedirs(ordner, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=ordner, prefix=".neu-", suffix=".json")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(eintrag, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, ziel)
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+    return "geschrieben"
+
+
+def selbstprobe_sammelstelle():
+    """Fälle der Erfassung: Positiv, Negativ, Grauzone (Frage nur im Zitat)."""
+    proben = [
+        ("Stand steht.\n\nWelche Variante nimmst du, A oder B?", "antwort"),
+        ("Entwurf steht.\n\nDarf ich die Mail an X so senden?", "freigabe"),
+        ("Der Browser ist offen.\n\nSag mir Bescheid, wenn du angemeldet bist.", "antwort"),
+        ("Alles committet und gepusht.", None),
+        ("Welche Variante nimmst du?\n\nAlles committet und gepusht.", None),
+        ("Er fragte „Passt das so?“.\n\nIch habe geantwortet, alles erledigt.", None),
+        ("Fertig.\n\nSein Satz war:\n> Passt das so?", None),
+    ]
+    fehler = []
+    for text, erwartet in proben:
+        absatz = frage_im_letzten_absatz(text)
+        ist = art_der_frage(absatz) if absatz else None
+        if ist != erwartet:
+            fehler.append(f"  Sammelstelle: erwartet {erwartet}, ist {ist}: {text[:60]!r}")
+    return fehler, len(proben)
+
+
 def selbstprobe_bitte():
     """Fälle der zweiten Prüfung (ADR-2026-11-15-111850): Positiv, Negativ, Grauzone."""
     proben = [
@@ -774,13 +887,15 @@ def selbstprobe():
             fehler.append(f"  erwartet {erwartet}, ist {ist}: {text[:70]!r}")
     fehler_bitte, anzahl_bitte = selbstprobe_bitte()
     fehler.extend(fehler_bitte)
+    fehler_sammel, anzahl_sammel = selbstprobe_sammelstelle()
+    fehler.extend(fehler_sammel)
     if fehler:
         print("Selbstprobe GESCHEITERT:", file=sys.stderr)
         print("\n".join(fehler), file=sys.stderr)
         return 2
     print(f"Selbstprobe bestanden ({len(proben)} Fälle, davon "
           f"{sum(1 for _, e in proben if e)} Positivfälle; dazu {anzahl_bitte} Fälle "
-          f"der Prüfung Bitte am Ende).")
+          f"der Prüfung Bitte am Ende und {anzahl_sammel} der Sammelstelle).")
     return 0
 
 
@@ -800,6 +915,13 @@ def main():
             return 0
         roh = sys.stdin.buffer.read()          # binär lesen, sonst cp1252 auf Windows
         daten = json.loads(roh.decode("utf-8", "replace"))
+        # Die Sammelstelle ist eine Nebenwirkung mit eigenem fail-open: ihr Fehler darf das
+        # Urteil weder ändern noch verhindern (ADR-2026-11-15-151718, Fertig wenn 2).
+        if not os.environ.get("KEIN_SAMMELSTELLE"):
+            try:
+                erfasse_frage(daten)
+            except Exception:
+                pass
         blocken, grund = entscheide(daten)
         if not blocken:
             return 0
