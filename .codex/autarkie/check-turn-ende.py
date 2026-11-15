@@ -2,7 +2,7 @@
 # GENERATED FILE. DO NOT EDIT.
 # Source: werkzeuge/hook-sync/templates/python/check-turn-ende.py
 # Template-Version: codex-autarkie-v1
-# Source-SHA256: 508cddd7e90eb69cd3eb408ff7b39952530ba97ca3c488bee1b3c2511b2f6833
+# Source-SHA256: 75e9820e38ab6f3a22a17deb66b8d2da91b051cb304a14becd4828c42ec5472e
 """Stop-Hook: hält den Turn fest, solange die Antwort einen grünen Schritt benennt.
 
 Entscheid: ADR-2026-09-03-113147 (Das Anhalten des Turns wird geregelt, nicht die Form
@@ -572,6 +572,10 @@ def selbstprobe_bitte():
         # zweites „ hinweg bis zu dessen Schlusszeichen reichen.
         ("Im Abschnitt „Stand fehlt der Nachtrag. Von dir brauche ich die Freigabe. "
          "Siehe „Offen“.\n\nAlles committet und gepusht.", True),
+        # Ein Fragezeichen im letzten Absatz zählt auch im Zitat (im Zweifel still);
+        # gefunden vom Inspektor am 15.11.2026 als ungebundene Bedingung.
+        ("Bitte wähl dort deine Stimme.\n\nEr fragte „Passt das so?“, und ich habe "
+         "geantwortet.", False),
         # Und nicht über das Zeilenende hinweg.
         ("Im Abschnitt „Stand fehlt der Nachtrag.\nVon dir brauche ich die Freigabe.\n"
          "Die Prüfung heißt “Ask at the end”.\n\nAlles committet und gepusht.", True),

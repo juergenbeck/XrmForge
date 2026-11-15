@@ -568,6 +568,10 @@ def selbstprobe_bitte():
         # zweites „ hinweg bis zu dessen Schlusszeichen reichen.
         ("Im Abschnitt „Stand fehlt der Nachtrag. Von dir brauche ich die Freigabe. "
          "Siehe „Offen“.\n\nAlles committet und gepusht.", True),
+        # Ein Fragezeichen im letzten Absatz zählt auch im Zitat (im Zweifel still);
+        # gefunden vom Inspektor am 15.11.2026 als ungebundene Bedingung.
+        ("Bitte wähl dort deine Stimme.\n\nEr fragte „Passt das so?“, und ich habe "
+         "geantwortet.", False),
         # Und nicht über das Zeilenende hinweg.
         ("Im Abschnitt „Stand fehlt der Nachtrag.\nVon dir brauche ich die Freigabe.\n"
          "Die Prüfung heißt “Ask at the end”.\n\nAlles committet und gepusht.", True),
