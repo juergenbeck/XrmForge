@@ -2,7 +2,7 @@
 # GENERATED FILE. DO NOT EDIT.
 # Source: werkzeuge/hook-sync/templates/python/check-turn-ende.py
 # Template-Version: codex-autarkie-v1
-# Source-SHA256: 1b2b83f40596c21f0726bb708f8c8282097e3797a5048f2f194035315a450965
+# Source-SHA256: 3d8788a908b96dbd870bbc725a0411c87a58fb9c0e74ee93711859b5a6d2e872
 """Stop-Hook: hält den Turn fest, solange die Antwort einen grünen Schritt benennt.
 
 Entscheid: ADR-2026-09-03-113147 (Das Anhalten des Turns wird geregelt, nicht die Form
@@ -29,6 +29,10 @@ Welche der beiden die Oberfläche auswertet, ist NICHT belegt, deshalb gibt der 
 bewusst beide Signale ab: das JSON auf stdout und dieselbe Begründung auf stderr mit
 Code 2. Beide bewirken dasselbe, eine Doppelwirkung ist ausgeschlossen, weil der zweite
 Aufruf stop_hook_active trägt.
+
+Zweite Prüfung (ADR-2026-11-15-111850). Greift der Riegel nicht, prüft `pruefe_bitte_am_ende`,
+ob die Antwort etwas von Jürgen erbittet, ihr letzter Absatz aber weder eine Frage noch die Bitte
+selbst trägt; dann meldet sie das einmal zurück, mit denselben Sicherungen wie der Riegel.
 
 Selbstprobe: `python check-turn-ende.py --selbstprobe` (0 sauber, 2 Werkzeug defekt).
 """
@@ -531,6 +535,12 @@ def selbstprobe_bitte():
          False),
         # Grauzone, bewusst still: die Bitte steht im letzten Absatz als Aufforderung.
         ("Der Browser ist offen.\n\nSag mir Bescheid, wenn du angemeldet bist.", False),
+        # Inspektor-Befund 15.11.2026: Diese beiden binden je eine Bedingung allein.
+        # Schlussfrage ohne du/dich/dir/dein: nur das Fragezeichen hält sie still.
+        ("Der Entwurf an Björn steht. Bitte prüf ihn.\n\nSoll die Mail so raus?", False),
+        # Frage an Jürgen nur in der Mitte, ohne BITTE-Signal: nur FRAGE_AN_DICH findet sie.
+        ("Die Seite steht.\n\nWelche Stimme nimmst du, A oder B?\n\n"
+         "Alles committet und gepusht.", True),
     ]
     fehler = []
     for text, erwartet in proben:
@@ -542,7 +552,24 @@ def selbstprobe_bitte():
                                   "Als Nächstes prüfe ich die Messung.")
     if not ist or "ADR-2026-11-15-111850" in grund:
         fehler.append("  Zusammenspiel: Riegel hätte zuerst greifen müssen")
-    return fehler, len(proben) + 1
+    # Verdrahtung: der Weg, den main() nimmt, muss die zweite Prüfung erreichen.
+    ist, grund = entscheide({"last_assistant_message":
+                             "Bitte wähl dort deine Stimme.\n\nAlles gepusht."})
+    if not ist or "ADR-2026-11-15-111850" not in grund:
+        fehler.append("  Verdrahtung: entscheide() erreicht die Prüfung Bitte am Ende nicht")
+    ist, _ = entscheide({"stop_hook_active": True, "last_assistant_message":
+                         "Bitte wähl dort deine Stimme.\n\nAlles gepusht."})
+    if ist:
+        fehler.append("  Verdrahtung: stop_hook_active wird nicht respektiert")
+    return fehler, len(proben) + 3
+
+
+def entscheide(daten):
+    """Der ganze Entscheidungsweg von main() ab der gelesenen Eingabe, damit die
+    Selbstprobe die Verdrahtung mitprüft (Hinweis des Inspektors, 15.11.2026)."""
+    if daten.get("stop_hook_active"):
+        return False, ""                        # schon einmal geblockt, jetzt durchlassen
+    return beurteile_gesamt(daten.get("last_assistant_message") or "")
 
 
 def selbstprobe():
@@ -739,9 +766,7 @@ def main():
             return 0
         roh = sys.stdin.buffer.read()          # binär lesen, sonst cp1252 auf Windows
         daten = json.loads(roh.decode("utf-8", "replace"))
-        if daten.get("stop_hook_active"):
-            return 0                            # schon einmal geblockt, jetzt durchlassen
-        blocken, grund = beurteile_gesamt(daten.get("last_assistant_message") or "")
+        blocken, grund = entscheide(daten)
         if not blocken:
             return 0
         # Beide belegten Blockierwege bedienen, siehe Modul-Docstring.
