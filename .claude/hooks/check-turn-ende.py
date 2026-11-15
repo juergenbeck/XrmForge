@@ -428,6 +428,119 @@ def beurteile(nachricht):
     )
 
 
+# --- Zweite Prüfung: offene Bitte an Jürgen als Frage im letzten Absatz -------------
+# ADR-2026-11-15-111850. Greift nur, wenn der Turn-Riegel oben nicht greift. Erkennung
+# satzweise: ein Satz gilt als Bitte an Jürgen, wenn er eines der Signale trägt und nicht
+# verneint ist („von dir brauche ich nichts"). Bewusst KEIN Signal ist „deine Antwort"
+# allein, das in Chat-Strängen fast immer Jürgens Nachricht an Dritte meint; in der ersten
+# Messung (15.11.2026) war das die Mehrzahl der Fehlalarme. Dieselben Muster liest die
+# Messung im Vorgang 2026-11-15-frage-im-letzten-absatz direkt aus dieser Datei.
+BITTE = re.compile(
+    r"(\b(wartet|warten|hängt|hängen)\s+(\w+\s+){0,3}auf\s+(dich\b|deine[rmn]?\s+"
+    r"(wahl|freigabe|entscheidung|entscheid|rückmeldung|bestätigung|zustimmung|auswahl|"
+    r"zusage|antwort|okay|ok)\b)"
+    r"|\b(brauche|bräuchte|benötige)\s+ich\s+(\w+\s+){0,3}(von\s+dir|deine[rnm]?)\b"
+    r"|\bvon\s+dir\s+(brauche|bräuchte|benötige)\b"
+    r"|\b(liegt|ist)\s+(jetzt\s+)?bei\s+dir\b"
+    r"|\b(bleibt|offen\s+ist|offen\s+bleibt|fehlt|steht\s+aus)\s+(noch\s+|nur\s+noch\s+)?"
+    r"dein(e|en)?\s+(wahl|freigabe|entscheidung|entscheid|rückmeldung|bestätigung|zusage|"
+    r"okay|ok)\b"
+    r"|\bbitte\s+(wähl|prüf|bestätig|entscheid|gib|sag|schau|hör|öffne|klick|probier|"
+    r"test|melde|schick|nenn|lies|antworte|install)\w*"
+    r"|\b(gib|sag)\s+mir\s+(bescheid|kurz|deine|ob|welche)\b)",
+    re.IGNORECASE,
+)
+VERNEINT = re.compile(r"\b(nichts|nicht|kein\w*)\b", re.IGNORECASE)
+FRAGE_AN_DICH = re.compile(r"\b(du|dich|dir|dein\w*|euch)\b", re.IGNORECASE)
+
+
+def ohne_zitate(text):
+    """Code-Blöcke, Inline-Code und Zitatzeilen entfernen: dort stehen fremde Sätze."""
+    text = re.sub(r"```.*?```", " ", text or "", flags=re.S)
+    text = re.sub(r"`[^`\n]*`", " ", text)
+    return "\n".join(z for z in text.splitlines() if not z.lstrip().startswith(">"))
+
+
+def bitte_satz(text):
+    """Der erste Satz mit einer Bitte an Jürgen, oder None."""
+    for satz in step_sentences(text):
+        if BITTE.search(satz) and not VERNEINT.search(satz):
+            return " ".join(satz.split())[:160]
+        if satz.rstrip().endswith("?") and FRAGE_AN_DICH.search(satz):
+            return " ".join(satz.split())[:160]
+    return None
+
+
+def pruefe_bitte_am_ende(nachricht):
+    """(melden, begründung): Bitte an Jürgen erkannt, letzter Absatz ohne Frage und ohne
+    die Bitte selbst. Eine Aufforderung im letzten Absatz bleibt bewusst still
+    (ADR-2026-11-15-111850, Entscheidung 6). Im Zweifel: nicht melden."""
+    sauber = ohne_zitate(nachricht)
+    absatz = letzter_absatz(sauber)
+    if not absatz or "?" in absatz:
+        return False, ""
+    fund = bitte_satz(sauber)
+    if not fund or bitte_satz(absatz):
+        return False, ""
+    return True, (
+        f"Die Antwort erbittet etwas von Jürgen (\"{fund}\"), ihr letzter Absatz stellt "
+        "dazu aber keine Frage. Regel (ADR-2026-11-15-111850): Braucht eine Antwort etwas "
+        "von Jürgen, steht es im letzten Absatz als konkrete, für sich verständliche Frage, "
+        "auch wenn es weiter oben oder im Kasten der Oberfläche schon steht.\n\n"
+        "Schreib jetzt eine kurze Schlussnachricht, deren letzter Absatz die offene Bitte "
+        "als Frage stellt: was genau, wo (Link) und in welcher Form die Antwort erwartet "
+        "wird; mehrere Bitten als nummerierte Fragen. Wiederhole sonst nichts. Grüne "
+        "Schritte werden weiter ausgeführt, nicht erfragt.\n\n"
+        "Ist in Wahrheit nichts von Jürgen offen (Zitat, erledigte Freigabe, Bitte an "
+        "einen Dritten), antworte nur mit \"Von dir ist nichts offen.\"; dieser Hook "
+        "meldet sich kein zweites Mal."
+    )
+
+
+def beurteile_gesamt(nachricht):
+    """Erst der Turn-Riegel, dann die Bitte am Ende. Höchstens eine Rückmeldung je Turn."""
+    blocken, grund = beurteile(nachricht)
+    if blocken:
+        return blocken, grund
+    return pruefe_bitte_am_ende(nachricht)
+
+
+def selbstprobe_bitte():
+    """Fälle der zweiten Prüfung (ADR-2026-11-15-111850): Positiv, Negativ, Grauzone."""
+    proben = [
+        # Positiv: der Anlassfall, Bitte oben, am Ende nur der Stand.
+        ("Die Hörprobe-Seite steht. Bitte wähl dort deine Stimme.\n\n"
+         "Alles committet und gepusht.", True),
+        ("**Was ich von dir brauche**\n\nDie Mail an Björn wartet auf deine Freigabe.\n\n"
+         "**Wie es weitergeht**\n\nNach dem Versand trage ich die Zusagen ins Register ein.",
+         True),
+        # Negativ: Bitte mit Frage am Ende; gar keine Bitte.
+        ("Die Seite steht. Bitte wähl dort deine Stimme.\n\n"
+         "Welche Stimme nimmst du auf der Hörprobe-Seite, A oder B?", False),
+        ("Fertig: Messung, ADR und Nachweis stehen, alles committet und gepusht.", False),
+        # Grauzone: verneint, „deine Antwort" an Dritte, Bitte nur im Zitat.
+        ("Im Strang ist nichts offen. Von dir brauche ich hier nichts.\n\n"
+         "Die nächste Prüfung läuft um 14:00.", False),
+        ("Im Chat ist deine Antwort von 07:03 der letzte Beitrag.\n\n"
+         "Seit 08:18 ist nichts Neues gekommen.", False),
+        ("Er schrieb:\n> Bitte prüf das bis Freitag.\n\nIch habe es geprüft, alles passt.",
+         False),
+        # Grauzone, bewusst still: die Bitte steht im letzten Absatz als Aufforderung.
+        ("Der Browser ist offen.\n\nSag mir Bescheid, wenn du angemeldet bist.", False),
+    ]
+    fehler = []
+    for text, erwartet in proben:
+        ist, _ = pruefe_bitte_am_ende(text)
+        if ist != erwartet:
+            fehler.append(f"  Bitte am Ende: erwartet {erwartet}, ist {ist}: {text[:70]!r}")
+    # Zusammenspiel: Greift der Riegel, kommt seine Begründung, nicht die zweite.
+    ist, grund = beurteile_gesamt("Bitte wähl dort deine Stimme.\n\n"
+                                  "Als Nächstes prüfe ich die Messung.")
+    if not ist or "ADR-2026-11-15-111850" in grund:
+        fehler.append("  Zusammenspiel: Riegel hätte zuerst greifen müssen")
+    return fehler, len(proben) + 1
+
+
 def selbstprobe():
     """Positivfall und Gegenfälle. Findet die Probe ihren Positivfall nicht, ist das
     Werkzeug defekt und meldet 2, nicht 0 und nicht 1."""
@@ -594,12 +707,15 @@ def selbstprobe():
         ist, _ = beurteile(text)
         if ist != erwartet:
             fehler.append(f"  erwartet {erwartet}, ist {ist}: {text[:70]!r}")
+    fehler_bitte, anzahl_bitte = selbstprobe_bitte()
+    fehler.extend(fehler_bitte)
     if fehler:
         print("Selbstprobe GESCHEITERT:", file=sys.stderr)
         print("\n".join(fehler), file=sys.stderr)
         return 2
     print(f"Selbstprobe bestanden ({len(proben)} Fälle, davon "
-          f"{sum(1 for _, e in proben if e)} Positivfälle).")
+          f"{sum(1 for _, e in proben if e)} Positivfälle; dazu {anzahl_bitte} Fälle "
+          f"der Prüfung Bitte am Ende).")
     return 0
 
 
@@ -621,7 +737,7 @@ def main():
         daten = json.loads(roh.decode("utf-8", "replace"))
         if daten.get("stop_hook_active"):
             return 0                            # schon einmal geblockt, jetzt durchlassen
-        blocken, grund = beurteile(daten.get("last_assistant_message") or "")
+        blocken, grund = beurteile_gesamt(daten.get("last_assistant_message") or "")
         if not blocken:
             return 0
         # Beide belegten Blockierwege bedienen, siehe Modul-Docstring.
