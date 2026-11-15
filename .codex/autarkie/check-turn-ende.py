@@ -2,7 +2,7 @@
 # GENERATED FILE. DO NOT EDIT.
 # Source: werkzeuge/hook-sync/templates/python/check-turn-ende.py
 # Template-Version: codex-autarkie-v1
-# Source-SHA256: 3d8788a908b96dbd870bbc725a0411c87a58fb9c0e74ee93711859b5a6d2e872
+# Source-SHA256: 508cddd7e90eb69cd3eb408ff7b39952530ba97ca3c488bee1b3c2511b2f6833
 """Stop-Hook: hält den Turn fest, solange die Antwort einen grünen Schritt benennt.
 
 Entscheid: ADR-2026-09-03-113147 (Das Anhalten des Turns wird geregelt, nicht die Form
@@ -469,9 +469,22 @@ def ohne_zitate(text):
     return "\n".join(z for z in text.splitlines() if not z.lstrip().startswith(">"))
 
 
+# Text in deutschen Anführungszeichen „…“ ist ein Zitat (eine Überschrift, eine fremde
+# Nachricht, ein Regelwortlaut), keine eigene Bitte. Anlass: Feldfehlalarm am 15.11.2026
+# an „Typisch war ein Abschnitt „Was ich von dir brauche“ in der Mitte.“ Bewusst nur für
+# die Suche nach der Bitte: ein Fragezeichen im letzten Absatz zählt weiter auch im
+# Zitat, denn im Zweifel meldet die Prüfung nicht. Die Länge ist begrenzt, damit ein
+# vergessenes Schlusszeichen nicht den Rest der Antwort verschluckt.
+ZITATSPANNE = re.compile(r"„[^„“\n]{0,200}“")
+
+
+def ohne_zitatspannen(text):
+    return ZITATSPANNE.sub(" ", text or "")
+
+
 def bitte_satz(text):
     """Der erste Satz mit einer Bitte an Jürgen, oder None."""
-    for satz in step_sentences(text):
+    for satz in step_sentences(ohne_zitatspannen(text)):
         if BITTE.search(satz) and not VERNEINT.search(satz):
             return " ".join(satz.split())[:160]
         if satz.rstrip().endswith("?") and FRAGE_AN_DICH.search(satz):
@@ -541,6 +554,27 @@ def selbstprobe_bitte():
         # Frage an Jürgen nur in der Mitte, ohne BITTE-Signal: nur FRAGE_AN_DICH findet sie.
         ("Die Seite steht.\n\nWelche Stimme nimmst du, A oder B?\n\n"
          "Alles committet und gepusht.", True),
+        # Grauzone aus dem Feld (15.11.2026): das Signal steht nur im Zitat „…“.
+        ("Typisch war ein Abschnitt „Was ich von dir brauche“ in der Mitte.\n\n"
+         "Alles committet und gepusht.", False),
+        # Gegenpol dazu: dieselbe Bitte außerhalb der Anführungszeichen meldet weiter, und
+        # ein Zitat davor verschluckt sie nicht.
+        ("Unter „Stand“ steht alles. Von dir brauche ich die Freigabe der Mail.\n\n"
+         "Alles committet und gepusht.", True),
+        # Vergessenes Schlusszeichen: erst ein englisches “ weit hinten in derselben Zeile
+        # schließt. Ohne Längengrenze verschluckt die Spanne die Bitte dazwischen.
+        ("Im Abschnitt „Stand fehlt noch der Nachtrag. Von dir brauche ich die Freigabe "
+         "der Mail an Björn, sonst bleibt der Versand liegen, und der Termin am Montag "
+         "rückt näher, weil die Unterlagen vorher beim Kunden sein sollen und dort noch "
+         "jemand drüberschauen muss. Die Prüfung heißt im Englischen “Ask at the end”.\n\n"
+         "Alles committet und gepusht.", True),
+        # Dasselbe mit einem späteren vollständigen Zitat: die Spanne darf nicht über ein
+        # zweites „ hinweg bis zu dessen Schlusszeichen reichen.
+        ("Im Abschnitt „Stand fehlt der Nachtrag. Von dir brauche ich die Freigabe. "
+         "Siehe „Offen“.\n\nAlles committet und gepusht.", True),
+        # Und nicht über das Zeilenende hinweg.
+        ("Im Abschnitt „Stand fehlt der Nachtrag.\nVon dir brauche ich die Freigabe.\n"
+         "Die Prüfung heißt “Ask at the end”.\n\nAlles committet und gepusht.", True),
     ]
     fehler = []
     for text, erwartet in proben:
