@@ -19,6 +19,11 @@ Template, nicht hierher; der nächste Sync überschreibt diese Datei.
 import json
 import os
 import sys
+import time
+
+# Eine Markierung des Mods kontext-wache gilt nur für eine Verdichtung, die gerade eben ausgelöst
+# wurde. Ältere stammt aus einem abgebrochenen Versuch und darf eine spätere Nachlese nicht abschalten.
+MARKIERUNG_HOECHSTENS_S = 30 * 60
 
 try:
     sys.stdout.reconfigure(encoding='utf-8')
@@ -42,6 +47,39 @@ def main():
 
     session_id = str(data.get('session_id') or '')
     transcript = data.get('transcript_path') or 'unbekannt'
+
+    # Gewollte Verdichtung (ADR-2026-11-15-070648): Der Mod kontext-wache legt vor dem Verdichten
+    # eine Markierung dieser Sitzung ab, nachdem die Stand-Dateien committet und gepusht sind. Dann
+    # ist die Nachlese gegen das Transcript überflüssig; der Mod stellt danach selbst den
+    # Wiedereinstieg mit den zu lesenden Dateien ein. Eine fremde oder alte Markierung zählt nicht.
+    if session_id:
+        markierung = os.path.join(sicherungsordner(data), 'gewollt-%s.json' % session_id)
+        try:
+            alter = time.time() - os.path.getmtime(markierung)
+            with open(markierung, encoding='utf-8') as f:
+                inhalt = json.load(f)
+        except (OSError, ValueError):
+            alter, inhalt = None, None
+        # Der Mod kann keine Datei löschen; einen abgebrochenen Versuch markiert er mit "verworfen".
+        gueltig = (isinstance(inhalt, dict) and inhalt.get('session_id') == session_id
+                   and not inhalt.get('verworfen'))
+        if gueltig and alter is not None and 0 <= alter <= MARKIERUNG_HOECHSTENS_S:
+            try:
+                os.remove(markierung)
+            except OSError:
+                pass
+            text = '\n'.join([
+                'NACH DER KOMPRIMIERUNG (Hook nach-komprimierung, ADR-2026-11-15-070648)',
+                '',
+                'Das war eine gewollte Verdichtung nach einem Checkpoint (Mod kontext-wache). Die '
+                'Stand-Dateien waren vorher committet und gepusht, eine Nachlese gegen das Transcript '
+                'entfällt. Gleich folgt ein Wiedereinstiegs-Prompt mit den Dateien, die du lesen sollst; '
+                'arbeite danach im Strang weiter.',
+            ])
+            print(json.dumps({'hookSpecificOutput': {'hookEventName': 'SessionStart',
+                                                     'additionalContext': text}},
+                             ensure_ascii=False))
+            return 0
 
     zeilen = [
         'NACH DER KOMPRIMIERUNG (Hook nach-komprimierung, ADR-2026-10-29-094355)',
