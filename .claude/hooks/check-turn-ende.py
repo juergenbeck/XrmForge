@@ -365,6 +365,9 @@ def next_step_sentence(absatz):
 
 def beurteile(nachricht):
     """Gibt (blocken, begründung) zurück. Im Zweifel: nicht blocken."""
+    # ADR-2026-11-16-211643: Ein Sprechtext für die Runde („Ich gehe sie kurz durch …“)
+    # ist kein eigener nächster Schritt der Sitzung.
+    nachricht = ohne_sprechtext(nachricht)
     absatz = letzter_absatz(nachricht)
     ende = letzte_abschnitte(nachricht)
     if not absatz:
@@ -485,6 +488,50 @@ def ohne_zitatspannen(text):
     return ZITATSPANNE.sub(" ", text or "")
 
 
+# Sprechtext für die Runde (ADR-2026-11-16-211643). Liest eine Sitzung ein Gespräch mit,
+# gibt sie Jürgen Sätze vor, die er der Runde sagt: „**JETZT SAGEN:**“, „**DANN:**“,
+# „- **Wenn ja:**“, danach der Satz in „…“. Diese Sätze sind fast immer länger als die
+# 200 Zeichen der ZITATSPANNE, und ihre Fragen richten sich an die Runde, nicht an Jürgen.
+# Eine Spanne gilt nur dann als Sprechtext, wenn sie eingeleitet ist (vor dem „ steht in
+# der Zeile nur Listen- oder Hervorhebungszeichen, oder der Text davor endet auf einen
+# Doppelpunkt) UND ein Sprechmarker in derselben Zeile davor oder in der nächsten nicht
+# leeren Zeile darüber steht. Ohne beides bleibt es bei der 200er-Grenze.
+SPRECHSPANNE = re.compile(r"„[^„“\n]{0,2000}“")
+SPRECHMARKER = re.compile(
+    r"(jetzt\s+sagen|\bsag(e|en)?\b|\bdann\b|\bdanach\b|\bfalls\b|\bwenn\b|"
+    r"sprechtext|zurück\s+zur\s+folie)",
+    re.IGNORECASE,
+)
+SPRECHTEXT_PLATZHALTER = "[Sprechtext]"
+
+
+def _sprechtext_eingeleitet(davor):
+    rest = davor.strip().strip("*_ ").strip()
+    if not rest or re.fullmatch(r"([-*+]|\d+[.)])", rest):
+        return True
+    return rest.endswith(":")
+
+
+def ohne_sprechtext(text):
+    """Ersetzt Sprechtextspannen durch einen Platzhalter; übrige Zitate bleiben stehen."""
+    zeilen = (text or "").split("\n")
+    vorige = ""                                 # nächste nicht leere Zeile darüber
+    for i, zeile in enumerate(zeilen):
+        teile, pos = [], 0
+        for m in SPRECHSPANNE.finditer(zeile):
+            davor = zeile[:m.start()]
+            if (_sprechtext_eingeleitet(davor)
+                    and (SPRECHMARKER.search(davor) or SPRECHMARKER.search(vorige))):
+                teile.append(zeile[pos:m.start()])
+                teile.append(SPRECHTEXT_PLATZHALTER)
+                pos = m.end()
+        if teile:
+            zeilen[i] = "".join(teile) + zeile[pos:]
+        if zeile.strip():
+            vorige = zeile
+    return "\n".join(zeilen)
+
+
 def bitte_satz(text):
     """Der erste Satz mit einer Bitte an Jürgen, oder None."""
     for satz in step_sentences(ohne_zitatspannen(text)):
@@ -499,7 +546,7 @@ def pruefe_bitte_am_ende(nachricht):
     """(melden, begründung): Bitte an Jürgen erkannt, letzter Absatz ohne Frage und ohne
     die Bitte selbst. Eine Aufforderung im letzten Absatz bleibt bewusst still
     (ADR-2026-11-15-111850, Entscheidung 6). Im Zweifel: nicht melden."""
-    sauber = ohne_zitate(nachricht)
+    sauber = ohne_sprechtext(ohne_zitate(nachricht))
     absatz = letzter_absatz(sauber)
     if not absatz or "?" in absatz:
         return False, ""
@@ -545,7 +592,7 @@ def sammelstelle_verzeichnis():
 
 def frage_im_letzten_absatz(nachricht):
     """Der letzte Absatz im Wortlaut, wenn er eine Frage oder Bitte an Jürgen trägt, sonst None."""
-    sauber = ohne_zitatspannen(ohne_zitate(nachricht))
+    sauber = ohne_zitatspannen(ohne_sprechtext(ohne_zitate(nachricht)))
     absatz = letzter_absatz(sauber)
     if not absatz:
         return None
@@ -556,7 +603,7 @@ def frage_im_letzten_absatz(nachricht):
 
 
 def art_der_frage(absatz):
-    sauber = ohne_zitatspannen(ohne_zitate(absatz))
+    sauber = ohne_zitatspannen(ohne_sprechtext(ohne_zitate(absatz)))
     return "freigabe" if ROT.search(sauber) else "antwort"
 
 
@@ -633,6 +680,85 @@ def selbstprobe_sammelstelle():
         if ist != erwartet:
             fehler.append(f"  Sammelstelle: erwartet {erwartet}, ist {ist}: {text[:60]!r}")
     return fehler, len(proben)
+
+
+def selbstprobe_sprechtext():
+    """Fälle aus dem Workshop IT-Architektur Teil 3, Repo Hekatron, 16.11.2026 (Sitzung
+    020aea), ADR-2026-11-16-211643. Positiv, Negativ, Grauzone; dazu Riegel und Sammelstelle."""
+    ruby = ("„Danke, Aaron, das beruhigt. Eine Sache möchte ich trotzdem festhalten: Bei eurem "
+            "Durchstich hat sich Microsoft bei der Suite angemeldet. Wenn die Suite in Dynamics "
+            "schreibt, meldet sie sich umgekehrt in eurem Entra an, mit einer App-Registrierung. "
+            "Ruby, David, gibt es bei euch eine Richtlinie, die Client-Secrets für "
+            "App-Registrierungen sperrt oder ihre Laufzeit begrenzt? Wenn ihr das nicht aus dem "
+            "Kopf wisst, reicht es mir auch, wenn ihr es bis Ende nächster Woche prüft.“")
+    folie = ("„Dann weiter mit der Tabelle. Objekte und Bauabschnitte legt PiSA ebenfalls an. "
+             "Das endet erst, wenn feststeht, welches System die Objekte führt.“")
+    anita = ("„Danke, Anita, der 27. November ist ja schon bald. Wer bringt die Frage zum "
+             "Dynamics 365 Admin dort ein, du oder Aaron? Und falls es bis dahin etwas braucht: "
+             "Nutzt ihr Privileged Identity Management im Tenant schon, sodass befristete Rechte "
+             "überhaupt möglich wären?“")
+    claudia = ("„Claudia, magst du das mit deinem Team entscheiden und uns bis Freitag Bescheid "
+               "geben? Dann trage ich es in den Diskussionsstand ein, und wir können die "
+               "Strecke zu SAP danach in Ruhe planen, ohne dass etwas offen bleibt.“")
+    lang_bitte = ("„Von dir brauche ich die Freigabe der Mail an Björn, sonst bleibt der "
+                  "Versand liegen, und der Termin am Montag rückt näher, weil die Unterlagen "
+                  "vorher beim Kunden sein sollen und dort noch jemand drüberschauen muss, "
+                  "bevor die Runde am Dienstag tagt.“")
+    bitte = [
+        # Negativ: die Feldfälle im Wortlaut, Frage an die Runde im Sprechtext.
+        ("Aaron sieht keine Probleme.\n\n**JETZT SAGEN:**\n\n" + ruby + "\n\n**DANN:** "
+         "Antwort mitschreiben, mit Name und Termin. Danach zurück zur Folie: " + folie, False),
+        ("Das Board tagt am **27.11.**\n\n**JETZT SAGEN:**\n\n" + anita +
+         "\n\n*(Antwort mitschreiben, Name eintragen)*\n\n**DANN:** " + folie, False),
+        ("Jetzt antwortet vermutlich Aaron.\n\n**DANN, je nach Antwort:**\n\n"
+         "- **Wenn ja, schon ausprobiert:** „Super, dann gibt es dazu schon eine "
+         "App-Registrierung bei euch. Könnt ihr mir kurz schicken, wie die angelegt ist, also "
+         "mit Client-Secret oder Zertifikat? Dann baue ich darauf auf.“\n"
+         "- **Wenn nein oder unklar:** " + ruby + "\n\nDanach zurück zur Folie: " + folie,
+         False),
+        # Positiv: echte Bitte oben, am Ende nur ein Sprechtext mit Fragezeichen. Das
+        # Fragezeichen im Sprechtext ist keine Frage an Jürgen und hält die Prüfung nicht still.
+        ("Bitte gib mir nach der Pause Bescheid, ob Folie 7 so bleibt.\n\n"
+         "**JETZT SAGEN:**\n\n" + claudia, True),
+        # Grauzone: Sprechtext und echte Frage an Jürgen am Ende bleibt still.
+        ("**JETZT SAGEN:**\n\n" + claudia + "\n\nSoll ich Claudias Antwort gleich ins "
+         "Register eintragen, oder machst du das nach dem Termin?", False),
+        # Grauzone: Marker „dann“ da, aber ohne Einleitung: bleibt Text und meldet weiter.
+        ("Dann schrieb Aaron gestern " + lang_bitte + " und das gilt weiter.\n\n"
+         "Alles committet und gepusht.", True),
+        # Grauzone: eingeleitet, aber ohne Sprechmarker (zitierter Mailtext) meldet weiter.
+        ("Der Text der Mail lautet: " + lang_bitte + "\n\nAlles committet und gepusht.", True),
+    ]
+    fehler = []
+    for text, erwartet in bitte:
+        ist, _ = pruefe_bitte_am_ende(text)
+        if ist != erwartet:
+            fehler.append(f"  Sprechtext/Bitte: erwartet {erwartet}, ist {ist}: {text[:70]!r}")
+    riegel = [
+        # Feldfall: der Riegel schlug an „Ich gehe sie nur kurz durch“ im Sprechtext an.
+        ("Du hast zusammengefasst, das passt.\n\n**DANN, Folie 6:** „Damit ist der Einstieg "
+         "durch. Jetzt geht es in den Tenant. Diese Folie fasst zusammen, was daraus für das "
+         "CRM schon gilt. Ich gehe sie nur kurz durch, statt sie vorzulesen, und bitte dich, "
+         "mich zu korrigieren, wo ich etwas falsch verstanden habe.“", False),
+        # Gegenpol: der eigene Schritt außerhalb des Sprechtexts hält weiter fest.
+        ("**JETZT SAGEN:** „Danke, Aaron, dann gehen wir weiter.“\n\n"
+         "Als Nächstes trage ich die Antwort in die Live-Notizen ein.", True),
+    ]
+    for text, erwartet in riegel:
+        ist, _ = beurteile(text)
+        if ist != erwartet:
+            fehler.append(f"  Sprechtext/Riegel: erwartet {erwartet}, ist {ist}: {text[:70]!r}")
+    sammel = [
+        ("Das Board tagt am **27.11.**\n\n**JETZT SAGEN:**\n\n" + anita, None),
+        ("**JETZT SAGEN:**\n\n" + claudia + "\n\nWelche Variante nimmst du, A oder B?",
+         "antwort"),
+    ]
+    for text, erwartet in sammel:
+        absatz = frage_im_letzten_absatz(text)
+        ist = art_der_frage(absatz) if absatz else None
+        if ist != erwartet:
+            fehler.append(f"  Sprechtext/Sammelstelle: erwartet {erwartet}, ist {ist}: {text[:60]!r}")
+    return fehler, len(bitte) + len(riegel) + len(sammel)
 
 
 def selbstprobe_bitte():
@@ -889,13 +1015,16 @@ def selbstprobe():
     fehler.extend(fehler_bitte)
     fehler_sammel, anzahl_sammel = selbstprobe_sammelstelle()
     fehler.extend(fehler_sammel)
+    fehler_sprech, anzahl_sprech = selbstprobe_sprechtext()
+    fehler.extend(fehler_sprech)
     if fehler:
         print("Selbstprobe GESCHEITERT:", file=sys.stderr)
         print("\n".join(fehler), file=sys.stderr)
         return 2
     print(f"Selbstprobe bestanden ({len(proben)} Fälle, davon "
           f"{sum(1 for _, e in proben if e)} Positivfälle; dazu {anzahl_bitte} Fälle "
-          f"der Prüfung Bitte am Ende und {anzahl_sammel} der Sammelstelle).")
+          f"der Prüfung Bitte am Ende, {anzahl_sammel} der Sammelstelle und "
+          f"{anzahl_sprech} zum Sprechtext).")
     return 0
 
 

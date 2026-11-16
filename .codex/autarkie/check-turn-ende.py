@@ -2,7 +2,7 @@
 # GENERATED FILE. DO NOT EDIT.
 # Source: werkzeuge/hook-sync/templates/python/check-turn-ende.py
 # Template-Version: codex-autarkie-v1
-# Source-SHA256: 75e9820e38ab6f3a22a17deb66b8d2da91b051cb304a14becd4828c42ec5472e
+# Source-SHA256: 6f766454358fa69de44fcc0ee137b14ef36a151c8dad5d2105732c64e22983e9
 """Stop-Hook: hält den Turn fest, solange die Antwort einen grünen Schritt benennt.
 
 Entscheid: ADR-2026-09-03-113147 (Das Anhalten des Turns wird geregelt, nicht die Form
@@ -34,6 +34,11 @@ Zweite Prüfung (ADR-2026-11-15-111850). Greift der Riegel nicht, prüft `pruefe
 ob die Antwort etwas von Jürgen erbittet, ihr letzter Absatz aber weder eine Frage noch die Bitte
 selbst trägt; dann meldet sie das einmal zurück, mit denselben Sicherungen wie der Riegel.
 
+Sammelstelle (ADR-2026-11-15-151718). Unabhängig vom Urteil trägt der Hook am Turn-Ende eine
+Frage an Jürgen im letzten Absatz nach `~/.claude/offene-fragen/<session-id>.json` ein und
+entfernt den Eintrag, wenn der Turn ohne Frage endet. Diese Nebenwirkung ist getrennt
+fail-open: Kann sie nicht schreiben, bleiben Urteil, Ausgabe und Exitcode unverändert.
+
 Selbstprobe: `python check-turn-ende.py --selbstprobe` (0 sauber, 2 Werkzeug defekt).
 """
 
@@ -41,6 +46,8 @@ import json
 import os
 import re
 import sys
+import tempfile
+import time
 
 # --- Rote Handlungen: hier endet der Turn, die Freigabe ist Jürgens ------------------
 ROT = re.compile(
@@ -362,6 +369,9 @@ def next_step_sentence(absatz):
 
 def beurteile(nachricht):
     """Gibt (blocken, begründung) zurück. Im Zweifel: nicht blocken."""
+    # ADR-2026-11-16-211643: Ein Sprechtext für die Runde („Ich gehe sie kurz durch …“)
+    # ist kein eigener nächster Schritt der Sitzung.
+    nachricht = ohne_sprechtext(nachricht)
     absatz = letzter_absatz(nachricht)
     ende = letzte_abschnitte(nachricht)
     if not absatz:
@@ -482,6 +492,50 @@ def ohne_zitatspannen(text):
     return ZITATSPANNE.sub(" ", text or "")
 
 
+# Sprechtext für die Runde (ADR-2026-11-16-211643). Liest eine Sitzung ein Gespräch mit,
+# gibt sie Jürgen Sätze vor, die er der Runde sagt: „**JETZT SAGEN:**“, „**DANN:**“,
+# „- **Wenn ja:**“, danach der Satz in „…“. Diese Sätze sind fast immer länger als die
+# 200 Zeichen der ZITATSPANNE, und ihre Fragen richten sich an die Runde, nicht an Jürgen.
+# Eine Spanne gilt nur dann als Sprechtext, wenn sie eingeleitet ist (vor dem „ steht in
+# der Zeile nur Listen- oder Hervorhebungszeichen, oder der Text davor endet auf einen
+# Doppelpunkt) UND ein Sprechmarker in derselben Zeile davor oder in der nächsten nicht
+# leeren Zeile darüber steht. Ohne beides bleibt es bei der 200er-Grenze.
+SPRECHSPANNE = re.compile(r"„[^„“\n]{0,2000}“")
+SPRECHMARKER = re.compile(
+    r"(jetzt\s+sagen|\bsag(e|en)?\b|\bdann\b|\bdanach\b|\bfalls\b|\bwenn\b|"
+    r"sprechtext|zurück\s+zur\s+folie)",
+    re.IGNORECASE,
+)
+SPRECHTEXT_PLATZHALTER = "[Sprechtext]"
+
+
+def _sprechtext_eingeleitet(davor):
+    rest = davor.strip().strip("*_ ").strip()
+    if not rest or re.fullmatch(r"([-*+]|\d+[.)])", rest):
+        return True
+    return rest.endswith(":")
+
+
+def ohne_sprechtext(text):
+    """Ersetzt Sprechtextspannen durch einen Platzhalter; übrige Zitate bleiben stehen."""
+    zeilen = (text or "").split("\n")
+    vorige = ""                                 # nächste nicht leere Zeile darüber
+    for i, zeile in enumerate(zeilen):
+        teile, pos = [], 0
+        for m in SPRECHSPANNE.finditer(zeile):
+            davor = zeile[:m.start()]
+            if (_sprechtext_eingeleitet(davor)
+                    and (SPRECHMARKER.search(davor) or SPRECHMARKER.search(vorige))):
+                teile.append(zeile[pos:m.start()])
+                teile.append(SPRECHTEXT_PLATZHALTER)
+                pos = m.end()
+        if teile:
+            zeilen[i] = "".join(teile) + zeile[pos:]
+        if zeile.strip():
+            vorige = zeile
+    return "\n".join(zeilen)
+
+
 def bitte_satz(text):
     """Der erste Satz mit einer Bitte an Jürgen, oder None."""
     for satz in step_sentences(ohne_zitatspannen(text)):
@@ -496,7 +550,7 @@ def pruefe_bitte_am_ende(nachricht):
     """(melden, begründung): Bitte an Jürgen erkannt, letzter Absatz ohne Frage und ohne
     die Bitte selbst. Eine Aufforderung im letzten Absatz bleibt bewusst still
     (ADR-2026-11-15-111850, Entscheidung 6). Im Zweifel: nicht melden."""
-    sauber = ohne_zitate(nachricht)
+    sauber = ohne_sprechtext(ohne_zitate(nachricht))
     absatz = letzter_absatz(sauber)
     if not absatz or "?" in absatz:
         return False, ""
@@ -524,6 +578,191 @@ def beurteile_gesamt(nachricht):
     if blocken:
         return blocken, grund
     return pruefe_bitte_am_ende(nachricht)
+
+
+# --- Sammelstelle offener Fragen (ADR-2026-11-15-151718) ------------------------------
+# Erfasst wird, wenn der letzte Absatz eine Frage stellt (ein Satz, der außerhalb von Code,
+# Zitatzeilen und „…“-Zitaten mit „?" endet) oder eine Bitte an Jürgen trägt. Die Art ist
+# `freigabe`, wenn der Absatz einen der roten Signalbegriffe aus ROT nennt, sonst `antwort`.
+# Eine verkannte Freigabe kommt in der Zielsitzung nur als Information an und gibt nichts
+# frei (ADR, Konsequenzen); deshalb genügt hier dieselbe Heuristik wie im Riegel.
+
+def sammelstelle_verzeichnis():
+    eigen = os.environ.get("OFFENE_FRAGEN_DIR")
+    if eigen:
+        return eigen
+    return os.path.join(os.path.expanduser("~"), ".claude", "offene-fragen")
+
+
+def frage_im_letzten_absatz(nachricht):
+    """Der letzte Absatz im Wortlaut, wenn er eine Frage oder Bitte an Jürgen trägt, sonst None."""
+    sauber = ohne_zitatspannen(ohne_sprechtext(ohne_zitate(nachricht)))
+    absatz = letzter_absatz(sauber)
+    if not absatz:
+        return None
+    frage = any(t.rstrip().endswith("?") for t in step_sentences(absatz))
+    if not frage and not bitte_satz(absatz):
+        return None
+    return letzter_absatz(nachricht) or absatz
+
+
+def art_der_frage(absatz):
+    sauber = ohne_zitatspannen(ohne_sprechtext(ohne_zitate(absatz)))
+    return "freigabe" if ROT.search(sauber) else "antwort"
+
+
+def _registereintrag(session_id):
+    """Adresse und Strang aus dem Sitzungsregister, falls vorhanden. Nie tragend."""
+    try:
+        kennung = (session_id or "").replace("-", "")[:6]
+        ordner = os.environ.get("SITZUNGSREGISTER_DIR") or os.path.join(
+            os.path.expanduser("~"), ".claude", "sessions-aktiv")
+        with open(os.path.join(ordner, kennung + ".json"), encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def erfasse_frage(daten, jetzt=None):
+    """Schreibt oder entfernt den Eintrag dieser Sitzung. Gibt 'geschrieben', 'entfernt',
+    'nichts' oder 'übersprungen' zurück; Fehler steigen auf und werden in main() gefangen."""
+    if daten.get("agent_id") or daten.get("hook_event_name", "Stop") != "Stop":
+        return "übersprungen"                   # Subagent: keine Frage an Jürgen
+    session_id = daten.get("session_id") or ""
+    if not re.fullmatch(r"[0-9A-Za-z-]{8,80}", session_id):
+        return "übersprungen"
+    ordner = sammelstelle_verzeichnis()
+    ziel = os.path.join(ordner, session_id + ".json")
+    absatz = frage_im_letzten_absatz(daten.get("last_assistant_message") or "")
+    if not absatz:
+        if os.path.exists(ziel):
+            os.remove(ziel)
+            return "entfernt"
+        return "nichts"
+    reg = _registereintrag(session_id)
+    eintrag = {
+        "session_id": session_id,
+        "kennung": session_id.replace("-", "")[:6],
+        "adresse": reg.get("adresse", ""),
+        "strang": reg.get("strang", ""),
+        "rechner": reg.get("rechner") or os.environ.get("COMPUTERNAME", ""),
+        "pid": reg.get("pid"),
+        "repo": reg.get("repo_name") or os.path.basename(daten.get("cwd") or "") or "",
+        "cwd": daten.get("cwd", ""),
+        "transcript_path": daten.get("transcript_path", ""),
+        "zeit": time.time() if jetzt is None else jetzt,
+        "art": art_der_frage(absatz),
+        "absatz": absatz,
+    }
+    os.makedirs(ordner, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=ordner, prefix=".neu-", suffix=".json")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(eintrag, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, ziel)
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+    return "geschrieben"
+
+
+def selbstprobe_sammelstelle():
+    """Fälle der Erfassung: Positiv, Negativ, Grauzone (Frage nur im Zitat)."""
+    proben = [
+        ("Stand steht.\n\nWelche Variante nimmst du, A oder B?", "antwort"),
+        ("Entwurf steht.\n\nDarf ich die Mail an X so senden?", "freigabe"),
+        ("Der Browser ist offen.\n\nSag mir Bescheid, wenn du angemeldet bist.", "antwort"),
+        ("Alles committet und gepusht.", None),
+        ("Welche Variante nimmst du?\n\nAlles committet und gepusht.", None),
+        ("Er fragte „Passt das so?“.\n\nIch habe geantwortet, alles erledigt.", None),
+        ("Fertig.\n\nSein Satz war:\n> Passt das so?", None),
+    ]
+    fehler = []
+    for text, erwartet in proben:
+        absatz = frage_im_letzten_absatz(text)
+        ist = art_der_frage(absatz) if absatz else None
+        if ist != erwartet:
+            fehler.append(f"  Sammelstelle: erwartet {erwartet}, ist {ist}: {text[:60]!r}")
+    return fehler, len(proben)
+
+
+def selbstprobe_sprechtext():
+    """Fälle aus dem Workshop IT-Architektur Teil 3, Repo Hekatron, 16.11.2026 (Sitzung
+    020aea), ADR-2026-11-16-211643. Positiv, Negativ, Grauzone; dazu Riegel und Sammelstelle."""
+    ruby = ("„Danke, Aaron, das beruhigt. Eine Sache möchte ich trotzdem festhalten: Bei eurem "
+            "Durchstich hat sich Microsoft bei der Suite angemeldet. Wenn die Suite in Dynamics "
+            "schreibt, meldet sie sich umgekehrt in eurem Entra an, mit einer App-Registrierung. "
+            "Ruby, David, gibt es bei euch eine Richtlinie, die Client-Secrets für "
+            "App-Registrierungen sperrt oder ihre Laufzeit begrenzt? Wenn ihr das nicht aus dem "
+            "Kopf wisst, reicht es mir auch, wenn ihr es bis Ende nächster Woche prüft.“")
+    folie = ("„Dann weiter mit der Tabelle. Objekte und Bauabschnitte legt PiSA ebenfalls an. "
+             "Das endet erst, wenn feststeht, welches System die Objekte führt.“")
+    anita = ("„Danke, Anita, der 27. November ist ja schon bald. Wer bringt die Frage zum "
+             "Dynamics 365 Admin dort ein, du oder Aaron? Und falls es bis dahin etwas braucht: "
+             "Nutzt ihr Privileged Identity Management im Tenant schon, sodass befristete Rechte "
+             "überhaupt möglich wären?“")
+    claudia = ("„Claudia, magst du das mit deinem Team entscheiden und uns bis Freitag Bescheid "
+               "geben? Dann trage ich es in den Diskussionsstand ein, und wir können die "
+               "Strecke zu SAP danach in Ruhe planen, ohne dass etwas offen bleibt.“")
+    lang_bitte = ("„Von dir brauche ich die Freigabe der Mail an Björn, sonst bleibt der "
+                  "Versand liegen, und der Termin am Montag rückt näher, weil die Unterlagen "
+                  "vorher beim Kunden sein sollen und dort noch jemand drüberschauen muss, "
+                  "bevor die Runde am Dienstag tagt.“")
+    bitte = [
+        # Negativ: die Feldfälle im Wortlaut, Frage an die Runde im Sprechtext.
+        ("Aaron sieht keine Probleme.\n\n**JETZT SAGEN:**\n\n" + ruby + "\n\n**DANN:** "
+         "Antwort mitschreiben, mit Name und Termin. Danach zurück zur Folie: " + folie, False),
+        ("Das Board tagt am **27.11.**\n\n**JETZT SAGEN:**\n\n" + anita +
+         "\n\n*(Antwort mitschreiben, Name eintragen)*\n\n**DANN:** " + folie, False),
+        ("Jetzt antwortet vermutlich Aaron.\n\n**DANN, je nach Antwort:**\n\n"
+         "- **Wenn ja, schon ausprobiert:** „Super, dann gibt es dazu schon eine "
+         "App-Registrierung bei euch. Könnt ihr mir kurz schicken, wie die angelegt ist, also "
+         "mit Client-Secret oder Zertifikat? Dann baue ich darauf auf.“\n"
+         "- **Wenn nein oder unklar:** " + ruby + "\n\nDanach zurück zur Folie: " + folie,
+         False),
+        # Positiv: echte Bitte oben, am Ende nur ein Sprechtext mit Fragezeichen. Das
+        # Fragezeichen im Sprechtext ist keine Frage an Jürgen und hält die Prüfung nicht still.
+        ("Bitte gib mir nach der Pause Bescheid, ob Folie 7 so bleibt.\n\n"
+         "**JETZT SAGEN:**\n\n" + claudia, True),
+        # Grauzone: Sprechtext und echte Frage an Jürgen am Ende bleibt still.
+        ("**JETZT SAGEN:**\n\n" + claudia + "\n\nSoll ich Claudias Antwort gleich ins "
+         "Register eintragen, oder machst du das nach dem Termin?", False),
+        # Grauzone: Marker „dann“ da, aber ohne Einleitung: bleibt Text und meldet weiter.
+        ("Dann schrieb Aaron gestern " + lang_bitte + " und das gilt weiter.\n\n"
+         "Alles committet und gepusht.", True),
+        # Grauzone: eingeleitet, aber ohne Sprechmarker (zitierter Mailtext) meldet weiter.
+        ("Der Text der Mail lautet: " + lang_bitte + "\n\nAlles committet und gepusht.", True),
+    ]
+    fehler = []
+    for text, erwartet in bitte:
+        ist, _ = pruefe_bitte_am_ende(text)
+        if ist != erwartet:
+            fehler.append(f"  Sprechtext/Bitte: erwartet {erwartet}, ist {ist}: {text[:70]!r}")
+    riegel = [
+        # Feldfall: der Riegel schlug an „Ich gehe sie nur kurz durch“ im Sprechtext an.
+        ("Du hast zusammengefasst, das passt.\n\n**DANN, Folie 6:** „Damit ist der Einstieg "
+         "durch. Jetzt geht es in den Tenant. Diese Folie fasst zusammen, was daraus für das "
+         "CRM schon gilt. Ich gehe sie nur kurz durch, statt sie vorzulesen, und bitte dich, "
+         "mich zu korrigieren, wo ich etwas falsch verstanden habe.“", False),
+        # Gegenpol: der eigene Schritt außerhalb des Sprechtexts hält weiter fest.
+        ("**JETZT SAGEN:** „Danke, Aaron, dann gehen wir weiter.“\n\n"
+         "Als Nächstes trage ich die Antwort in die Live-Notizen ein.", True),
+    ]
+    for text, erwartet in riegel:
+        ist, _ = beurteile(text)
+        if ist != erwartet:
+            fehler.append(f"  Sprechtext/Riegel: erwartet {erwartet}, ist {ist}: {text[:70]!r}")
+    sammel = [
+        ("Das Board tagt am **27.11.**\n\n**JETZT SAGEN:**\n\n" + anita, None),
+        ("**JETZT SAGEN:**\n\n" + claudia + "\n\nWelche Variante nimmst du, A oder B?",
+         "antwort"),
+    ]
+    for text, erwartet in sammel:
+        absatz = frage_im_letzten_absatz(text)
+        ist = art_der_frage(absatz) if absatz else None
+        if ist != erwartet:
+            fehler.append(f"  Sprechtext/Sammelstelle: erwartet {erwartet}, ist {ist}: {text[:60]!r}")
+    return fehler, len(bitte) + len(riegel) + len(sammel)
 
 
 def selbstprobe_bitte():
@@ -778,13 +1017,18 @@ def selbstprobe():
             fehler.append(f"  erwartet {erwartet}, ist {ist}: {text[:70]!r}")
     fehler_bitte, anzahl_bitte = selbstprobe_bitte()
     fehler.extend(fehler_bitte)
+    fehler_sammel, anzahl_sammel = selbstprobe_sammelstelle()
+    fehler.extend(fehler_sammel)
+    fehler_sprech, anzahl_sprech = selbstprobe_sprechtext()
+    fehler.extend(fehler_sprech)
     if fehler:
         print("Selbstprobe GESCHEITERT:", file=sys.stderr)
         print("\n".join(fehler), file=sys.stderr)
         return 2
     print(f"Selbstprobe bestanden ({len(proben)} Fälle, davon "
           f"{sum(1 for _, e in proben if e)} Positivfälle; dazu {anzahl_bitte} Fälle "
-          f"der Prüfung Bitte am Ende).")
+          f"der Prüfung Bitte am Ende, {anzahl_sammel} der Sammelstelle und "
+          f"{anzahl_sprech} zum Sprechtext).")
     return 0
 
 
@@ -804,6 +1048,13 @@ def main():
             return 0
         roh = sys.stdin.buffer.read()          # binär lesen, sonst cp1252 auf Windows
         daten = json.loads(roh.decode("utf-8", "replace"))
+        # Die Sammelstelle ist eine Nebenwirkung mit eigenem fail-open: ihr Fehler darf das
+        # Urteil weder ändern noch verhindern (ADR-2026-11-15-151718, Fertig wenn 2).
+        if not os.environ.get("KEIN_SAMMELSTELLE"):
+            try:
+                erfasse_frage(daten)
+            except Exception:
+                pass
         blocken, grund = entscheide(daten)
         if not blocken:
             return 0
