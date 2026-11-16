@@ -728,6 +728,9 @@ def selbstprobe_sprechtext():
          "Alles committet und gepusht.", True),
         # Grauzone: eingeleitet, aber ohne Sprechmarker (zitierter Mailtext) meldet weiter.
         ("Der Text der Mail lautet: " + lang_bitte + "\n\nAlles committet und gepusht.", True),
+        # Einleitung nur durch ein Listenzeichen unter einer Markerzeile (Inspektor-Befund
+        # Runde 1): der Sprechtext bleibt still, obwohl er eine Bitte im Wortlaut trägt.
+        ("Danach:\n- " + lang_bitte + "\n\nAlles committet und gepusht.", False),
     ]
     fehler = []
     for text, erwartet in bitte:
@@ -748,8 +751,16 @@ def selbstprobe_sprechtext():
         ist, _ = beurteile(text)
         if ist != erwartet:
             fehler.append(f"  Sprechtext/Riegel: erwartet {erwartet}, ist {ist}: {text[:70]!r}")
+    mail_sprechtext = ("„Danke, Steffen. Dann schicke ich die Mail mit dem Diskussionsstand "
+                       "heute Abend an alle, mit den Aufgaben, den Namen und den Terminen, die "
+                       "wir eben festgehalten haben, und ihr gebt mir bis Freitag Rückmeldung, "
+                       "falls etwas fehlt oder falsch verstanden wurde.“")
     sammel = [
         ("Das Board tagt am **27.11.**\n\n**JETZT SAGEN:**\n\n" + anita, None),
+        # Sprechtext mit rotem Begriff („Mail“) und echte Frage im selben letzten Absatz: die
+        # Art richtet sich nur nach der Frage an Jürgen (Inspektor-Befund Runde 1).
+        ("Stand steht.\n\n**JETZT SAGEN:** " + mail_sprechtext + " Passt das für dich so?",
+         "antwort"),
         ("**JETZT SAGEN:**\n\n" + claudia + "\n\nWelche Variante nimmst du, A oder B?",
          "antwort"),
     ]
