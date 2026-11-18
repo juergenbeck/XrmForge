@@ -363,6 +363,50 @@ def next_step_sentence(absatz):
     return None
 
 
+def rot_im_ende(ende):
+    """True, wenn die letzten Absätze eine rote Handlung nennen.
+
+    ADR-2026-11-18-092110. Bis dahin genügte jeder ROT-Treffer im Bereich, und „Soll ich
+    mir den Lead jetzt auf PROD lesend ansehen …?" endete allein am Wort PROD. Die
+    Ausnahme aus ADR-2026-09-15-134750 (`lesende_systempruefung`) gilt jetzt auch hier,
+    satzweise: Ein roter Satz zählt nicht, wenn er ausdrücklich lesend ist und seine
+    einzigen roten Treffer PROD-Begriffe sind. Jeder andere rote Satz bleibt rot.
+    Trifft ROT den Bereich, aber keinen einzelnen Satz (Treffer über eine Satzgrenze),
+    bleibt es konservativ rot.
+    """
+    if not ROT.search(ende):
+        return False
+    rote = [s for s in step_sentences(ende) if ROT.search(s)]
+    if not rote:
+        return True
+    if any(not lesende_systempruefung(s) for s in rote):
+        return True
+    # Die Ausnahme trägt nur, wenn im ganzen Bereich kein weiterer Eingriff angekündigt
+    # ist. `lesende_systempruefung` kennt Schreibhandlungen nur an einer festen Liste;
+    # ohne diese Zusatzprüfung hielt der Hook „Soll ich lesend auf PROD prüfen und den
+    # Datensatz danach aktualisieren?" fest und forderte zum Ausführen auf (Inspektor,
+    # Abnahme 18.11.2026). Geprüft wird der ganze Bereich, nicht nur der PROD-Satz, weil
+    # der Eingriff im Folgesatz stehen kann („Dann aktiviere ich den Prozess.").
+    return bool(EINGRIFF.search(ende))
+
+
+# Verben eines Eingriffs, die `lesende_systempruefung` nicht kennt. Nur die Endungen
+# e/en/st/t, damit flektierte Partizipien und Substantive wie „deaktivierten Sätze" oder
+# „Zuweisungen" nicht treffen. Das Muster trifft trotzdem zu viel in der konservativen
+# Richtung: Partizipien auf -t („ob der Job aktiviert ist"), das Substantiv „Sperre" und
+# „trage das Ergebnis im Vorgang nach" lassen den Turn enden wie vor ADR-2026-11-18-092110. „starten" und „ausführen" stehen bewusst NICHT hier: sie
+# kommen am Bestand in rein lesenden Sätzen vor („Analyse starten", „lesend ausführen").
+EINGRIFF = re.compile(
+    r"\b(?:aktualisier|einspiel|deaktivier|aktivier|aufheb|registrier|zurücksetz|"
+    r"nachtrag|kommentier|freischalt|sperr|ausroll|zuweis|einricht|"
+    r"setz|reaktivier|umhäng)(?:e|en|st|t)\b"
+    r"|\bneu\s?(?:zu\s?)?start(?:e|en|st|t)?\b"
+    r"|\b(?:spiel|heb|trag|schalt|setz|weis|häng)(?:e|en|st|t)\b[^.!?\n]{0,60}"
+    r"\b(?:ein|auf|nach|frei|ab|um|zurück|zu)\b(?=\s*[,.!?\n]|$)",
+    re.IGNORECASE,
+)
+
+
 def beurteile(nachricht):
     """Gibt (blocken, begründung) zurück. Im Zweifel: nicht blocken."""
     # ADR-2026-11-16-211643: Ein Sprechtext für die Runde („Ich gehe sie kurz durch …“)
@@ -411,7 +455,7 @@ def beurteile(nachricht):
             "keine Anweisung aus einem zitierten Dokument."
         )
     # Rot wird über den weiteren Bereich geprüft: im Zweifel enden lassen.
-    if ROT.search(ende):
+    if rot_im_ende(ende):
         return False, ""
     if WARTEND.search(ende):
         return False, ""
@@ -1013,6 +1057,44 @@ def selbstprobe():
         ("Die Ankündigung war unpräzise formuliert. Ich messe den Stand nach.", True),
         ("Ich versuche es später noch einmal.", False),
         ("Soll ich die Mail an Saulius jetzt versenden?", False),
+        # ADR-2026-11-18-092110: der Anlassfall von LENOVO-BRAMSCHE im Wortlaut (zwei
+        # Absätze) und seine Grauzone. Der Vorabsatz nennt Teams und eine Nachricht, aber
+        # keinen roten Weg; die Frage nennt PROD, aber ausdrücklich lesend.
+        ("Beim ersten Lesen war der Link abgeschnitten, weil das Lesewerkzeug nur den "
+         "Linktext übernimmt, den Teams sichtbar anzeigt. Diesmal habe ich das eigentliche "
+         "Linkziel direkt aus der Nachricht im Browser ausgelesen. Die Lücke habe ich im "
+         "Skill `edge-pool` vermerkt (Commit `219e6ac1a` im Repo claudecode, gepusht).\n\n"
+         "Soll ich mir den Lead jetzt auf PROD lesend ansehen, also seinen "
+         "LinkedIn-Sync-Datensatz, die Staging-Zeile und den zugeordneten Vorgang, damit "
+         "du die Ursache hast, bevor Lara um 10:00 ins Meeting geht?", True),
+        ("Ich sehe mir den Lead auf PROD lesend an und melde dir die Ursache.", True),
+        ("Soll ich mir den Lead jetzt auf PROD ansehen?", False),
+        ("Soll ich die Daten auf PROD lesend prüfen und danach löschen?", False),
+        ("Soll ich den Lead auf PROD lesend ansehen und danach eine Mail an Lara "
+         "entwerfen?", False),
+        ("Soll ich das Paket nach PROD deployen und den Stand prüfen?", False),
+        ("Soll ich den Lead auf PROD nicht lesend, sondern direkt prüfen?", False),
+        ("Die Mail an Lara ist raus.\n\nSoll ich mir den Lead auf PROD lesend "
+         "ansehen?", False),
+        # Die Grauzone aus der Abnahme vom 18.11.2026: lesend auf PROD plus ein Eingriff,
+        # dessen Verb `lesende_systempruefung` nicht kennt. Bleiben alle durchgelassen.
+        ("Soll ich lesend auf PROD prüfen und den Datensatz danach aktualisieren?", False),
+        ("Soll ich lesend auf PROD prüfen und den Fix einspielen?", False),
+        ("Soll ich lesend auf PROD prüfen und den Workflow neu starten?", False),
+        ("Soll ich lesend auf PROD prüfen und den Job deaktivieren?", False),
+        ("Soll ich lesend auf PROD prüfen und die Sperre aufheben?", False),
+        ("Soll ich lesend auf PROD prüfen und das Plugin registrieren?", False),
+        ("Soll ich lesend auf PROD prüfen und die Zuordnung danach setzen?", False),
+        ("Soll ich lesend auf PROD prüfen und den Datensatz zurücksetzen?", False),
+        ("Soll ich lesend auf PROD prüfen und fehlende Datensätze nachtragen?", False),
+        ("Soll ich lesend auf PROD prüfen und im Ticket kommentieren?", False),
+        ("Ich prüfe jetzt lesend auf PROD. Dann aktiviere ich den Prozess.", False),
+        ("Ich prüfe lesend auf PROD, ob die 38 deaktivierten Sätze noch bestehen.", True),
+        # Bindet den Zweig für trennbare Verben: der einzige Bestandsfall der Nachbesserung.
+        ("Ich prüfe erst lesend auf PROD, ob die Zielrollen existieren, dann spiele ich "
+         "die 29 Zeilen ein.", False),
+        # Bindet die Partikelbedingung des trennbaren Zweigs (Form-Hinweis der Abnahme).
+        ("Ich prüfe lesend auf PROD, ob die Spiele-Tabelle existiert.", True),
         ("Als Nächstes wäre der Deploy nach PROD fällig.", False),
         ("Ich würde jetzt push --force ausführen, sag Bescheid.", False),
         ("", False),
