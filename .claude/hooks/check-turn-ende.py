@@ -224,6 +224,46 @@ ERLAUBT = re.compile(
 )
 
 
+# --- Archivierungsfrage: Jürgens Entscheidung, kein grüner Schritt -------------------
+# ADR-2026-11-24-105811. Ist der eigene Strang abgeschlossen, empfiehlt die Sitzung das
+# Archivieren mit „Soll ich diese Sitzung archivieren?“. Das Archivieren beendet die
+# Sitzung für Jürgen sichtbar; außer nach einer automatischen Übergabe entscheidet er.
+# Anlass: Der Riegel hielt am 24.11.2026 genau diese Frage fest, weil FRAGE „Soll ich“
+# und ERLAUBT im Absatz davor „schließen“ traf.
+#
+# Ausgenommen wird nur ein letzter Absatz, der ALLEIN aus dieser Frage besteht (fester
+# Wortlaut, Hervorhebung erlaubt); der Text davor wird dann ohne ihn ganz normal
+# beurteilt. Die erste Fassung nahm einzelne Sätze anhand verstreuter Wörter heraus und
+# setzte den Rest neu zusammen. Codex fand daran sechs Fälle derselben Klasse (Mischfrage
+# mit Versand, „in dieser Sitzung die Logs archivieren“, Listen, Fettdruck, Ankündigung
+# im Absatz davor, „vorher muss ich“): Wer Text umbaut, ändert, was der Riegel sieht.
+# Deshalb bleibt jeder andere Absatz unangetastet, und alles außer der reinen Frage
+# geht den alten Weg (ADR-2026-11-24-105811, Nachtrag 2).
+ARCHIVFRAGE = re.compile(
+    r"(?:soll ich|möchtest du,? dass ich|willst du,? dass ich) (?:diese|die) "
+    r"(?:sitzung|session) (?:jetzt )?archivieren\?",
+    re.IGNORECASE,
+)
+HERVORHEBUNG = re.compile(r"(\*\*|__|\*|_)(.+)\1", re.DOTALL)
+
+
+def ist_archivierungsabsatz(absatz):
+    s = " ".join((absatz or "").split())
+    m = HERVORHEBUNG.fullmatch(s)
+    if m:
+        s = m.group(2).strip()
+    return bool(ARCHIVFRAGE.fullmatch(s))
+
+
+def vor_archivierungsabsatz(nachricht):
+    """Besteht der letzte Absatz allein aus der Frage nach dem Archivieren dieser
+    Sitzung, der Text davor; sonst die Nachricht unverändert."""
+    absatz = letzter_absatz(nachricht)
+    if not absatz or not ist_archivierungsabsatz(absatz):
+        return nachricht
+    return nachricht[:nachricht.rfind(absatz)].rstrip()
+
+
 def letzter_absatz(text):
     """Der letzte nicht-leere Absatz. Dort steht, wie die Antwort ausgeht."""
     teile = [t.strip() for t in re.split(r"\n\s*\n", text or "") if t.strip()]
@@ -412,6 +452,9 @@ def beurteile(nachricht):
     # ADR-2026-11-16-211643: Ein Sprechtext für die Runde („Ich gehe sie kurz durch …“)
     # ist kein eigener nächster Schritt der Sitzung.
     nachricht = ohne_sprechtext(nachricht)
+    # ADR-2026-11-24-105811: Die Frage nach dem Archivieren der Sitzung ist Jürgens
+    # Entscheidung. Steht sie allein im letzten Absatz, wird der Text davor beurteilt.
+    nachricht = vor_archivierungsabsatz(nachricht)
     absatz = letzter_absatz(nachricht)
     ende = letzte_abschnitte(nachricht)
     if not absatz:
@@ -1097,6 +1140,26 @@ def selbstprobe():
         ("Ich prüfe lesend auf PROD, ob die Spiele-Tabelle existiert.", True),
         ("Als Nächstes wäre der Deploy nach PROD fällig.", False),
         ("Ich würde jetzt push --force ausführen, sag Bescheid.", False),
+        # ADR-2026-11-24-105811: (a) der Anlassfall im Wortlaut der Antwort vom 24.11.2026,
+        # (b) eine Archivierungsfrage, die einen grünen Schritt mitträgt, (c) eine reine
+        # Archivierungsfrage neben einem angekündigten grünen Schritt im selben Absatz.
+        ('„Sessionende“ ist hier nicht mehr nötig. Die Übergabe ist schon gelaufen: Die schlanke Abschlussübergabe (`5f626cbc`) hat handover, INDEX-Zeile, abgeschlossenen Stand und die Cockpit-Zeile in `cockpit-geschlossen.md` geschrieben und auf `origin` gemessen. Ein „Sessionende“ würde nur eine zweite, leere Übergabe erzeugen. Eine Folgesitzung startet ohnehin keine, weil nichts offen ist.\n\nSinnvoll ist jetzt, diese Sitzung zu archivieren. Es läuft kein Subagent und kein Hintergrundlauf mehr, ich halte keine Dateien, und Session-State-Hygiene hat die Freigabe bestätigt. Das kann ich selbst tun, wenn du „archivieren“ sagst.\n\nEine Alternative gibt es noch, die ich aber nicht empfehle: einen Volllauf auf `0b387c07` (rund 90 Minuten). Der würde die benannte Lücke schließen, dass der wieder aufgenommene Eintrag `index-gestagt-neu` bisher nur gezielt geprüft ist. Der Inspektor hält das für nicht nötig, und der nächste Volllauf von Session-State-Hygiene für Teil B fährt ihn ohnehin mit.\n\nSoll ich diese Sitzung jetzt archivieren?', False),
+        ("Soll ich den Volllauf fahren und danach die Sitzung archivieren?", True),
+        ("Der Strang ist abgeschlossen.\n\nSoll ich diese Sitzung archivieren? Ich fahre "
+         "vorher noch den Volllauf.", True),
+        # Nachtrag 2: die Gegenproben aus Codex Lauf 1, je mit dem Urteil der alten
+        # Vorlage. (d) Mischfrage mit Versand bleibt rot, (e) Ankündigung im Absatz davor,
+        # (f) Logs statt Sitzung, (g) Liste, (h) „vorher muss ich“ im selben Absatz,
+        # (i) fett gesetzte reine Frage nach erledigter Messung.
+        ("Soll ich die Mail versenden und diese Sitzung archivieren? Ich würde sie jetzt "
+         "an Lara weiterleiten.", False),
+        ("Ich fahre jetzt den Volllauf.\n\nSoll ich diese Sitzung archivieren?", True),
+        ("Die Logs liegen zur Bereinigung bereit.\n\nSoll ich in dieser Sitzung die alten "
+         "Logs archivieren?", True),
+        ("Der Stand ist fertig\n- Als nächsten Schritt aktualisiere ich die Tabelle.\n"
+         "- Soll ich diese Sitzung archivieren?", True),
+        ("Vorher muss ich den Volllauf fahren. Soll ich diese Sitzung archivieren?", True),
+        ("Die Messung ist fertig.\n\n**Soll ich diese Sitzung archivieren?**", False),
         ("", False),
     ]
     fehler = []
