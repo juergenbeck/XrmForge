@@ -251,17 +251,24 @@ _WORTLAUT = r"Soll ich (?:diese|die) (?:Sitzung|Session) (?:jetzt )?archivieren\
 # Zwei ausgeschriebene Formen; ein Rückverweis auf eine optionale Gruppe trifft in Python
 # nie, wenn die Gruppe leer bleibt.
 ARCHIVFRAGE = re.compile(rf"(?:{_WORTLAUT}|\*\*{_WORTLAUT}\*\*)")
-# Zäune werden nur in Spalte 0 verfolgt; ein eingerückter oder in einer Liste stehender
-# Zaun wird übergangen, und das führt in jedem gefundenen Fall zum vorsichtigen Urteil
-# (ein Spalte-0-Zaun danach öffnet, die Frage bleibt im Codeblock). Jede Zeile, die mit
-# „<“ beginnt, macht den Kontext unsicher, weil HTML-Blöcke der Typen 1 bis 5 über
-# Leerzeilen offen bleiben; dann greift die Ausnahme nicht (Codex-Rückfrage, Nachtrag 6).
+# Zäune werden nur in Spalte 0 verfolgt. Jede zaunartige Zeile, die nicht in Spalte 0
+# beginnt (eingerückt oder hinter Listen- oder Zitatzeichen), macht den Kontext unsicher:
+# Ein mit 1 bis 3 Leerzeichen eingerückter Zaun ist nach CommonMark gültig, und ihn zu
+# übergehen nahm Fragen aus, die im Codeblock stehen (Inspektor Runde 4). Ebenso jede
+# Zeile, die mit „<“ beginnt, weil HTML-Blöcke der Typen 1 bis 5 über Leerzeilen offen
+# bleiben (Codex-Rückfrage). Bei unsicherem Kontext greift die Ausnahme nicht.
 ZAUN = re.compile(r"(`{3,}|~{3,})(.*)")
+ZAUNARTIG = re.compile(r"[ \t]*(?:(?:[>*+-]|\d{1,9}[.)])[ \t]*)*(`{3,}|~{3,})")
 HTMLSTART = re.compile(r"[ ]{0,3}<")
 
 
 def kontext_unsicher(text):
-    return any(HTMLSTART.match(zeile) for zeile in text.split("\n"))
+    for zeile in text.split("\n"):
+        if HTMLSTART.match(zeile):
+            return True
+        if ZAUNARTIG.match(zeile) and zeile[:1] not in ("`", "~"):
+            return True
+    return False
 
 
 def zaun_offen(text):
@@ -1228,6 +1235,18 @@ def selbstprobe():
          "archivieren?", True),
         ("- Punkt\n  ~~~\n\nDie Messung muss ich noch abschließen.\n~~~\n\nSoll ich diese "
          "Sitzung archivieren?", True),
+        # Nachtrag 7 (Inspektor Runde 4): eingerückte Zäune und eingerücktes HTML sind
+        # unsicherer Kontext.
+        (" ```\nDie Messung muss ich noch abschließen.\n\nSoll ich diese Sitzung "
+         "archivieren?", True),
+        ("   ~~~\nDie Messung muss ich noch abschließen.\n\nSoll ich diese Sitzung "
+         "archivieren?", True),
+        ("```\nx\n  ```\nDie Messung muss ich noch abschließen.\n```\n\nSoll ich diese "
+         "Sitzung archivieren?", True),
+        ("~~~\nx\n  ~~~\nDie Messung muss ich noch abschließen.\n~~~\n\nSoll ich diese "
+         "Sitzung archivieren?", True),
+        (" <pre>\nDie Messung muss ich noch abschließen.\n\nSoll ich diese Sitzung "
+         "archivieren?", True),
         ("Die Analyse ist fertig.\n\nMöchtest du, dass ich diese Sitzung archiviere?", True),
         ("Die Messung muss ich noch abschließen. Der erwartete Text lautet:\n\n"
          "    Soll ich diese Sitzung archivieren?", True),
