@@ -263,6 +263,10 @@ HTMLSTART = re.compile(r"[ ]{0,3}<")
 
 
 def kontext_unsicher(text):
+    # Ein einzelnes CR ist nach CommonMark ein Zeilenende, hier wird nur an LF geteilt
+    # (Inspektor Runde 5, Formbefund).
+    if "\r" in text.replace("\r\n", ""):
+        return True
     for zeile in text.split("\n"):
         if HTMLSTART.match(zeile):
             return True
@@ -1246,6 +1250,11 @@ def selbstprobe():
         ("~~~\nx\n  ~~~\nDie Messung muss ich noch abschließen.\n~~~\n\nSoll ich diese "
          "Sitzung archivieren?", True),
         (" <pre>\nDie Messung muss ich noch abschließen.\n\nSoll ich diese Sitzung "
+         "archivieren?", True),
+        # Formbefunde Inspektor Runde 5: Grenzwert der HTML-Einrückung, einzelnes CR.
+        ("   <pre>\nDie Messung muss ich noch abschließen.\n\nSoll ich diese Sitzung "
+         "archivieren?", True),
+        ("Text\r```\rDie Messung muss ich noch abschließen.\n\nSoll ich diese Sitzung "
          "archivieren?", True),
         ("Die Analyse ist fertig.\n\nMöchtest du, dass ich diese Sitzung archiviere?", True),
         ("Die Messung muss ich noch abschließen. Der erwartete Text lautet:\n\n"
