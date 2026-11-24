@@ -239,29 +239,34 @@ ERLAUBT = re.compile(
 # im Absatz davor, „vorher muss ich“): Wer Text umbaut, ändert, was der Riegel sieht.
 # Deshalb bleibt jeder andere Absatz unangetastet, und alles außer der reinen Frage
 # geht den alten Weg (ADR-2026-11-24-105811, Nachtrag 2).
-ARCHIVFRAGE = re.compile(
-    r"(?:soll ich|möchtest du,? dass ich|willst du,? dass ich) (?:diese|die) "
-    r"(?:sitzung|session) (?:jetzt )?archivieren\?",
-    re.IGNORECASE,
-)
-HERVORHEBUNG = re.compile(r"(\*\*|__|\*|_)(.+)\1", re.DOTALL)
-
-
-def ist_archivierungsabsatz(absatz):
-    s = " ".join((absatz or "").split())
-    m = HERVORHEBUNG.fullmatch(s)
-    if m:
-        s = m.group(2).strip()
-    return bool(ARCHIVFRAGE.fullmatch(s))
+#
+# Codex Lauf 2 und 3 fanden an den Rändern weitere Fälle derselben Klasse: Wer Markdown-
+# Zeichen abstreift oder Zeilen zusammenzieht, bevor er die Blockstruktur kennt, macht aus
+# einem Listenpunkt, einer Trennlinie, einem Codeblock oder einem dass-Nebensatz die reine
+# Frage. Seit Nachtrag 4 wird nichts mehr umgeformt: Der letzte Absatz muss GENAU EINE
+# Zeile sein, unverändert gleich dem vorgeschriebenen Wortlaut, im Klartext oder symmetrisch
+# in ** gesetzt, nicht eingerückt und nicht in einem offenen Codezaun. Alles andere geht den
+# alten Weg.
+_WORTLAUT = r"Soll ich (?:diese|die) (?:Sitzung|Session) (?:jetzt )?archivieren\?"
+# Zwei ausgeschriebene Formen; ein Rückverweis auf eine optionale Gruppe trifft in Python
+# nie, wenn die Gruppe leer bleibt.
+ARCHIVFRAGE = re.compile(rf"(?:{_WORTLAUT}|\*\*{_WORTLAUT}\*\*)")
+CODEZAUN = re.compile(r"^[ \t]{0,3}(```|~~~)", re.MULTILINE)
 
 
 def vor_archivierungsabsatz(nachricht):
     """Besteht der letzte Absatz allein aus der Frage nach dem Archivieren dieser
     Sitzung, der Text davor; sonst die Nachricht unverändert."""
-    absatz = letzter_absatz(nachricht)
-    if not absatz or not ist_archivierungsabsatz(absatz):
+    text = (nachricht or "").rstrip()
+    trenner = list(re.finditer(r"\n[ \t]*\n", text))
+    if not trenner:
         return nachricht
-    return nachricht[:nachricht.rfind(absatz)].rstrip()
+    vorher, letzter = text[:trenner[-1].start()], text[trenner[-1].end():]
+    if not ARCHIVFRAGE.fullmatch(letzter):
+        return nachricht
+    if len(CODEZAUN.findall(vorher)) % 2:
+        return nachricht
+    return vorher.rstrip()
 
 
 def letzter_absatz(text):
@@ -1160,6 +1165,22 @@ def selbstprobe():
          "- Soll ich diese Sitzung archivieren?", True),
         ("Vorher muss ich den Volllauf fahren. Soll ich diese Sitzung archivieren?", True),
         ("Die Messung ist fertig.\n\n**Soll ich diese Sitzung archivieren?**", False),
+        # Nachtrag 3 und 4, Gegenproben aus Codex Lauf 2 und 3: Nur Klartext oder ** ist
+        # die reine Frage. Verschachtelte Hervorhebung, dass-Nebensatz, eingerückter
+        # Codeblock, Blockzitat, Stern-Listenpunkt, Trennlinie darunter und offener
+        # Codezaun gehen den alten Weg.
+        ("Die Prüfung ist fertig.\n\n***Soll ich diese Sitzung archivieren?***", True),
+        ("Die Auswertung ist fertig.\n\n__*Soll ich diese Sitzung archivieren?*__", True),
+        ("Die Messung muss ich noch abschließen. Danach:\n\n* Soll ich diese Sitzung "
+         "archivieren?", True),
+        ("Die Messung muss ich noch abschließen. Danach:\n\nSoll ich diese Sitzung "
+         "archivieren?\n***", True),
+        ("Beispiel:\n\n```\nDie Messung muss ich noch abschließen.\n\nSoll ich diese "
+         "Sitzung archivieren?", True),
+        ("Die Analyse ist fertig.\n\nMöchtest du, dass ich diese Sitzung archiviere?", True),
+        ("Die Messung muss ich noch abschließen. Der erwartete Text lautet:\n\n"
+         "    Soll ich diese Sitzung archivieren?", True),
+        ("Die Sichtung ist fertig.\n\n> Soll ich diese Sitzung archivieren?", True),
         ("", False),
     ]
     fehler = []
