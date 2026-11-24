@@ -243,21 +243,33 @@ def meldung_absolut_standard(tokens, schwelle):
 STANDARD_REAKTION = {
     50: "Leise Schwelle: den Stand dem User sichtbar nennen (absolute Token-Zahl, Prozent, "
         "Schwelle). Noch keine Übergabe; den laufenden Mikro-Auftrag so schneiden, dass er vor "
-        "60 % committet ist. Ab 60 % übergibt die Sitzung automatisch.",
-    60: "Übergabe-Schwelle: jetzt ohne Rückfrage die vollständige Sessionübergabe nach der "
-        "Konvention dieses Repos durchführen (globale CLAUDE.md, Abschnitt „Automatische "
-        "Sessionübergabe ab 60 % Kontext“). Den laufenden Mikro-Schritt beenden oder als "
-        "Zwischenstand committen; laufende Hintergrundläufe und Absprachen mit anderen Sitzungen "
-        "gehören in den Handover; die Folgesitzung starten, sofern der Kickoff offene oder rote "
-        "Punkte führt. Danach hält sich diese Sitzung aus dem Strang heraus: keine Fragen, keine "
-        "Entscheidungen mehr vorlegen; die Schlussmeldung nennt nur, dass übergeben ist, wo "
-        "Kickoff und Handover liegen und welche Folgesitzung läuft.",
-    70: "Deutliche Schwelle: die Übergabe ab 60 % ist überfällig. Ist sie noch nicht geschehen, "
-        "jetzt ohne Rückfrage übergeben und keinen neuen Arbeitsblock beginnen. Ist sie "
-        "geschehen, im Strang nichts mehr tun.",
-    85: "Kritische Schwelle: keine neuen Nachlade-Reads. Ist die Übergabe noch nicht geschehen, "
-        "sofort ohne Rückfrage übergeben, bevor Auto-Compact die scharfen Details verdichtet. "
-        "Ist sie geschehen, im Strang nichts mehr tun.",
+        "60 % committet ist. Ab 60 % verdichtet die Sitzung, wenn ihr Strang weiterläuft, "
+        "sonst übergibt sie automatisch.",
+    60: "60-%-Schwelle, ohne Rückfrage handeln (globale CLAUDE.md, Abschnitt „Automatische "
+        "Sessionübergabe ab 60 % Kontext“, ADR-2026-11-15-070648). VERDICHTEN, wenn der Strang "
+        "in dieser Sitzung weiterläuft (offene grüne oder gelbe Punkte, kein Strangwechsel, kein "
+        "Sessionende) und das Werkzeug mcp__kontext-wache__verdichten verfügbar ist: erst den "
+        "vollständigen Checkpoint („alles gut“, Schritte 0 bis 5: Wissen wegschreiben, lebender "
+        "Stand, Journal, Commit und Push), dann das Werkzeug mit Strang, Stand-Dateien und "
+        "nächstem Schritt aufrufen und den Turn sofort beenden, ohne im Schlusssatz einen "
+        "nächsten Schritt anzukündigen; lehnt es ab, den genannten Grund beheben und erneut "
+        "aufrufen. SONST die vollständige Sessionübergabe nach der Konvention dieses Repos: "
+        "den laufenden Mikro-Schritt beenden oder als Zwischenstand committen; laufende "
+        "Hintergrundläufe und Absprachen mit anderen Sitzungen gehören in den Handover; die "
+        "Folgesitzung starten, sofern der Kickoff offene oder rote Punkte führt. Danach hält sich "
+        "diese Sitzung aus dem Strang heraus: keine Fragen, keine Entscheidungen mehr vorlegen; "
+        "die Schlussmeldung nennt nur, dass übergeben ist, wo Kickoff und Handover liegen und "
+        "welche Folgesitzung läuft.",
+    70: "Deutliche Schwelle: Verdichtung oder Übergabe ab 60 % ist überfällig. Ist keins von "
+        "beiden geschehen, jetzt ohne Rückfrage nachholen, nach derselben Regel wie bei 60 % "
+        "(verdichten, wenn der Strang weiterläuft und mcp__kontext-wache__verdichten verfügbar "
+        "ist, sonst vollständige Sessionübergabe), und keinen neuen Arbeitsblock beginnen. Ist "
+        "übergeben, im Strang nichts mehr tun.",
+    85: "Kritische Schwelle: keine neuen Nachlade-Reads. Ist weder verdichtet noch übergeben, "
+        "sofort ohne Rückfrage nachholen, nach derselben Regel wie bei 60 % (verdichten über "
+        "mcp__kontext-wache__verdichten, wenn der Strang weiterläuft und das Werkzeug verfügbar "
+        "ist, sonst vollständige Sessionübergabe), bevor Auto-Compact die scharfen Details "
+        "verdichtet. Ist übergeben, im Strang nichts mehr tun.",
 }
 
 
@@ -287,21 +299,33 @@ def meldung_standard(pct, tokens, window, reached, herkunft):
 REAKTION = {
     50: "Leise Schwelle: den Stand dem User sichtbar nennen (absolute Token-Zahl, Prozent, "
         "Schwelle). Noch keine Übergabe; den laufenden Mikro-Auftrag so schneiden, dass er vor "
-        "60 % committet ist. Ab 60 % übergibt die Sitzung automatisch.",
-    60: "Übergabe-Schwelle: jetzt ohne Rückfrage die vollständige Sessionübergabe nach der "
-        "Konvention dieses Repos durchführen (globale CLAUDE.md, Abschnitt „Automatische "
-        "Sessionübergabe ab 60 % Kontext“). Den laufenden Mikro-Schritt beenden oder als "
-        "Zwischenstand committen; laufende Hintergrundläufe und Absprachen mit anderen Sitzungen "
-        "gehören in den Handover; die Folgesitzung starten, sofern der Kickoff offene oder rote "
-        "Punkte führt. Danach hält sich diese Sitzung aus dem Strang heraus: keine Fragen, keine "
-        "Entscheidungen mehr vorlegen; die Schlussmeldung nennt nur, dass übergeben ist, wo "
-        "Kickoff und Handover liegen und welche Folgesitzung läuft.",
-    70: "Deutliche Schwelle: die Übergabe ab 60 % ist überfällig. Ist sie noch nicht geschehen, "
-        "jetzt ohne Rückfrage übergeben und keinen neuen Arbeitsblock beginnen. Ist sie "
-        "geschehen, im Strang nichts mehr tun.",
-    85: "Kritische Schwelle: keine neuen Nachlade-Reads. Ist die Übergabe noch nicht geschehen, "
-        "sofort ohne Rückfrage übergeben, bevor Auto-Compact die scharfen Details verdichtet. "
-        "Ist sie geschehen, im Strang nichts mehr tun.",
+        "60 % committet ist. Ab 60 % verdichtet die Sitzung, wenn ihr Strang weiterläuft, "
+        "sonst übergibt sie automatisch.",
+    60: "60-%-Schwelle, ohne Rückfrage handeln (globale CLAUDE.md, Abschnitt „Automatische "
+        "Sessionübergabe ab 60 % Kontext“, ADR-2026-11-15-070648). VERDICHTEN, wenn der Strang "
+        "in dieser Sitzung weiterläuft (offene grüne oder gelbe Punkte, kein Strangwechsel, kein "
+        "Sessionende) und das Werkzeug mcp__kontext-wache__verdichten verfügbar ist: erst den "
+        "vollständigen Checkpoint („alles gut“, Schritte 0 bis 5: Wissen wegschreiben, lebender "
+        "Stand, Journal, Commit und Push), dann das Werkzeug mit Strang, Stand-Dateien und "
+        "nächstem Schritt aufrufen und den Turn sofort beenden, ohne im Schlusssatz einen "
+        "nächsten Schritt anzukündigen; lehnt es ab, den genannten Grund beheben und erneut "
+        "aufrufen. SONST die vollständige Sessionübergabe nach der Konvention dieses Repos: "
+        "den laufenden Mikro-Schritt beenden oder als Zwischenstand committen; laufende "
+        "Hintergrundläufe und Absprachen mit anderen Sitzungen gehören in den Handover; die "
+        "Folgesitzung starten, sofern der Kickoff offene oder rote Punkte führt. Danach hält sich "
+        "diese Sitzung aus dem Strang heraus: keine Fragen, keine Entscheidungen mehr vorlegen; "
+        "die Schlussmeldung nennt nur, dass übergeben ist, wo Kickoff und Handover liegen und "
+        "welche Folgesitzung läuft.",
+    70: "Deutliche Schwelle: Verdichtung oder Übergabe ab 60 % ist überfällig. Ist keins von "
+        "beiden geschehen, jetzt ohne Rückfrage nachholen, nach derselben Regel wie bei 60 % "
+        "(verdichten, wenn der Strang weiterläuft und mcp__kontext-wache__verdichten verfügbar "
+        "ist, sonst vollständige Sessionübergabe), und keinen neuen Arbeitsblock beginnen. Ist "
+        "übergeben, im Strang nichts mehr tun.",
+    85: "Kritische Schwelle: keine neuen Nachlade-Reads. Ist weder verdichtet noch übergeben, "
+        "sofort ohne Rückfrage nachholen, nach derselben Regel wie bei 60 % (verdichten über "
+        "mcp__kontext-wache__verdichten, wenn der Strang weiterläuft und das Werkzeug verfügbar "
+        "ist, sonst vollständige Sessionübergabe), bevor Auto-Compact die scharfen Details "
+        "verdichtet. Ist übergeben, im Strang nichts mehr tun.",
 }
 
 UEBERGABE_HINWEIS = (
@@ -373,6 +397,12 @@ def main():
             absolut_gemeldet = bool(st.get('absolutGemeldet', False))
     except Exception:
         last_level = 0
+
+    # Nach einer Verdichtung liegt die Füllung unter der gemeldeten Schwelle. Dann zählt nur,
+    # was die heutige Füllung schon erreicht hat, sonst bliebe der nächste Anstieg auf 60 %
+    # stumm (ADR-2026-11-15-070648).
+    if pct < last_level:
+        last_level = max([s for s in SCHWELLEN if s <= pct] or [0])
 
     teile = []
 
