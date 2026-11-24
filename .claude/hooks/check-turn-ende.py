@@ -251,7 +251,17 @@ _WORTLAUT = r"Soll ich (?:diese|die) (?:Sitzung|Session) (?:jetzt )?archivieren\
 # Zwei ausgeschriebene Formen; ein Rückverweis auf eine optionale Gruppe trifft in Python
 # nie, wenn die Gruppe leer bleibt.
 ARCHIVFRAGE = re.compile(rf"(?:{_WORTLAUT}|\*\*{_WORTLAUT}\*\*)")
-ZAUN = re.compile(r"[ ]{0,3}(`{3,}|~{3,})(.*)")
+# Zäune werden nur in Spalte 0 verfolgt; ein eingerückter oder in einer Liste stehender
+# Zaun wird übergangen, und das führt in jedem gefundenen Fall zum vorsichtigen Urteil
+# (ein Spalte-0-Zaun danach öffnet, die Frage bleibt im Codeblock). Jede Zeile, die mit
+# „<“ beginnt, macht den Kontext unsicher, weil HTML-Blöcke der Typen 1 bis 5 über
+# Leerzeilen offen bleiben; dann greift die Ausnahme nicht (Codex-Rückfrage, Nachtrag 6).
+ZAUN = re.compile(r"(`{3,}|~{3,})(.*)")
+HTMLSTART = re.compile(r"[ ]{0,3}<")
+
+
+def kontext_unsicher(text):
+    return any(HTMLSTART.match(zeile) for zeile in text.split("\n"))
 
 
 def zaun_offen(text):
@@ -282,7 +292,7 @@ def vor_archivierungsabsatz(nachricht):
     vorher, letzter = text[:trenner[-1].start()], text[trenner[-1].end():]
     if not ARCHIVFRAGE.fullmatch(letzter):
         return nachricht
-    if zaun_offen(vorher):
+    if kontext_unsicher(vorher) or zaun_offen(vorher):
         return nachricht
     return vorher.rstrip()
 
@@ -1204,6 +1214,20 @@ def selbstprobe():
          "archivieren?", True),
         ("```\n~~~\nDie Messung muss ich noch abschließen.\n\nSoll ich diese Sitzung "
          "archivieren?", True),
+        # Nachtrag 6: die Schließregeln des Zauns (Inspektor Runde 3) und unsicherer
+        # Kontext (Codex-Rückfrage): HTML-Block und Zaun in einer Liste.
+        ("````\n```\nDie Messung muss ich noch abschließen.\n\nSoll ich diese Sitzung "
+         "archivieren?", True),
+        ("```\n```python\nDie Messung muss ich noch abschließen.\n\nSoll ich diese Sitzung "
+         "archivieren?", True),
+        ("````\nDie Messung muss ich noch abschließen.\n\nSoll ich diese Sitzung "
+         "archivieren?", True),
+        ("```\n    ```\nDie Messung muss ich noch abschließen.\n\nSoll ich diese Sitzung "
+         "archivieren?", True),
+        ("Die Messung muss ich noch abschließen.\n<pre>\n\nSoll ich diese Sitzung "
+         "archivieren?", True),
+        ("- Punkt\n  ~~~\n\nDie Messung muss ich noch abschließen.\n~~~\n\nSoll ich diese "
+         "Sitzung archivieren?", True),
         ("Die Analyse ist fertig.\n\nMöchtest du, dass ich diese Sitzung archiviere?", True),
         ("Die Messung muss ich noch abschließen. Der erwartete Text lautet:\n\n"
          "    Soll ich diese Sitzung archivieren?", True),
