@@ -251,7 +251,25 @@ _WORTLAUT = r"Soll ich (?:diese|die) (?:Sitzung|Session) (?:jetzt )?archivieren\
 # Zwei ausgeschriebene Formen; ein Rückverweis auf eine optionale Gruppe trifft in Python
 # nie, wenn die Gruppe leer bleibt.
 ARCHIVFRAGE = re.compile(rf"(?:{_WORTLAUT}|\*\*{_WORTLAUT}\*\*)")
-CODEZAUN = re.compile(r"^[ \t]{0,3}(```|~~~)", re.MULTILINE)
+ZAUN = re.compile(r"[ ]{0,3}(`{3,}|~{3,})(.*)")
+
+
+def zaun_offen(text):
+    """Ist am Ende von `text` ein Codeblock offen? Nach CommonMark schließt nur ein Zaun
+    aus demselben Zeichen und mindestens derselben Länge, ohne weiteren Text dahinter;
+    bloßes Zählen der Zaunzeilen verwechselt ``` und ~~~ (Inspektor Runde 2)."""
+    offen = None
+    for zeile in text.split("\n"):
+        m = ZAUN.match(zeile)
+        if not m:
+            continue
+        zeichen, rest = m.group(1), m.group(2)
+        if offen is None:
+            if not (zeichen[0] == "`" and "`" in rest):
+                offen = zeichen
+        elif zeichen[0] == offen[0] and len(zeichen) >= len(offen) and not rest.strip():
+            offen = None
+    return offen is not None
 
 
 def vor_archivierungsabsatz(nachricht):
@@ -264,7 +282,7 @@ def vor_archivierungsabsatz(nachricht):
     vorher, letzter = text[:trenner[-1].start()], text[trenner[-1].end():]
     if not ARCHIVFRAGE.fullmatch(letzter):
         return nachricht
-    if len(CODEZAUN.findall(vorher)) % 2:
+    if zaun_offen(vorher):
         return nachricht
     return vorher.rstrip()
 
@@ -1177,6 +1195,15 @@ def selbstprobe():
          "archivieren?\n***", True),
         ("Beispiel:\n\n```\nDie Messung muss ich noch abschließen.\n\nSoll ich diese "
          "Sitzung archivieren?", True),
+        # Nachtrag 5 (Inspektor Runde 2): ein geschlossener Codeblock davor hebt die
+        # Ausnahme nicht auf; ein offener ~~~-Zaun und ein offener ```-Block mit ~~~ darin
+        # sind offen.
+        ("Der Befehl:\n\n```\npython x.py\n```\n\nDer Volllauf würde die Lücke "
+         "schließen.\n\nSoll ich diese Sitzung archivieren?", False),
+        ("~~~\nDie Messung muss ich noch abschließen.\n\nSoll ich diese Sitzung "
+         "archivieren?", True),
+        ("```\n~~~\nDie Messung muss ich noch abschließen.\n\nSoll ich diese Sitzung "
+         "archivieren?", True),
         ("Die Analyse ist fertig.\n\nMöchtest du, dass ich diese Sitzung archiviere?", True),
         ("Die Messung muss ich noch abschließen. Der erwartete Text lautet:\n\n"
          "    Soll ich diese Sitzung archivieren?", True),
