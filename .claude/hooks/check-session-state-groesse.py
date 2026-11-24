@@ -378,7 +378,8 @@ def klassifiziere(basename):
     n = basename.lower()
     if n in STAND_NAMES:
         return ('Stand-Datei', STAND_LINES, STAND_BYTES, WOHIN_STAND)
-    if n == 'cockpit.md':
+    # cockpit-ruhend.md ist der Ruheort des Cockpits (ADR-2026-11-23-174216), gleiche Byte-Schwelle.
+    if n in ('cockpit.md', 'cockpit-ruhend.md'):
         return ('Cockpit', COCKPIT_LINES, COCKPIT_BYTES, WOHIN_COCKPIT)
     if n == 'journal.md':
         return ('Journal', JOURNAL_LINES, JOURNAL_BYTES, WOHIN_JOURNAL)
