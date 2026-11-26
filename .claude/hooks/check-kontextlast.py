@@ -31,6 +31,12 @@ erzwingt eine eigene Schwelle. Sie meldet einmal je Anstieg und wird wieder scha
 die Füllung darunter fällt (also nach einem Komprimieren). ADR-2026-10-29-094355 und
 ADR-2026-10-29-142428 im Repo claudecode.
 
+Vor jeder Zahl prüft der Hook, ob das Transcript lebt, und meldet sonst einmal je Ursache
+„nicht messbar“ ohne Zahl: interaktive Kindsitzung mit geerbtem CLAUDE_CODE_CHILD_SESSION ohne
+CLAUDE_CODE_FORCE_SESSION_PERSISTENCE (schreibt kein Transcript), fehlendes Transcript, oder ein
+Transcript, das seit dem Vorlauf nicht gewachsen ist und dessen usage-Eintrag und Datei älter
+als ALTER_SCHWELLE_S sind (ADR-2026-11-26-075544 im Repo claudecode).
+
 GENERIERT aus ~/.claude/hook-templates/python/check-kontextlast.py durch
 Sync-UmlautTriggers.ps1. Änderungen am Rahmen gehören ins Template, nicht hierher.
 AUSGENOMMEN ist die mit KONTEXTLAST-TEXTE markierte Region weiter unten: die ist
@@ -107,19 +113,25 @@ def _zeilen(transcript_path, nur_ende):
 
 def kontext_tokens(transcript_path):
     """Jüngster usage-Eintrag: (Summe der Eingabe-Token, Modell) = aktuelle Kontextfüllung."""
+    tokens, modell, _zeit = kontext_stand(transcript_path)
+    return tokens, modell
+
+
+def kontext_stand(transcript_path):
+    """Jüngster usage-Eintrag: (Token, Modell, Zeitstempel)."""
     if not transcript_path or not os.path.isfile(transcript_path):
-        return None, None
+        return None, None, None
     for nur_ende in (True, False):
         try:
             lines = _zeilen(transcript_path, nur_ende)
         except Exception:
-            return None, None
+            return None, None, None
         ergebnis = _juengster_usage(lines)
         if ergebnis[0]:
             return ergebnis
         if nur_ende and os.path.getsize(transcript_path) <= LESE_ENDE_BYTES:
             break
-    return None, None
+    return None, None, None
 
 
 def _juengster_usage(lines):
@@ -148,8 +160,8 @@ def _juengster_usage(lines):
                 total += int(val)
         if total > 0:
             nachricht = obj.get('message') if isinstance(obj.get('message'), dict) else {}
-            return total, (nachricht.get('model') or obj.get('model'))
-    return None, None
+            return total, (nachricht.get('model') or obj.get('model')), obj.get('timestamp')
+    return None, None, None
 
 
 def fenster_ableiten(modell):
@@ -174,6 +186,269 @@ def fenster_ableiten(modell):
 
 def _ist_gesetzt(wert):
     return str(wert).strip().lower() not in ('', '0', 'false', 'no', 'off')
+
+
+# --- Nicht messbar (ADR-2026-11-26-075544 im Repo claudecode) ---------------------------------
+# Drei Fälle ergeben „nicht messbar“ statt einer Zahl: eine interaktive Kindsitzung, die kein
+# Transcript schreibt; ein fehlendes Transcript; ein Transcript, das nicht mehr wächst. Die
+# Logik liegt nur hier; werkzeuge/kontextlast/messen.py lädt sie aus diesem Template.
+#
+# Schwelle für „Transcript steht“: usage-Eintrag UND Datei älter als 900 s. Gemessen am
+# 26.11.2026 auf MAIN-PC: 499 echte Selbstmessungen höchstens 47 s alt; Dauer eines
+# Modellschritts p99,9 160,9 s (133.746 Schritte). Die Datei zählt mit, weil eine interaktive
+# CLI ohne Eager-Flush den laufenden Schritt erst nach dem PostToolUse-Hook schreibt; dann ist
+# der usage-Eintrag nach jeder Pause alt, die Datei aber frisch.
+ALTER_SCHWELLE_S = 900
+ABHILFE_NICHT_MESSBAR = (
+    "Abhilfe: die Sitzung neu starten mit CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1 beim Start, "
+    "etwa PowerShell `$env:CLAUDE_CODE_FORCE_SESSION_PERSISTENCE='1'; wt -w 0 nt -d <repo> claude ...` "
+    "oder Bash `CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1 claude ...`. Eine laufende Sitzung lässt "
+    "sich nicht umstellen; ein späteres --resume setzt beim letzten geschriebenen Eintrag auf."
+)
+_UNBESTIMMT = object()
+_CLI_NAMEN = ('claude', 'claude.exe')
+
+
+def _vorfahren_windows():
+    """Liste (Name, Kommandozeile) der Vorfahren dieses Prozesses, nächster zuerst."""
+    import ctypes
+    from ctypes import wintypes
+
+    class _Eintrag(ctypes.Structure):
+        _fields_ = [('dwSize', wintypes.DWORD), ('cntUsage', wintypes.DWORD),
+                    ('th32ProcessID', wintypes.DWORD), ('th32DefaultHeapID', ctypes.c_void_p),
+                    ('th32ModuleID', wintypes.DWORD), ('cntThreads', wintypes.DWORD),
+                    ('th32ParentProcessID', wintypes.DWORD), ('pcPriClassBase', ctypes.c_long),
+                    ('dwFlags', wintypes.DWORD), ('szExeFile', ctypes.c_wchar * 260)]
+
+    class _UString(ctypes.Structure):
+        _fields_ = [('Length', wintypes.USHORT), ('MaximumLength', wintypes.USHORT),
+                    ('Buffer', ctypes.c_void_p)]
+
+    k32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    ntdll = ctypes.WinDLL('ntdll')
+    k32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    k32.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+    k32.Process32FirstW.argtypes = [wintypes.HANDLE, ctypes.c_void_p]
+    k32.Process32NextW.argtypes = [wintypes.HANDLE, ctypes.c_void_p]
+    k32.OpenProcess.restype = wintypes.HANDLE
+    k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    k32.CloseHandle.argtypes = [wintypes.HANDLE]
+    ntdll.NtQueryInformationProcess.restype = ctypes.c_long
+    ntdll.NtQueryInformationProcess.argtypes = [wintypes.HANDLE, wintypes.ULONG, ctypes.c_void_p,
+                                                wintypes.ULONG, ctypes.POINTER(wintypes.ULONG)]
+
+    eltern, namen = {}, {}
+    snap = k32.CreateToolhelp32Snapshot(0x2, 0)
+    if not snap or snap == wintypes.HANDLE(-1).value:
+        return []
+    try:
+        eintrag = _Eintrag()
+        eintrag.dwSize = ctypes.sizeof(_Eintrag)
+        ok = k32.Process32FirstW(snap, ctypes.byref(eintrag))
+        while ok:
+            eltern[eintrag.th32ProcessID] = eintrag.th32ParentProcessID
+            namen[eintrag.th32ProcessID] = eintrag.szExeFile
+            ok = k32.Process32NextW(snap, ctypes.byref(eintrag))
+    finally:
+        k32.CloseHandle(snap)
+
+    shell32 = ctypes.WinDLL('shell32')
+    shell32.CommandLineToArgvW.restype = ctypes.POINTER(wintypes.LPWSTR)
+    shell32.CommandLineToArgvW.argtypes = [wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_int)]
+    k32.LocalFree.argtypes = [ctypes.c_void_p]
+
+    def argumente(zeile):
+        """Argumentliste nach den Windows-Regeln (CommandLineToArgvW), wie der Prozess sie sah."""
+        if not zeile:
+            return []
+        anzahl = ctypes.c_int(0)
+        feld = shell32.CommandLineToArgvW(zeile, ctypes.byref(anzahl))
+        if not feld:
+            return None
+        try:
+            return [feld[i] for i in range(anzahl.value)]
+        finally:
+            k32.LocalFree(feld)
+
+    def kommandozeile(pid):
+        h = k32.OpenProcess(0x1000, False, pid)   # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return None
+        try:
+            laenge = wintypes.ULONG(0)
+            ntdll.NtQueryInformationProcess(h, 60, None, 0, ctypes.byref(laenge))
+            puffer = ctypes.create_string_buffer(max(laenge.value, 64))
+            if ntdll.NtQueryInformationProcess(h, 60, puffer, len(puffer), ctypes.byref(laenge)) != 0:
+                return None
+            us = _UString.from_buffer(puffer)
+            return ctypes.wstring_at(us.Buffer, us.Length // 2) if us.Buffer else ''
+        finally:
+            k32.CloseHandle(h)
+
+    kette, pid, gesehen = [], eltern.get(os.getpid()), set()
+    while pid and pid not in gesehen and len(kette) < 16 and pid in namen:
+        gesehen.add(pid)
+        kette.append((namen[pid], argumente(kommandozeile(pid))))
+        pid = eltern.get(pid)
+    return kette
+
+
+def _vorfahren_posix():
+    import subprocess
+    kette, pid, gesehen = [], os.getppid(), set()
+    while pid and pid > 1 and pid not in gesehen and len(kette) < 16:
+        gesehen.add(pid)
+        try:
+            with open('/proc/%d/cmdline' % pid, 'rb') as fh:
+                argv = [a.decode('utf-8', 'replace') for a in fh.read().split(b'\0')]
+            while argv and argv[-1] == '':
+                argv.pop()
+            with open('/proc/%d/stat' % pid) as fh:
+                eltern = int(fh.read().rsplit(')', 1)[1].split()[1])
+        except Exception:
+            # macOS ohne /proc: ps liefert nur den zusammengefügten Text. Grenze: ein Prompt, der
+            # durch Leerzeichen getrennt genau „-p“ oder „--output-format stream-json“ enthält,
+            # gilt dort als nicht interaktiv; die Prüfung schlägt dann nicht an (nie fälschlich).
+            try:
+                aus = subprocess.run(['ps', '-ww', '-o', 'ppid=', '-o', 'args=', '-p', str(pid)],
+                                     capture_output=True, text=True, timeout=3).stdout.strip()
+                eltern_text, _, zeile = aus.partition(' ')
+                eltern = int(eltern_text)
+                argv = zeile.strip().split()
+            except Exception:
+                break
+        erstes = argv[0] if argv else ''
+        kette.append((os.path.basename(erstes), argv))
+        pid = eltern
+    return kette
+
+
+def claude_kommandozeile():
+    """Argumentliste des nächsten claude-Vorfahren (CLI oder node mit @anthropic-ai), sonst None."""
+    try:
+        kette = _vorfahren_windows() if os.name == 'nt' else _vorfahren_posix()
+    except Exception:
+        return None
+    for name, argv in kette:
+        name = (name or '').lower()
+        if argv is None:
+            continue
+        if name in _CLI_NAMEN:
+            return argv
+        if name in ('node', 'node.exe') and any('@anthropic-ai' in a for a in argv):
+            return argv
+    return None
+
+
+def sitzungsart(argv):
+    """'print' (claude -p), 'host' (Desktop/SDK über stream-json), 'interaktiv' oder None.
+
+    Gemessen am 26.11.2026: Die Umgebung (auch CLAUDE_CODE_ENTRYPOINT) wird geerbt und trennt
+    die drei nicht; die Argumente des claude-Prozesses tun es. Verglichen wird je ganzem Argument,
+    damit ein Startprompt, der diese Wörter enthält, nichts auslöst."""
+    if not argv:
+        return None
+    if isinstance(argv, str):
+        argv = argv.split()
+    teile = list(argv[1:])
+    if '-p' in teile or '--print' in teile or any(t.startswith('--print=') for t in teile):
+        return 'print'
+    for i, t in enumerate(teile):
+        if t in ('--input-format=stream-json', '--output-format=stream-json'):
+            return 'host'
+        if t in ('--input-format', '--output-format') and i + 1 < len(teile) and teile[i + 1] == 'stream-json':
+            return 'host'
+    return 'interaktiv'
+
+
+def marker_ohne_persistenz(umgebung=None):
+    """CLAUDE_CODE_CHILD_SESSION gesetzt und CLAUDE_CODE_FORCE_SESSION_PERSISTENCE nicht."""
+    env = os.environ if umgebung is None else umgebung
+    return (_ist_gesetzt(env.get('CLAUDE_CODE_CHILD_SESSION', ''))
+            and not _ist_gesetzt(env.get('CLAUDE_CODE_FORCE_SESSION_PERSISTENCE', '')))
+
+
+def _alter(zeitstempel, jetzt):
+    if not zeitstempel:
+        return None
+    try:
+        from datetime import datetime
+        return jetzt - datetime.fromisoformat(str(zeitstempel).replace('Z', '+00:00')).timestamp()
+    except Exception:
+        return None
+
+
+def nicht_messbar_grund(transcript_path, ereignis=None, dauer_s=0.0, vorher_groesse=None,
+                        vorher_laeufe=None, eigen=True, umgebung=None,
+                        kommandozeile=_UNBESTIMMT, art=_UNBESTIMMT, jetzt=None):
+    """(Grund, Einzelheiten). Grund ist None, 'kindsitzung', 'transcript_fehlt' oder 'transcript_steht'.
+
+    vorher_laeufe None heißt Aufruf ohne Hook-Verlauf (messen.py); dann zählt die Existenz immer
+    und „steht“ ohne Wachstumsvergleich. Im Hook (vorher_laeufe gesetzt) zählt ein Fehlen erst an
+    PostToolUse oder ab dem zweiten Lauf, „steht“ nur bei unveränderter Größe seit dem Vorlauf."""
+    import time
+    jetzt = time.time() if jetzt is None else jetzt
+    env = os.environ if umgebung is None else umgebung
+    details = {'marker_ohne_persistenz': marker_ohne_persistenz(env), 'eigen': eigen}
+    if eigen and details['marker_ohne_persistenz']:
+        if art is _UNBESTIMMT:
+            art = sitzungsart(claude_kommandozeile() if kommandozeile is _UNBESTIMMT else kommandozeile)
+        details['sitzungsart'] = art
+        if details['sitzungsart'] == 'interaktiv':
+            return 'kindsitzung', details
+    hook = vorher_laeufe is not None
+    if not transcript_path or not os.path.isfile(transcript_path):
+        details['transcript'] = transcript_path
+        if not hook or ereignis == 'PostToolUse' or vorher_laeufe > 0:
+            return 'transcript_fehlt', details
+        return None, details
+    try:
+        groesse = os.path.getsize(transcript_path)
+        datei_alter = jetzt - os.path.getmtime(transcript_path)
+    except Exception:
+        return None, details
+    details.update(groesse=groesse, datei_alter=datei_alter)
+    if not eigen:
+        return None, details
+    tokens, modell, zeit = kontext_stand(transcript_path)
+    usage_alter = _alter(zeit, jetzt)
+    details.update(usage_alter=usage_alter, tokens=tokens, modell=modell)
+    if usage_alter is None:
+        return None, details
+    if hook and (vorher_groesse is None or groesse != vorher_groesse):
+        return None, details
+    if usage_alter > ALTER_SCHWELLE_S and datei_alter - (dauer_s or 0.0) > ALTER_SCHWELLE_S:
+        return 'transcript_steht', details
+    return None, details
+
+
+def meldung_nicht_messbar_standard(grund, details):
+    """Meldung ohne Zahl. Ein Repo kann sie mit meldung_nicht_messbar(grund, details) ersetzen."""
+    if grund == 'kindsitzung':
+        ursache = ("Diese interaktive Claude-Code-Sitzung hat CLAUDE_CODE_CHILD_SESSION geerbt "
+                   "(sie wurde aus einer anderen Claude-Sitzung heraus gestartet), und "
+                   "CLAUDE_CODE_FORCE_SESSION_PERSISTENCE ist nicht gesetzt. Claude Code schreibt "
+                   "dann kein Transcript; jede Zahl daraus fehlt oder ist alt.")
+    elif grund == 'transcript_fehlt':
+        ursache = "Die Transcript-Datei %s existiert nicht." % (details.get('transcript') or '(kein Pfad)')
+    else:
+        ursache = ("Das Transcript wächst nicht mehr: jüngster usage-Eintrag vor %d s, Datei "
+                   "zuletzt geschrieben vor %d s (Schwelle %d s)."
+                   % (round(details.get('usage_alter') or 0), round(details.get('datei_alter') or 0),
+                      ALTER_SCHWELLE_S))
+    if (grund != 'kindsitzung' and details.get('marker_ohne_persistenz') and details.get('eigen', True)
+            and details.get('sitzungsart') not in ('host', 'print')):
+        ursache += (" CLAUDE_CODE_CHILD_SESSION ist gesetzt, CLAUDE_CODE_FORCE_SESSION_PERSISTENCE "
+                    "nicht; das ist die wahrscheinliche Ursache.")
+    return (
+        "KONTEXTFÜLLUNG NICHT MESSBAR (Hook check-kontextlast)\n\n"
+        "Ursache: %s\n\n%s\n\n"
+        "Folge: keine Zahl zur Kontextfüllung nennen, auch keine geschätzte. Die 60-%%-Regel "
+        "(Verdichten oder Übergabe) kann ohne Messwert nicht auslösen; den Stand dem User als "
+        "nicht messbar melden, er entscheidet über die Übergabe. Hintergrund: Repo claudecode, "
+        "system-notizen/kontextfuellung-selbst-messen.md." % (ursache, ABHILFE_NICHT_MESSBAR)
+    )
 
 
 def leerlauf_schwelle(projekt):
@@ -373,30 +648,82 @@ def main():
     if data.get('agent_id') or 'subagents' in teile_pfad:
         return 0
 
-    tokens, modell = kontext_tokens(transcript_path)
+    # höchste bereits gemeldete Schwelle aus dem State-File
+    # Ohne nutzbares Temp-Verzeichnis läuft der Hook ohne State weiter: eine sicher erkennbare
+    # Ursache (Kindsitzung, fehlendes Transcript an PostToolUse) wird trotzdem gemeldet.
+    try:
+        state_dir = os.path.join(tempfile.gettempdir(), 'claude-kontextlast')
+        os.makedirs(state_dir, exist_ok=True)
+        state_file = os.path.join(state_dir, 'session-' + str(session_id) + '.json')
+    except Exception:
+        state_file = None
+    st = {}
+    try:
+        with open(state_file, encoding='utf-8') as fh:
+            st = json.load(fh)
+        if not isinstance(st, dict):
+            st = {}
+    except Exception:
+        st = {}
+    try:
+        # lastSchwelle: Altbestand aus Innoform, damit ein laufender State nicht neu feuert.
+        last_level = int(st.get('lastLevel', st.get('lastSchwelle', 0)) or 0)
+    except Exception:
+        last_level = 0
+    absolut_gemeldet = bool(st.get('absolutGemeldet', False))
+
+    def state_schreiben():
+        if not state_file:
+            return
+        try:
+            with open(state_file, 'w', encoding='utf-8') as fh:
+                json.dump(st, fh)
+        except Exception:
+            pass
+
+    # Nicht messbar (ADR-2026-11-26-075544): vor jeder Zahl prüfen, ob das Transcript lebt.
+    try:
+        dauer_s = float(data.get('duration_ms') or 0) / 1000.0
+    except Exception:
+        dauer_s = 0.0
+    # Die Sitzungsart wird bei jedem Lauf neu bestimmt (rund 40 ms, nur mit Marker ohne FORCE):
+    # nach --resume läuft dieselbe Sitzungs-ID in einem anderen Prozess.
+    art = sitzungsart(claude_kommandozeile()) if marker_ohne_persistenz() else _UNBESTIMMT
+    st.pop('sitzungsart', None)
+    try:
+        vorher_laeufe = int(st.get('laeufe', 0) or 0)
+    except Exception:
+        vorher_laeufe = 0
+    grund, details = nicht_messbar_grund(
+        transcript_path, ereignis=ereignis, dauer_s=dauer_s, vorher_groesse=st.get('groesse'),
+        vorher_laeufe=vorher_laeufe, art=art)
+    st['laeufe'] = vorher_laeufe + 1
+    st['groesse'] = details.get('groesse')
+    if grund:
+        if st.get('nichtMessbar') == grund:
+            state_schreiben()
+            return 0
+        st['nichtMessbar'] = grund
+        state_schreiben()
+        try:
+            text = (globals().get('meldung_nicht_messbar') or meldung_nicht_messbar_standard)(grund, details)
+        except Exception:
+            text = meldung_nicht_messbar_standard(grund, details)
+        print(json.dumps({'hookSpecificOutput': {'hookEventName': ereignis,
+                                                 'additionalContext': text}}, ensure_ascii=False))
+        return 0
+    st['nichtMessbar'] = None
+
+    if 'tokens' in details:
+        tokens, modell = details['tokens'], details['modell']
+    else:
+        tokens, modell = kontext_tokens(transcript_path)
     if not tokens:
+        state_schreiben()
         return 0
 
     window, herkunft = fenster_ableiten(modell)
     pct = tokens * 100 // window
-
-    # höchste bereits gemeldete Schwelle aus dem State-File
-    state_dir = os.path.join(tempfile.gettempdir(), 'claude-kontextlast')
-    try:
-        os.makedirs(state_dir, exist_ok=True)
-    except Exception:
-        pass
-    state_file = os.path.join(state_dir, 'session-' + str(session_id) + '.json')
-    last_level = 0
-    absolut_gemeldet = False
-    try:
-        with open(state_file, encoding='utf-8') as fh:
-            st = json.load(fh)
-            # lastSchwelle: Altbestand aus Innoform, damit ein laufender State nicht neu feuert.
-            last_level = int(st.get('lastLevel', st.get('lastSchwelle', 0)) or 0)
-            absolut_gemeldet = bool(st.get('absolutGemeldet', False))
-    except Exception:
-        last_level = 0
 
     # Nach einer Verdichtung liegt die Füllung unter der gemeldeten Schwelle. Dann zählt nur,
     # was die heutige Füllung schon erreicht hat, sonst bliebe der nächste Anstieg auf 60 %
@@ -432,11 +759,10 @@ def main():
         except Exception:
             pass
 
-    try:
-        with open(state_file, 'w', encoding='utf-8') as fh:
-            json.dump({'lastLevel': last_level, 'absolutGemeldet': absolut_gemeldet}, fh)
-    except Exception:
-        pass
+    st['lastLevel'] = last_level
+    st['absolutGemeldet'] = absolut_gemeldet
+    st.pop('lastSchwelle', None)
+    state_schreiben()
 
     if not teile:
         return 0
