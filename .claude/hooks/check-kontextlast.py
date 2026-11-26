@@ -276,10 +276,10 @@ def _vorfahren_windows():
         if not h:
             return None
         try:
-            laenge = wintypes.ULONG(0)
-            ntdll.NtQueryInformationProcess(h, 60, None, 0, ctypes.byref(laenge))
-            puffer = ctypes.create_string_buffer(max(laenge.value, 64))
-            if ntdll.NtQueryInformationProcess(h, 60, puffer, len(puffer), ctypes.byref(laenge)) != 0:
+            length_needed = wintypes.ULONG(0)
+            ntdll.NtQueryInformationProcess(h, 60, None, 0, ctypes.byref(length_needed))
+            puffer = ctypes.create_string_buffer(max(length_needed.value, 64))
+            if ntdll.NtQueryInformationProcess(h, 60, puffer, len(puffer), ctypes.byref(length_needed)) != 0:
                 return None
             us = _UString.from_buffer(puffer)
             return ctypes.wstring_at(us.Buffer, us.Length // 2) if us.Buffer else ''
@@ -379,13 +379,13 @@ def _alter(zeitstempel, jetzt):
         return None
 
 
-def nicht_messbar_grund(transcript_path, ereignis=None, dauer_s=0.0, vorher_groesse=None,
-                        vorher_laeufe=None, eigen=True, umgebung=None,
+def nicht_messbar_grund(transcript_path, ereignis=None, dauer_s=0.0, previous_size=None,
+                        previous_runs=None, eigen=True, umgebung=None,
                         kommandozeile=_UNBESTIMMT, art=_UNBESTIMMT, jetzt=None):
     """(Grund, Einzelheiten). Grund ist None, 'kindsitzung', 'transcript_fehlt' oder 'transcript_steht'.
 
-    vorher_laeufe None heißt Aufruf ohne Hook-Verlauf (messen.py); dann zählt die Existenz immer
-    und „steht“ ohne Wachstumsvergleich. Im Hook (vorher_laeufe gesetzt) zählt ein Fehlen erst an
+    previous_runs None heißt Aufruf ohne Hook-Verlauf (messen.py); dann zählt die Existenz immer
+    und „steht“ ohne Wachstumsvergleich. Im Hook (previous_runs gesetzt) zählt ein Fehlen erst an
     PostToolUse oder ab dem zweiten Lauf, „steht“ nur bei unveränderter Größe seit dem Vorlauf."""
     import time
     jetzt = time.time() if jetzt is None else jetzt
@@ -397,18 +397,18 @@ def nicht_messbar_grund(transcript_path, ereignis=None, dauer_s=0.0, vorher_groe
         details['sitzungsart'] = art
         if details['sitzungsart'] == 'interaktiv':
             return 'kindsitzung', details
-    hook = vorher_laeufe is not None
+    hook = previous_runs is not None
     if not transcript_path or not os.path.isfile(transcript_path):
         details['transcript'] = transcript_path
-        if not hook or ereignis == 'PostToolUse' or vorher_laeufe > 0:
+        if not hook or ereignis == 'PostToolUse' or previous_runs > 0:
             return 'transcript_fehlt', details
         return None, details
     try:
-        groesse = os.path.getsize(transcript_path)
+        size = os.path.getsize(transcript_path)
         datei_alter = jetzt - os.path.getmtime(transcript_path)
     except Exception:
         return None, details
-    details.update(groesse=groesse, datei_alter=datei_alter)
+    details.update(size=size, datei_alter=datei_alter)
     if not eigen:
         return None, details
     tokens, modell, zeit = kontext_stand(transcript_path)
@@ -416,7 +416,7 @@ def nicht_messbar_grund(transcript_path, ereignis=None, dauer_s=0.0, vorher_groe
     details.update(usage_alter=usage_alter, tokens=tokens, modell=modell)
     if usage_alter is None:
         return None, details
-    if hook and (vorher_groesse is None or groesse != vorher_groesse):
+    if hook and (previous_size is None or size != previous_size):
         return None, details
     if usage_alter > ALTER_SCHWELLE_S and datei_alter - (dauer_s or 0.0) > ALTER_SCHWELLE_S:
         return 'transcript_steht', details
@@ -691,14 +691,14 @@ def main():
     art = sitzungsart(claude_kommandozeile()) if marker_ohne_persistenz() else _UNBESTIMMT
     st.pop('sitzungsart', None)
     try:
-        vorher_laeufe = int(st.get('laeufe', 0) or 0)
+        previous_runs = int(st.get('runs', 0) or 0)
     except Exception:
-        vorher_laeufe = 0
+        previous_runs = 0
     grund, details = nicht_messbar_grund(
-        transcript_path, ereignis=ereignis, dauer_s=dauer_s, vorher_groesse=st.get('groesse'),
-        vorher_laeufe=vorher_laeufe, art=art)
-    st['laeufe'] = vorher_laeufe + 1
-    st['groesse'] = details.get('groesse')
+        transcript_path, ereignis=ereignis, dauer_s=dauer_s, previous_size=st.get('size'),
+        previous_runs=previous_runs, art=art)
+    st['runs'] = previous_runs + 1
+    st['size'] = details.get('size')
     if grund:
         if st.get('nichtMessbar') == grund:
             state_schreiben()
